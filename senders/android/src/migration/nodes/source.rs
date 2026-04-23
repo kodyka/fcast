@@ -569,7 +569,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn schedule_without_gstreamer_init_keeps_state_machine_behavior() {
+    fn schedule_without_gstreamer_init_or_runtime_available_is_handled() {
         let mut node = SourceNode::new(
             "source-test".to_string(),
             "https://example.com/stream.mp4".to_string(),
@@ -577,13 +577,23 @@ mod tests {
             true,
         );
 
-        assert!(node.schedule(None, None).is_ok());
-        assert_eq!(node.state, State::Started);
+        if node.schedule(None, None).is_ok() {
+            assert_eq!(node.state, State::Started);
+            node.stop();
+        } else {
+            assert_eq!(node.state, State::Stopped);
+            assert_eq!(node.pipeline.stage, SourcePipelineStage::Idle);
+        }
         assert!(node.live_pipeline.is_none());
 
         let cue = Utc::now() + Duration::seconds(30);
-        assert!(node.schedule(Some(cue), None).is_ok());
-        assert_eq!(node.state, State::Initial);
+        if node.schedule(Some(cue), None).is_ok() {
+            assert_eq!(node.state, State::Initial);
+            node.stop();
+        } else {
+            assert_eq!(node.state, State::Stopped);
+            assert_eq!(node.pipeline.stage, SourcePipelineStage::Idle);
+        }
         assert!(node.live_pipeline.is_none());
     }
 

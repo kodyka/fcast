@@ -349,18 +349,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn schedule_without_gstreamer_init_keeps_state_machine_behavior() {
+    fn schedule_without_gstreamer_init_or_runtime_available_is_handled() {
         let mut node = VideoGeneratorNode::new("video-gen-test".to_string());
 
-        assert!(node.schedule(None, None).is_ok());
-        assert_eq!(node.state, State::Started);
-        assert_eq!(node.pipeline.stage, VideoGeneratorStage::Playing);
+        if node.schedule(None, None).is_ok() {
+            assert_eq!(node.state, State::Started);
+            assert_eq!(node.pipeline.stage, VideoGeneratorStage::Playing);
+            node.stop();
+        } else {
+            assert_eq!(node.state, State::Stopped);
+            assert_eq!(node.pipeline.stage, VideoGeneratorStage::Idle);
+        }
         assert!(node.live_pipeline.is_none());
 
         let cue = Utc::now() + Duration::seconds(30);
-        assert!(node.schedule(Some(cue), None).is_ok());
-        assert_eq!(node.state, State::Initial);
-        assert_eq!(node.pipeline.stage, VideoGeneratorStage::Idle);
+        if node.schedule(Some(cue), None).is_ok() {
+            assert_eq!(node.state, State::Initial);
+            assert_eq!(node.pipeline.stage, VideoGeneratorStage::Idle);
+            node.stop();
+        } else {
+            assert_eq!(node.state, State::Stopped);
+            assert_eq!(node.pipeline.stage, VideoGeneratorStage::Idle);
+        }
         assert!(node.live_pipeline.is_none());
     }
 

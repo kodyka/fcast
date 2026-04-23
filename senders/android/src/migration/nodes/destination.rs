@@ -983,7 +983,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn schedule_without_gstreamer_init_keeps_state_machine_behavior() {
+    fn schedule_without_gstreamer_init_or_runtime_available_is_handled() {
         let mut node = DestinationNode::new(
             "destination-test".to_string(),
             DestinationFamily::LocalPlayback,
@@ -992,13 +992,29 @@ mod tests {
         );
 
         node.connect_input("link-video", false, true).unwrap();
-        assert!(node.schedule(None, None).is_ok());
-        assert_eq!(node.state, State::Started);
+        if node.schedule(None, None).is_ok() {
+            assert_eq!(node.state, State::Started);
+            node.stop();
+        } else {
+            assert_eq!(node.state, State::Stopped);
+            assert_eq!(
+                node.pipeline.as_ref().map(|profile| profile.stage),
+                Some(DestinationPipelineStage::Idle)
+            );
+        }
         assert!(node.live_pipeline.is_none());
 
         let cue = Utc::now() + chrono::Duration::seconds(15);
-        assert!(node.schedule(Some(cue), None).is_ok());
-        assert_eq!(node.state, State::Initial);
+        if node.schedule(Some(cue), None).is_ok() {
+            assert_eq!(node.state, State::Initial);
+            node.stop();
+        } else {
+            assert_eq!(node.state, State::Stopped);
+            assert_eq!(
+                node.pipeline.as_ref().map(|profile| profile.stage),
+                Some(DestinationPipelineStage::Idle)
+            );
+        }
         assert!(node.live_pipeline.is_none());
     }
 

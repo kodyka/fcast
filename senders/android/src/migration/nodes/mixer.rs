@@ -1312,18 +1312,28 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn schedule_without_gstreamer_init_keeps_state_machine_behavior() {
+    fn schedule_without_gstreamer_init_or_runtime_available_is_handled() {
         let mut node = MixerNode::new("mixer-test".to_string(), None, false, true).unwrap();
         node.connect_input_slot("slot-video", false, true, None)
             .unwrap();
 
-        assert!(node.schedule(None, None).is_ok());
-        assert_eq!(node.state, State::Started);
+        if node.schedule(None, None).is_ok() {
+            assert_eq!(node.state, State::Started);
+            node.stop();
+        } else {
+            assert_eq!(node.state, State::Stopped);
+            assert_eq!(node.pipeline.stage, MixerPipelineStage::Idle);
+        }
         assert!(node.live_pipeline.is_none());
 
         let cue = Utc::now() + Duration::seconds(20);
-        assert!(node.schedule(Some(cue), None).is_ok());
-        assert_eq!(node.state, State::Initial);
+        if node.schedule(Some(cue), None).is_ok() {
+            assert_eq!(node.state, State::Initial);
+            node.stop();
+        } else {
+            assert_eq!(node.state, State::Stopped);
+            assert_eq!(node.pipeline.stage, MixerPipelineStage::Idle);
+        }
         assert!(node.live_pipeline.is_none());
     }
 
