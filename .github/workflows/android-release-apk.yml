@@ -81,8 +81,9 @@ jobs:
         id: prepare_arm64_debug_apk
         run: |
           TAG_NAME="${{ github.event.release.tag_name || github.ref_name }}"
+          SAFE_TAG_NAME="${TAG_NAME//\//-}"
           APK_IN="senders/android/app/build/outputs/apk/debug/app-debug.apk"
-          APK_OUT="senders/android/app/build/outputs/apk/debug/fcast-sender-${TAG_NAME}-arm64-v8a-debug.apk"
+          APK_OUT="senders/android/app/build/outputs/apk/debug/fcast-sender-${SAFE_TAG_NAME}-arm64-v8a-debug.apk"
           cp "$APK_IN" "$APK_OUT"
           echo "apk_path=$APK_OUT" >> "$GITHUB_OUTPUT"
 
