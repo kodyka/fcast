@@ -26,6 +26,12 @@ pub struct LiveDestinationPipeline {
     pub audio_appsrc: Option<AppSrc>,
 }
 
+#[derive(Debug)]
+struct VideoEncoderChain {
+    encoder: gst::Element,
+    capsfilter: Option<gst::Element>,
+}
+
 impl DestinationPipelineProfile {
     fn from_family(family: &DestinationFamily, audio: bool, video: bool) -> Self {
         let mut elements = Vec::new();
@@ -234,26 +240,220 @@ impl DestinationNode {
         )
     }
 
-    fn select_video_encoder(id: &str) -> Result<gst::Element, String> {
+    #[cfg(target_os = "android")]
+    fn amc_encoder_factories() -> Vec<gst::ElementFactory> {
+        gst::ElementFactory::factories_with_type(
+            gst::ElementFactoryType::ENCODER | gst::ElementFactoryType::MEDIA_VIDEO,
+            gst::Rank::NONE,
+        )
+        .into_iter()
+        .filter(|factory| factory.name().starts_with("amcvidenc-"))
+        .collect()
+    }
+
+    #[cfg(target_os = "android")]
+    fn h264_encoder_factories() -> Vec<gst::ElementFactory> {
+        let h264_caps = gst::Caps::builder("video/x-h264").build();
+        gst::ElementFactory::factories_with_type(
+            gst::ElementFactoryType::ENCODER | gst::ElementFactoryType::MEDIA_VIDEO,
+            gst::Rank::NONE,
+        )
+        .into_iter()
+        .filter(|factory| {
+            factory.static_pad_templates().iter().any(|template| {
+                template.direction() == gst::PadDirection::Src
+                    && template.caps().can_intersect(&h264_caps)
+            })
+        })
+        .collect()
+    }
+
+    fn configure_video_encoder(venc: &gst::Element) {
+        if venc.has_property("tune") {
+            venc.set_property_from_str("tune", "zerolatency");
+        } else if venc.has_property("zerolatency") {
+            venc.set_property("zerolatency", true);
+        }
+        if venc.has_property("key-int-max") {
+            venc.set_property("key-int-max", 30u32);
+        } else if venc.has_property("gop-size") {
+            venc.set_property("gop-size", 30i32);
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    fn configure_video_encoder_bitrate(venc: &gst::Element) {
+        let Some(pspec) = venc.find_property("bitrate") else {
+            return;
+        };
+        if let Some(pspec) = pspec.downcast_ref::<gst::glib::ParamSpecUInt>() {
+            let bitrate = if pspec.maximum() >= 1_000_000 {
+                4_000_000u32
+            } else {
+                4_000u32
+            };
+            venc.set_property("bitrate", bitrate);
+        } else if let Some(pspec) = pspec.downcast_ref::<gst::glib::ParamSpecInt>() {
+            let bitrate = if pspec.maximum() >= 1_000_000 {
+                4_000_000i32
+            } else {
+                4_000i32
+            };
+            venc.set_property("bitrate", bitrate);
+        } else if let Some(pspec) = pspec.downcast_ref::<gst::glib::ParamSpecUInt64>() {
+            let bitrate = if pspec.maximum() >= 1_000_000 {
+                4_000_000u64
+            } else {
+                4_000u64
+            };
+            venc.set_property("bitrate", bitrate);
+        } else if let Some(pspec) = pspec.downcast_ref::<gst::glib::ParamSpecInt64>() {
+            let bitrate = if pspec.maximum() >= 1_000_000 {
+                4_000_000i64
+            } else {
+                4_000i64
+            };
+            venc.set_property("bitrate", bitrate);
+        } else if let Some(pspec) = pspec.downcast_ref::<gst::glib::ParamSpecULong>() {
+            let bitrate = if pspec.maximum() >= 1_000_000 {
+                gst::glib::ULong(4_000_000)
+            } else {
+                gst::glib::ULong(4_000)
+            };
+            venc.set_property("bitrate", bitrate);
+        } else if let Some(pspec) = pspec.downcast_ref::<gst::glib::ParamSpecLong>() {
+            let bitrate = if pspec.maximum() >= 1_000_000 {
+                gst::glib::ILong(4_000_000)
+            } else {
+                gst::glib::ILong(4_000)
+            };
+            venc.set_property("bitrate", bitrate);
+        } else {
+            warn!(
+                encoder = %venc.name(),
+                value_type = %pspec.value_type().name(),
+                "Skipping unsupported video encoder bitrate property type"
+            );
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    fn select_video_encoder(id: &str) -> Result<VideoEncoderChain, String> {
+        let encoder_name = format!("destination-venc-{id}");
+        let h264_factories = Self::h264_encoder_factories();
+        let mut attempts = Self::amc_encoder_factories();
+        attempts.sort_by_key(|factory| {
+            (
+                std::cmp::Reverse(
+                    h264_factories
+                        .iter()
+                        .any(|h264_factory| h264_factory.name() == factory.name()),
+                ),
+                std::cmp::Reverse(factory.rank()),
+            )
+        });
+
+        let mut attempted_names = Vec::new();
+        for factory in &attempts {
+            let factory_name = factory.name().to_string();
+            attempted_names.push(factory_name.clone());
+            if let Ok(venc) = Self::make_element(&factory_name, Some(&encoder_name)) {
+                let capsfilter =
+                    Self::make_element("capsfilter", Some(&format!("destination-venc-caps-{id}")))?;
+                let caps = gst::Caps::builder("video/x-raw")
+                    .field("format", "NV12")
+                    .build();
+                capsfilter.set_property("caps", &caps);
+                Self::configure_video_encoder(&venc);
+                Self::configure_video_encoder_bitrate(&venc);
+                info!(
+                    destination_id = %id,
+                    encoder = %factory_name,
+                    "Selected Android H.264 video encoder"
+                );
+                return Ok(VideoEncoderChain {
+                    encoder: venc,
+                    capsfilter: Some(capsfilter),
+                });
+            }
+        }
+
+        for encoder in ["x264enc", "openh264enc"] {
+            attempted_names.push(encoder.to_string());
+            if let Ok(venc) = Self::make_element(encoder, Some(&encoder_name)) {
+                Self::configure_video_encoder(&venc);
+                warn!(
+                    destination_id = %id,
+                    encoder = %encoder,
+                    "Selected software H.264 video encoder after Android MediaCodec fallback"
+                );
+                return Ok(VideoEncoderChain {
+                    encoder: venc,
+                    capsfilter: None,
+                });
+            }
+        }
+
+        let tried_encoders = if attempted_names.is_empty() {
+            "no amcvidenc-* factories discovered".to_string()
+        } else {
+            attempted_names.join(", ")
+        };
+        Err(format!(
+            "Failed to create an Android H.264 video encoder (tried {tried_encoders})"
+        ))
+    }
+
+    #[cfg(not(target_os = "android"))]
+    fn select_video_encoder(id: &str) -> Result<VideoEncoderChain, String> {
         for encoder in ["nvh264enc", "x264enc", "openh264enc"] {
             if let Ok(venc) = Self::make_element(encoder, Some(&format!("destination-venc-{id}"))) {
-                if venc.has_property("tune") {
-                    venc.set_property_from_str("tune", "zerolatency");
-                } else if venc.has_property("zerolatency") {
-                    venc.set_property("zerolatency", true);
-                }
-                if venc.has_property("key-int-max") {
-                    venc.set_property("key-int-max", 30u32);
-                } else if venc.has_property("gop-size") {
-                    venc.set_property("gop-size", 30i32);
-                }
-                return Ok(venc);
+                Self::configure_video_encoder(&venc);
+                info!(
+                    destination_id = %id,
+                    encoder = %encoder,
+                    "Selected H.264 video encoder"
+                );
+                return Ok(VideoEncoderChain {
+                    encoder: venc,
+                    capsfilter: None,
+                });
             }
         }
         Err(
             "Failed to create a H.264 video encoder (tried nvh264enc, x264enc, openh264enc)"
                 .to_string(),
         )
+    }
+
+    fn add_video_encoder_chain(
+        pipeline: &gst::Pipeline,
+        chain: &VideoEncoderChain,
+        purpose: &str,
+    ) -> Result<(), String> {
+        if let Some(capsfilter) = chain.capsfilter.as_ref() {
+            pipeline
+                .add(capsfilter)
+                .map_err(|err| format!("Failed to add video capsfilter to {purpose}: {err:?}"))?;
+        }
+        pipeline
+            .add(&chain.encoder)
+            .map_err(|err| format!("Failed to add video encoder to {purpose}: {err:?}"))?;
+        Ok(())
+    }
+
+    fn link_video_encoder_chain(
+        upstream: &gst::Element,
+        chain: &VideoEncoderChain,
+        downstream: &gst::Element,
+        purpose: &str,
+    ) -> Result<(), String> {
+        if let Some(capsfilter) = chain.capsfilter.as_ref() {
+            gst::Element::link_many([upstream, capsfilter, &chain.encoder, downstream].as_slice())
+        } else {
+            gst::Element::link_many([upstream, &chain.encoder, downstream].as_slice())
+        }
+        .map_err(|err| format!("Failed to link {purpose}: {err:?}"))
     }
 
     fn build_live_pipeline(
@@ -319,7 +519,7 @@ impl DestinationNode {
                     let vconv = Self::make_element("videoconvert", None)?;
                     let timecodestamper = Self::make_element("timecodestamper", None)?;
                     let timeoverlay = Self::make_element("timeoverlay", None)?;
-                    let venc = Self::select_video_encoder(&self.id)?;
+                    let venc_chain = Self::select_video_encoder(&self.id)?;
                     let vparse = Self::make_element("h264parse", None)?;
                     let venc_queue = Self::make_element("queue", None)?;
 
@@ -332,9 +532,7 @@ impl DestinationNode {
                     pipeline.add(&timeoverlay).map_err(|err| {
                         format!("Failed to add timeoverlay to rtmp pipeline: {err:?}")
                     })?;
-                    pipeline.add(&venc).map_err(|err| {
-                        format!("Failed to add video encoder to rtmp pipeline: {err:?}")
-                    })?;
+                    Self::add_video_encoder_chain(&pipeline, &venc_chain, "rtmp pipeline")?;
                     pipeline.add(&vparse).map_err(|err| {
                         format!("Failed to add h264parse to rtmp pipeline: {err:?}")
                     })?;
@@ -358,14 +556,18 @@ impl DestinationNode {
                             &vconv,
                             &timecodestamper,
                             &timeoverlay,
-                            &venc,
-                            &vparse,
-                            &venc_queue,
-                            &mux,
                         ]
                         .as_slice(),
                     )
-                    .map_err(|err| format!("Failed to link rtmp video chain: {err:?}"))?;
+                    .map_err(|err| format!("Failed to link rtmp video preprocessing: {err:?}"))?;
+                    Self::link_video_encoder_chain(
+                        &timeoverlay,
+                        &venc_chain,
+                        &vparse,
+                        "rtmp video encoder chain",
+                    )?;
+                    gst::Element::link_many([&vparse, &venc_queue, &mux].as_slice())
+                        .map_err(|err| format!("Failed to link rtmp video output: {err:?}"))?;
                 }
 
                 if let Some(appsrc) = audio_appsrc.as_ref() {
@@ -420,30 +622,29 @@ impl DestinationNode {
 
                 if let Some(appsrc) = video_appsrc.as_ref() {
                     let vconv = Self::make_element("videoconvert", None)?;
-                    let venc = Self::select_video_encoder(&self.id)?;
+                    let venc_chain = Self::select_video_encoder(&self.id)?;
                     let vparse = Self::make_element("h264parse", None)?;
 
                     pipeline.add(&vconv).map_err(|err| {
                         format!("Failed to add videoconvert to udp pipeline: {err:?}")
                     })?;
-                    pipeline.add(&venc).map_err(|err| {
-                        format!("Failed to add video encoder to udp pipeline: {err:?}")
-                    })?;
+                    Self::add_video_encoder_chain(&pipeline, &venc_chain, "udp pipeline")?;
                     pipeline.add(&vparse).map_err(|err| {
                         format!("Failed to add h264parse to udp pipeline: {err:?}")
                     })?;
 
                     gst::Element::link_many(
-                        [
-                            appsrc.upcast_ref::<gst::Element>(),
-                            &vconv,
-                            &venc,
-                            &vparse,
-                            &mux,
-                        ]
-                        .as_slice(),
+                        [appsrc.upcast_ref::<gst::Element>(), &vconv].as_slice(),
                     )
-                    .map_err(|err| format!("Failed to link udp video chain: {err:?}"))?;
+                    .map_err(|err| format!("Failed to link udp video preprocessing: {err:?}"))?;
+                    Self::link_video_encoder_chain(
+                        &vconv,
+                        &venc_chain,
+                        &vparse,
+                        "udp video encoder chain",
+                    )?;
+                    gst::Element::link_many([&vparse, &mux].as_slice())
+                        .map_err(|err| format!("Failed to link udp video output: {err:?}"))?;
                 }
                 if let Some(appsrc) = audio_appsrc.as_ref() {
                     let aconv = Self::make_element("audioconvert", None)?;
@@ -506,23 +707,29 @@ impl DestinationNode {
 
                 if let Some(appsrc) = video_appsrc.as_ref() {
                     let vconv = Self::make_element("videoconvert", None)?;
-                    let venc = Self::select_video_encoder(&self.id)?;
+                    let venc_chain = Self::select_video_encoder(&self.id)?;
                     let vparse = Self::make_element("h264parse", None)?;
 
                     pipeline.add(&vconv).map_err(|err| {
                         format!("Failed to add videoconvert to local-file pipeline: {err:?}")
                     })?;
-                    pipeline.add(&venc).map_err(|err| {
-                        format!("Failed to add video encoder to local-file pipeline: {err:?}")
-                    })?;
+                    Self::add_video_encoder_chain(&pipeline, &venc_chain, "local-file pipeline")?;
                     pipeline.add(&vparse).map_err(|err| {
                         format!("Failed to add h264parse to local-file pipeline: {err:?}")
                     })?;
 
                     gst::Element::link_many(
-                        [appsrc.upcast_ref::<gst::Element>(), &vconv, &venc, &vparse].as_slice(),
+                        [appsrc.upcast_ref::<gst::Element>(), &vconv].as_slice(),
                     )
-                    .map_err(|err| format!("Failed to link local-file video chain: {err:?}"))?;
+                    .map_err(|err| {
+                        format!("Failed to link local-file video preprocessing: {err:?}")
+                    })?;
+                    Self::link_video_encoder_chain(
+                        &vconv,
+                        &venc_chain,
+                        &vparse,
+                        "local-file video encoder chain",
+                    )?;
 
                     vparse
                         .link_pads(None, &multiqueue, Some("sink_0"))
