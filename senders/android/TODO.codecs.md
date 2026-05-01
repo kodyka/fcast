@@ -1,5 +1,8 @@
 # TODO: GStreamer Android Prebuilt SDK Compatibility
 
+> **Per-task breakdown:** each numbered task below also has its own dedicated
+> file under [`TODO.codecs/`](TODO.codecs/README.md) for independent tracking.
+
 ---
 
 ## P0 - Critical (App crashes / features completely broken)
