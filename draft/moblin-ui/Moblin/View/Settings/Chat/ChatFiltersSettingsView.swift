@@ -1,0 +1,142 @@
+import SwiftUI
+
+private struct ChatFilterFilterSettingsView: View {
+    @ObservedObject var filter: SettingsChatFilter
+
+    var body: some View {
+        Section {
+            NavigationLink {
+                TextEditView(
+                    title: String(localized: "Username"),
+                    value: filter.user,
+                    onSubmit: {
+                        filter.user = $0
+                    }
+                )
+            } label: {
+                TextItemLocalizedView(name: "Username", value: filter.username())
+            }
+            NavigationLink {
+                TextEditView(
+                    title: String(localized: "Message starts with"),
+                    value: filter.messageStart,
+                    onSubmit: {
+                        if $0.isEmpty {
+                            filter.messageStartWords = []
+                        } else {
+                            filter.messageStartWords = $0.components(separatedBy: " ")
+                        }
+                        filter.messageStart = filter.messageStartWords.joined(separator: " ")
+                    }
+                )
+            } label: {
+                TextItemLocalizedView(name: "Message starts with", value: filter.message())
+            }
+        } header: {
+            Text("Condition")
+        } footer: {
+            Text("""
+            The condition is true when both "Username" and "Message starts with" matches the received \
+            chat message.
+            """)
+        }
+        if filter.user.isEmpty, filter.messageStart.isEmpty {
+            Section {
+                Text("⚠️ This filter matches all messages, check if this is the desired behaviour.")
+            }
+        }
+    }
+}
+
+private struct ChatFilterActionsSettingsView: View {
+    @ObservedObject var filter: SettingsChatFilter
+
+    var body: some View {
+        Section {
+            Toggle(isOn: $filter.showOnScreen) {
+                Text("Show on screen")
+            }
+            Toggle(isOn: $filter.textToSpeech) {
+                Text("Text to speech")
+            }
+            Toggle(isOn: $filter.chatBot) {
+                Text("Chat bot")
+            }
+            Toggle(isOn: $filter.poll) {
+                Text("Poll")
+            }
+            Toggle(isOn: $filter.print) {
+                Text("Print")
+            }
+        } header: {
+            Text("Actions")
+        } footer: {
+            Text("The actions to perform when the condition is true.")
+        }
+    }
+}
+
+private struct ChatFilterSettingsView: View {
+    @ObservedObject var filter: SettingsChatFilter
+
+    var body: some View {
+        NavigationLink {
+            Form {
+                Section {
+                    Toggle("Enabled", isOn: $filter.enabled)
+                }
+                ChatFilterFilterSettingsView(filter: filter)
+                ChatFilterActionsSettingsView(filter: filter)
+            }
+            .navigationTitle("Filter")
+        } label: {
+            HStack {
+                DraggableItemPrefixView()
+                TextItemLocalizedView(name: "Username", value: filter.username())
+            }
+        }
+    }
+}
+
+struct ChatFiltersSettingsView: View {
+    @ObservedObject var chat: SettingsChat
+
+    var body: some View {
+        NavigationLink {
+            Form {
+                Section {
+                    List {
+                        ForEach(chat.filters) { filter in
+                            ChatFilterSettingsView(filter: filter)
+                                .contextMenuDeleteButton {
+                                    chat.filters.removeAll { $0.id == filter.id }
+                                }
+                        }
+                        .onMove { froms, to in
+                            chat.filters.move(fromOffsets: froms, toOffset: to)
+                        }
+                        .onDelete { offsets in
+                            chat.filters.remove(atOffsets: offsets)
+                        }
+                    }
+                    AddButtonView {
+                        chat.filters.append(SettingsChatFilter())
+                    }
+                } footer: {
+                    VStack(alignment: .leading) {
+                        Text("The first filter that matches is used.")
+                        Text("")
+                        SwipeLeftToRemoveHelpView(kind: String(localized: "a filter"))
+                    }
+                }
+            }
+            .navigationTitle("Filters")
+        } label: {
+            HStack {
+                Text("Filters")
+                Spacer()
+                GrayTextView(text: String(chat.filters.count))
+            }
+        }
+    }
+}

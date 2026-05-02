@@ -1,0 +1,237 @@
+import SwiftUI
+
+let settingsHalfWidth = 350.0
+
+struct SettingsView: View {
+    @EnvironmentObject var model: Model
+    @ObservedObject var database: Database
+
+    var body: some View {
+        Form {
+            if model.isLive {
+                InfoBannerView(text: "Settings that would stop the stream are disabled when live.")
+            }
+            Section {
+                NavigationLink {
+                    StreamsSettingsView(createStreamWizard: model.createStreamWizard, database: database)
+                } label: {
+                    Label("Streams", systemImage: "dot.radiowaves.left.and.right")
+                }
+                NavigationLink {
+                    ScenesSettingsView(database: database)
+                } label: {
+                    Label("Scenes", systemImage: "photo.on.rectangle")
+                }
+                NavigationLink {
+                    ChatSettingsView(model: model,
+                                     database: database,
+                                     chat: database.chat,
+                                     stream: model.stream)
+                } label: {
+                    Label("Chat", systemImage: "message")
+                }
+                NavigationLink {
+                    DisplaySettingsView(database: database)
+                } label: {
+                    Label("Display", systemImage: "rectangle.inset.topright.fill")
+                }
+                NavigationLink {
+                    CameraSettingsView(database: database, stream: model.stream, color: database.color)
+                } label: {
+                    Label("Camera", systemImage: "camera")
+                }
+                if database.showAllSettings {
+                    NavigationLink {
+                        AudioSettingsView(database: database,
+                                          stream: model.stream,
+                                          mic: model.mic,
+                                          debug: database.debug,
+                                          audio: database.audio)
+                    } label: {
+                        Label("Audio", systemImage: "waveform")
+                    }
+                    NavigationLink {
+                        MacrosSettingsView(model: model, database: database, macros: database.macros)
+                    } label: {
+                        Label("Macros", systemImage: "increase.indent")
+                    }
+                }
+                NavigationLink {
+                    LocationSettingsView(
+                        database: database,
+                        location: database.location,
+                        stream: $model.stream
+                    )
+                } label: {
+                    Label("Location", systemImage: "location")
+                }
+            }
+            Section {
+                NavigationLink {
+                    StoreSettingsView(store: model.store)
+                } label: {
+                    Label {
+                        Text("Store (support us) ❤️")
+                    } icon: {
+                        Image(systemName: "cart")
+                    }
+                }
+            }
+            Section {
+                if database.showAllSettings {
+                    NavigationLink {
+                        IngestsSettingsView(model: model, database: database)
+                    } label: {
+                        Label("Ingests", systemImage: "server.rack")
+                    }
+                    NavigationLink {
+                        TalkbackSettingsView(model: model,
+                                             mics: database.mics,
+                                             talkback: database.talkback)
+                    } label: {
+                        Label("Talkback", systemImage: "speaker.wave.2.bubble.left")
+                    }
+                }
+                NavigationLink {
+                    MoblinkSettingsView(status: model.statusOther, streamer: database.moblink.streamer)
+                } label: {
+                    Label("Moblink", systemImage: "app.connected.to.app.below.fill")
+                }
+                if database.showAllSettings {
+                    NavigationLink {
+                        MediaPlayersSettingsView(mediaPlayers: database.mediaPlayers)
+                    } label: {
+                        Label("Media players", systemImage: "play.rectangle.on.rectangle")
+                    }
+                }
+            }
+            if database.showAllSettings {
+                Section {
+                    NavigationLink {
+                        GimbalSettingsView(model: model, gimbal: database.gimbal)
+                    } label: {
+                        Label("Gimbal", systemImage: "iphone.dock.motorized.viewfinder")
+                    }
+                    NavigationLink {
+                        SelfieStickSettingsView(model: model, selfieStick: database.selfieStick)
+                    } label: {
+                        Label("Selfie stick", systemImage: "line.diagonal")
+                    }
+                    NavigationLink {
+                        GameControllersSettingsView(model: model, database: database)
+                    } label: {
+                        Label("Game controllers", systemImage: "gamecontroller")
+                    }
+                    if #available(iOS 17.0, *) {
+                        NavigationLink {
+                            KeyboardSettingsView(model: model, keyboard: database.keyboard)
+                        } label: {
+                            Label("Keyboard", systemImage: "keyboard")
+                        }
+                    }
+                    NavigationLink {
+                        RemoteControlSettingsView(database: database, stream: $model.stream)
+                    } label: {
+                        Label("Remote control", systemImage: "appletvremote.gen1")
+                    }
+                }
+                Section {
+                    NavigationLink {
+                        DjiDevicesSettingsView(djiDevices: database.djiDevices)
+                    } label: {
+                        Label("DJI devices", systemImage: "appletvremote.gen1")
+                    }
+                    NavigationLink {
+                        GoProSettingsView()
+                    } label: {
+                        Label("GoPro", systemImage: "appletvremote.gen1")
+                    }
+                    NavigationLink {
+                        CatPrintersSettingsView(catPrinters: database.catPrinters)
+                    } label: {
+                        Label("Cat printers", systemImage: "pawprint")
+                    }
+                    NavigationLink {
+                        TeslaSettingsView(tesla: model.tesla)
+                    } label: {
+                        Label("Tesla", systemImage: "car.side")
+                    }
+                    NavigationLink {
+                        WorkoutDevicesSettingsView(workoutDevices: database.workoutDevices)
+                    } label: {
+                        Label("Workout devices", systemImage: "figure.walk.motion")
+                    }
+                    NavigationLink {
+                        BlackSharkCoolerDevicesSettingsView(blackSharkCoolerDevices: database
+                            .blackSharkCoolerDevices)
+                    } label: {
+                        Label("Black Shark coolers", systemImage: "fan")
+                    }
+                }
+            }
+            Section {
+                NavigationLink {
+                    RecordingsSettingsView(model: model)
+                } label: {
+                    Label("Recordings", systemImage: "photo.on.rectangle.angled")
+                }
+                if database.showAllSettings {
+                    NavigationLink {
+                        StreamingHistorySettingsView(model: model)
+                    } label: {
+                        Label("Streaming history", systemImage: "text.book.closed")
+                    }
+                }
+            }
+            if database.showAllSettings, isPhone() {
+                Section {
+                    NavigationLink {
+                        WatchSettingsView(watch: database.watch)
+                    } label: {
+                        Label("Apple Watch", systemImage: "applewatch")
+                    }
+                }
+            }
+            Section {
+                NavigationLink {
+                    HelpAndSupportSettingsView()
+                } label: {
+                    Label("Help and support", systemImage: "questionmark.circle")
+                }
+                if database.showAllSettings {
+                    NavigationLink {
+                        AboutSettingsView()
+                    } label: {
+                        Label("About", systemImage: "info.circle")
+                    }
+                    NavigationLink {
+                        DebugSettingsView(debug: database.debug)
+                    } label: {
+                        Label("Debug", systemImage: "ladybug")
+                    }
+                }
+            }
+            if database.showAllSettings {
+                Section {
+                    NavigationLink {
+                        ImportExportSettingsView(model: model)
+                    } label: {
+                        Label("Import and export settings", systemImage: "gearshape")
+                    }
+                    NavigationLink {
+                        DeepLinkCreatorSettingsView(deepLinkCreator: database.deepLinkCreator)
+                    } label: {
+                        Label("Deep link creator", systemImage: "link.badge.plus")
+                    }
+                }
+            }
+            Section {
+                Toggle("Show all settings", isOn: $database.showAllSettings)
+            }
+            Section {
+                ResetSettingsView()
+            }
+        }
+        .navigationTitle("Settings")
+    }
+}

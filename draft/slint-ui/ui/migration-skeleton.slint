@@ -1,0 +1,115 @@
+// Draft-only Slint skeleton for planning the Moblin SwiftUI -> FCast Slint migration.
+// This is not wired into the app yet.
+
+import { Button, CheckBox, ComboBox, LineEdit, Slider, VerticalBox } from "std-widgets.slint";
+
+export enum AppState { disconnected, connecting, selecting-settings, waiting-for-media, casting }
+export enum Panel { none, receivers, settings, debug, codec }
+
+export struct ReceiverItem { name: string, address: string, selected: bool }
+export struct QuickAction { id: string, title: string, enabled: bool, active: bool }
+export struct StatusItem { label: string, value: string, severity: string }
+export struct SettingsRowData { id: string, title: string, value: string, enabled: bool }
+
+export global Bridge {
+    in-out property <AppState> app-state: AppState.disconnected;
+    in-out property <Panel> active-panel: Panel.none;
+    in property <[ReceiverItem]> receivers: [];
+    in property <[QuickAction]> quick-actions: [];
+    in property <[StatusItem]> status-items: [];
+    in-out property <string> debug-status: "";
+
+    callback open-panel(Panel);
+    callback close-panel();
+    callback invoke-action(string);
+    callback connect-receiver(string);
+    callback start-casting();
+    callback stop-casting();
+}
+
+component PrimaryButton inherits Button {
+    in property <string> label <=> self.text;
+}
+
+component SettingsValueRow inherits Rectangle {
+    in property <string> title;
+    in property <string> value;
+    in property <bool> enabled: true;
+    callback clicked();
+
+    height: 44px;
+    opacity: enabled ? 1 : 0.45;
+
+    TouchArea { clicked => { if root.enabled { root.clicked(); } } }
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        Text { text: root.title; vertical-alignment: center; }
+        Text { text: root.value; color: #a9b0c0; vertical-alignment: center; horizontal-alignment: right; }
+    }
+}
+
+component QuickActionButton inherits Rectangle {
+    in property <QuickAction> action;
+
+    height: 48px;
+    border-radius: 8px;
+    background: action.active ? #2563eb : #222633;
+    opacity: action.enabled ? 1 : 0.45;
+
+    TouchArea { clicked => { if root.action.enabled { Bridge.invoke-action(root.action.id); } } }
+    Text { text: action.title; color: white; horizontal-alignment: center; vertical-alignment: center; }
+}
+
+component StatusOverlay inherits Rectangle {
+    in property <[StatusItem]> items <=> Bridge.status-items;
+    background: transparent;
+
+    VerticalLayout {
+        padding: 8px;
+        spacing: 4px;
+        for item in root.items: Rectangle {
+            height: 28px;
+            border-radius: 6px;
+            background: item.severity == "error" ? #7f1d1d : item.severity == "warning" ? #78350f : #1f2937cc;
+            HorizontalLayout {
+                padding-left: 8px;
+                padding-right: 8px;
+                Text { text: item.label; color: #cbd5e1; }
+                Text { text: item.value; color: white; horizontal-alignment: right; }
+            }
+        }
+    }
+}
+
+component CastControlBar inherits Rectangle {
+    height: 72px;
+    background: #111827;
+
+    HorizontalLayout {
+        padding: 8px;
+        spacing: 8px;
+        for action in Bridge.quick-actions: QuickActionButton { action: action; }
+    }
+}
+
+component SettingsPage inherits Rectangle {
+    VerticalBox {
+        Text { text: @tr("Settings"); font-size: 20px; font-weight: 700; }
+        SettingsValueRow { title: @tr("Receivers"); value: Bridge.receivers.length + @tr(" found"); clicked => Bridge.open-panel(Panel.receivers); }
+        SettingsValueRow { title: @tr("Codec tests"); value: @tr("H.264 / MediaCodec"); clicked => Bridge.open-panel(Panel.codec); }
+        SettingsValueRow { title: @tr("Debug"); value: Bridge.debug-status; clicked => Bridge.open-panel(Panel.debug); }
+    }
+}
+
+export component MigrationSkeletonWindow inherits Window {
+    preferred-width: 390px;
+    preferred-height: 780px;
+    background: #0b1020;
+
+    if Bridge.app-state == AppState.casting: StatusOverlay { }
+
+    if Bridge.active-panel == Panel.settings: SettingsPage { }
+
+    CastControlBar { y: parent.height - self.height; width: parent.width; }
+}

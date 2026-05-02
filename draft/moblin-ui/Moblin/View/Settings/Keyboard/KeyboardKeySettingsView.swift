@@ -1,0 +1,102 @@
+import SwiftUI
+
+private struct SelectedKeyView: View {
+    @ObservedObject var key: SettingsKeyboardKey
+
+    var body: some View {
+        if key.key.isEmpty {
+            Text("No key set")
+                .foregroundStyle(.gray)
+        } else {
+            Text(key.key)
+        }
+    }
+}
+
+private struct KeyPickerView: View {
+    @ObservedObject var key: SettingsKeyboardKey
+    @FocusState var editingText: Bool
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        TextField("No key set", text: $key.key)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .focused($editingText)
+            .onChange(of: key.key) { _ in
+                guard !key.key.isEmpty else {
+                    return
+                }
+                dismiss()
+            }
+            .onSubmit {
+                dismiss()
+            }
+            .onChange(of: editingText) { _ in
+                guard editingText else {
+                    return
+                }
+                key.key = ""
+            }
+            .onAppear {
+                guard key.key.isEmpty else {
+                    return
+                }
+                editingText = true
+            }
+    }
+}
+
+struct KeyboardKeySettingsView: View {
+    let model: Model
+    @ObservedObject var key: SettingsKeyboardKey
+
+    private func functions() -> [SettingsControllerFunction] {
+        return SettingsControllerFunction.allCases.filter {
+            ![.zoomIn, .zoomOut].contains($0)
+        }
+    }
+
+    var body: some View {
+        NavigationLink {
+            Form {
+                Section {
+                    NavigationLink {
+                        Form {
+                            KeyPickerView(key: key)
+                        }
+                        .navigationTitle("Key")
+                    } label: {
+                        HStack {
+                            Text("Key")
+                            Spacer()
+                            SelectedKeyView(key: key)
+                                .foregroundStyle(.gray)
+                        }
+                    }
+                }
+                Section {
+                    ControllerButtonView(model: model,
+                                         functions: functions(),
+                                         function: $key.function,
+                                         sceneId: $key.sceneId,
+                                         widgetId: $key.widgetId,
+                                         gimbalPresetId: $key.gimbalPresetId,
+                                         gimbalMotion: $key.gimbalMotion,
+                                         macroId: $key.macroId)
+                }
+            }
+            .navigationTitle("Keyboard key")
+        } label: {
+            HStack {
+                SelectedKeyView(key: key)
+                Spacer()
+                Text(key.function.toString(
+                    sceneName: model.getSceneName(id: key.sceneId ?? .init()),
+                    widgetName: model.getWidgetName(id: key.widgetId ?? .init())
+                ))
+                .foregroundStyle(key.function.color())
+            }
+        }
+    }
+}

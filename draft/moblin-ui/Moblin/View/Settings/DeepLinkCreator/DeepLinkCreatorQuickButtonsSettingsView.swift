@@ -1,0 +1,63 @@
+import SwiftUI
+
+private struct DeepLinkCreatorQuickButtonSettingsView: View {
+    @EnvironmentObject var model: Model
+    @ObservedObject var button: DeepLinkCreatorQuickButton
+
+    var body: some View {
+        HStack {
+            DraggableItemPrefixView()
+            if let quickButton = model.getQuickButton(type: button.type) {
+                VStack {
+                    Toggle(isOn: $button.enabled) {
+                        IconAndTextView(
+                            image: quickButton.imageOff,
+                            text: quickButton.name,
+                            longDivider: true
+                        )
+                    }
+                    HStack {
+                        Spacer()
+                        if #available(iOS 17, *) {
+                            Picker("Page", selection: $button.page) {
+                                ForEach(1 ... controlBarPages, id: \.self) { page in
+                                    Text(String(page))
+                                }
+                            }
+                            .fixedSize()
+                        }
+                    }
+                }
+            } else {
+                Text("Unknown")
+            }
+        }
+    }
+}
+
+struct DeepLinkCreatorQuickButtonsSettingsView: View {
+    @ObservedObject var quickButtons: DeepLinkCreatorQuickButtons
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Scroll", isOn: $quickButtons.enableScroll)
+                Toggle("Two columns", isOn: $quickButtons.twoColumns)
+                Toggle("Show name", isOn: $quickButtons.showName)
+            } header: {
+                Text("Appearance")
+            }
+            Section {
+                List {
+                    ForEach(quickButtons.buttons) { button in
+                        DeepLinkCreatorQuickButtonSettingsView(button: button)
+                    }
+                    .onMove { froms, to in
+                        quickButtons.buttons.move(fromOffsets: froms, toOffset: to)
+                    }
+                }
+            }
+        }
+        .navigationTitle("Quick buttons")
+    }
+}
