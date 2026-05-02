@@ -1,0 +1,42 @@
+// bridge.slint — AppState enum and Bridge global singleton.
+// Single source of truth for all properties and callbacks shared between
+// Slint UI and Rust backend.
+//
+// Re-exported from main.slint so that slint_build::compile("ui/main.slint")
+// exposes Bridge and AppState to Rust via ui.global::<Bridge>().
+//
+// Slint docs ref (globals): draft/slint/docs/astro/src/content/docs/guide/language/coding/globals.mdx
+// Slint docs ref (enums):   draft/slint/docs/astro/src/content/docs/guide/language/coding/structs-and-enums.mdx
+
+export enum AppState {
+    Disconnected,
+    Connecting,
+    SelectingSettings,
+    WaitingForMedia,
+    Casting,
+}
+
+export global Bridge {
+    // ── Data properties (Rust → Slint) ──────────────────────────────────
+    in property <[string]> devices: [
+        // "Device 1", "Device 2",
+    ];
+    in-out property <AppState> app-state: AppState.Disconnected;
+    in-out property <bool>     show-debug: false;
+    in-out property <string>   test-status: "";
+
+    // ── Callbacks (Slint → Rust) ─────────────────────────────────────────
+    callback connect-receiver(string);
+    callback start-casting(scale-width: int, scale-height: int, max-framerate: int);
+    callback stop-casting();
+    callback scan-qr();
+    callback start-migrated-server();
+    callback test-legacy-getinfo();
+    callback test-legacy-crossfade();
+    callback test-smoke-graph();
+
+    // ── Public functions (callable from Slint) ───────────────────────────
+    public function change-state(to: AppState) {
+        Bridge.app-state = to;
+    }
+}

@@ -1,0 +1,60 @@
+// debug_page.slint — Debug / migration-test panel.
+// Extracted from the inline `if Bridge.show-debug: VerticalBox { ... }` block
+// that previously lived inside ConnectView in main.slint.
+//
+// Used as: `if Bridge.show-debug: DebugPage { }` inside connect_page.slint.
+//
+// The component inherits VerticalBox so that it participates correctly in the
+// outer VerticalBox layout of ConnectView (same behaviour as the original
+// inline VerticalBox).  `root` always refers to the DebugPage element itself,
+// so `root.width` is used where the original code used `parent.width`.
+//
+// Slint docs ref (components / inherits):
+//   draft/slint/docs/astro/src/content/docs/guide/language/coding/file.mdx
+
+import { VerticalBox, Button, ScrollView } from "std-widgets.slint";
+import { Bridge } from "../bridge.slint";
+
+export component DebugPage inherits VerticalBox {
+    Text {
+        horizontal-alignment: center;
+        font-size: 12px;
+        text: "Migrated server tests";
+    }
+
+    Button {
+        text: "Start Migrated Server";
+        clicked => Bridge.start-migrated-server();
+    }
+
+    Button {
+        text: "Test Legacy GetInfo";
+        clicked => Bridge.test-legacy-getinfo();
+    }
+
+    Button {
+        text: "Test Legacy Crossfade";
+        clicked => Bridge.test-legacy-crossfade();
+    }
+
+    Button {
+        text: "Test Graph Smoke";
+        clicked => Bridge.test-smoke-graph();
+    }
+
+    // Scrollable test-status log.
+    // viewport-width uses root.width (the DebugPage/VerticalBox root element)
+    // which is equivalent to the original `parent.width` that referred to the
+    // outer VerticalBox in ConnectView.
+    ScrollView {
+        height: 100px;
+        viewport-width: root.width;
+        viewport-height: status-text.preferred-height;
+
+        status-text := Text {
+            width: parent.visible-width;
+            wrap: word-wrap;
+            text: Bridge.test-status;
+        }
+    }
+}

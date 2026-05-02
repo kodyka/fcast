@@ -1,0 +1,58 @@
+// settings_page.slint — Pre-cast quality selection screen.
+// Shown when AppState == SelectingSettings.
+//
+// Renamed from SelectingSettingsView → SettingsPageView to avoid collision
+// with the full FullSettingsPage component added in Phase 7.
+//
+// MainWindow in main.slint references SettingsPageView.  The Rust side uses
+// AppState::SelectingSettings (unchanged) — no Rust changes needed here.
+//
+// SDK import path: from ui/pages/ we need 4 `../` to reach the project root,
+// then sdk/mirroring_core/ui/common.slint.
+// Equivalent depth check:
+//   ui/pages/ → ui/ → senders/android/ → senders/ → fcast/   (4 levels up)
+//   then: sdk/mirroring_core/ui/common.slint
+
+import { VerticalBox, Button } from "std-widgets.slint";
+import { Utils, VideoResolutionPicker, FrameratePicker } from "../../../../sdk/mirroring_core/ui/common.slint";
+import { Bridge } from "../bridge.slint";
+
+export component SettingsPageView inherits Rectangle {
+    property <int> video-resolution-idx: 2;
+    property <int> video-framerate-idx: 2;
+
+    VerticalBox {
+        Text {
+            font-size: 12pt;
+            vertical-alignment: center;
+            text: "Max resolution";
+        }
+
+        VideoResolutionPicker {
+            current-index <=> video-resolution-idx;
+        }
+
+        Text {
+            font-size: 12pt;
+            vertical-alignment: center;
+            text: "Max framerate";
+        }
+
+        FrameratePicker {
+            current-index <=> video-framerate-idx;
+        }
+
+        Button {
+            text: "Start";
+            clicked => {
+                let scale = Utils.str-to-scale(video-resolution-idx);
+                Bridge.start-casting(scale.width, scale.height, Utils.video-framerates[video-framerate-idx].to-float())
+            }
+        }
+
+        Button {
+            text: "Disconnect";
+            clicked => Bridge.stop-casting();
+        }
+    }
+}

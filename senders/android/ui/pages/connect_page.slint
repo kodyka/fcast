@@ -1,0 +1,85 @@
+// connect_page.slint — Receiver discovery and connection screen.
+// Shown when AppState == Disconnected.
+// Extracted verbatim from main.slint; the inline debug panel has been
+// replaced with `if Bridge.show-debug: DebugPage { }`.
+//
+// SDK import path depth: ui/pages/ is 4 levels above the project root,
+// so the SDK common.slint path gains one extra `../` vs. main.slint.
+
+import { VerticalBox, ListView } from "std-widgets.slint";
+import { Bridge } from "../bridge.slint";
+import { DebugPage } from "debug_page.slint";
+
+export component ConnectView inherits Rectangle {
+    VerticalBox {
+        Text {
+            horizontal-alignment: center;
+            font-size: 16px;
+            font-weight: 600;
+            text: "Connect to your receiver";
+        }
+
+        // ── Empty state: searching ────────────────────────────────────────
+        if Bridge.devices.length == 0: Rectangle {
+            height: 90px;
+            border-radius: 8px;
+            background: #222633;
+
+            Text {
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                color: #B8BECD;
+                text: "Searching for receivers...";
+            }
+        }
+
+        // ── Populated state: device list ──────────────────────────────────
+        if Bridge.devices.length > 0: ListView {
+            for device in Bridge.devices: Rectangle {
+                height: 45px;
+
+                device_ta := TouchArea {
+                    clicked => Bridge.connect-receiver(device);
+                }
+
+                Rectangle {
+                    width: parent.width - 10px;
+                    height: parent.height - 10px;
+                    background: device_ta.pressed ? steelblue : lightsteelblue;
+                    border-radius: 8px;
+                    Text {
+                        vertical-alignment: center;
+                        horizontal-alignment: left;
+                        text: device;
+                    }
+                }
+            }
+        }
+
+        // ── Scan QR button ────────────────────────────────────────────────
+        Rectangle {
+            height: 45px;
+
+            scan_ta := TouchArea {
+                clicked => Bridge.scan-qr();
+            }
+
+            Rectangle {
+                width: parent.width - 10px;
+                height: parent.height - 10px;
+                background: scan_ta.pressed ? steelblue : lightsteelblue;
+                border-radius: 8px;
+                Text {
+                    vertical-alignment: center;
+                    horizontal-alignment: left;
+                    text: "Scan QR";
+                }
+            }
+        }
+
+        // ── Debug panel (conditionally visible) ───────────────────────────
+        // DebugPage inherits VerticalBox, so it slots into this layout
+        // exactly as the original inline VerticalBox did.
+        if Bridge.show-debug: DebugPage { }
+    }
+}

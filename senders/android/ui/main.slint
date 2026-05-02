@@ -1,245 +1,45 @@
-import { VerticalBox, Button, ListView, ScrollView, Spinner } from "std-widgets.slint";
-import { Utils, VideoResolutionPicker, FrameratePicker } from "../../../sdk/mirroring_core/ui/common.slint";
+// main.slint — Thin root file compiled by slint_build::compile("ui/main.slint").
+//
+// Responsibilities:
+//   1. Re-export Bridge and AppState from bridge.slint so slint_build generates
+//      the correct Rust bindings and ui.global::<Bridge>() resolves at runtime.
+//   2. Import all page components.
+//   3. Declare MainWindow and route AppState to the correct page.
+//
+// Per Slint module docs (re-export syntax):
+//   export { X } from "other.slint"   — brings X into scope AND re-exports it.
+//   No separate `import` of the same name is needed after a re-export.
+//   Source: draft/slint/docs/astro/src/content/docs/guide/language/coding/file.mdx
+//
+// All UI logic lives in the imported modules:
+//   bridge.slint          — AppState enum + Bridge global
+//   theme.slint           — design tokens (stub, populated Phase 2)
+//   pages/connect_page    — ConnectView
+//   pages/connecting_page — ConnectingView
+//   pages/settings_page   — SettingsPageView
+//   pages/casting_page    — WaitingForMediaView, CastingView
+//   pages/debug_page      — DebugPage (used inside connect_page)
+//   components/*          — shared components (stubs, populated Phase 3–5)
 
-enum AppState {
-    Disconnected,
-    Connecting,
-    SelectingSettings,
-    WaitingForMedia,
-    Casting,
-}
+// ── Re-export Bridge + AppState for the Rust backend ─────────────────────────
+// This single line both makes Bridge/AppState available within this file AND
+// exposes them to native code via the compiled Slint bindings.
+export { Bridge, AppState } from "bridge.slint";
 
-export global Bridge {
-    in property <[string]> devices: [
-        // "Device 1", "Device 2",
-    ];
-    in-out property <AppState> app-state: AppState.Disconnected;
-    in-out property <bool> show-debug: false;
-    in-out property <string> test-status: "";
+// ── Page component imports ────────────────────────────────────────────────────
+import { ConnectView }                   from "pages/connect_page.slint";
+import { ConnectingView }               from "pages/connecting_page.slint";
+import { SettingsPageView }             from "pages/settings_page.slint";
+import { WaitingForMediaView,
+         CastingView }                  from "pages/casting_page.slint";
 
-    callback connect-receiver(string);
-    callback start-casting(scale-width: int, scale-height: int, max-framerate: int);
-    callback stop-casting();
-    callback scan-qr();
-    callback start-migrated-server();
-    callback test-legacy-getinfo();
-    callback test-legacy-crossfade();
-    callback test-smoke-graph();
-
-    public function change-state(to: AppState) {
-        Bridge.app-state = to;
-    }
-}
-
-component ConnectView inherits Rectangle {
-    VerticalBox {
-        Text {
-            horizontal-alignment: center;
-            font-size: 16px;
-            font-weight: 600;
-            text: "Connect to your receiver";
-        }
-
-        if Bridge.devices.length == 0: Rectangle {
-            height: 90px;
-            border-radius: 8px;
-            background: #222633;
-
-            Text {
-                horizontal-alignment: center;
-                vertical-alignment: center;
-                color: #B8BECD;
-                text: "Searching for receivers...";
-            }
-        }
-
-        if Bridge.devices.length > 0: ListView {
-            for device in Bridge.devices: Rectangle {
-                height: 45px;
-
-                device_ta := TouchArea {
-                    clicked => Bridge.connect-receiver(device);
-                }
-
-                Rectangle {
-                    width: parent.width - 10px;
-                    height: parent.height - 10px;
-                    background: device_ta.pressed ? steelblue : lightsteelblue;
-                    border-radius: 8px;
-                    Text {
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        text: device;
-                    }
-                }
-            }
-        }
-
-        Rectangle {
-            height: 45px;
-
-            scan_ta := TouchArea {
-                clicked => Bridge.scan-qr();
-            }
-
-            Rectangle {
-                width: parent.width - 10px;
-                height: parent.height - 10px;
-                background: scan_ta.pressed ? steelblue : lightsteelblue;
-                border-radius: 8px;
-                Text {
-                    vertical-alignment: center;
-                    horizontal-alignment: left;
-                    text: "Scan QR";
-                }
-            }
-        }
-
-        if Bridge.show-debug: VerticalBox {
-            Text {
-                horizontal-alignment: center;
-                font-size: 12px;
-                text: "Migrated server tests";
-            }
-
-            Button {
-                text: "Start Migrated Server";
-                clicked => Bridge.start-migrated-server();
-            }
-
-            Button {
-                text: "Test Legacy GetInfo";
-                clicked => Bridge.test-legacy-getinfo();
-            }
-
-            Button {
-                text: "Test Legacy Crossfade";
-                clicked => Bridge.test-legacy-crossfade();
-            }
-
-            Button {
-                text: "Test Graph Smoke";
-                clicked => Bridge.test-smoke-graph();
-            }
-
-            ScrollView {
-                height: 100px;
-                viewport-width: parent.width;
-                viewport-height: status-text.preferred-height;
-
-                status-text := Text {
-                    width: parent.visible-width;
-                    wrap: word-wrap;
-                    text: Bridge.test-status;
-                }
-            }
-        }
-    }
-}
-
-component ConnectingView inherits Rectangle {
-    VerticalBox {
-        Spinner {
-            indeterminate: true;
-            width: 48px;
-            height: 48px;
-        }
-
-        Text {
-            font-size: 12pt;
-            vertical-alignment: center;
-            text: "Connecting";
-        }
-
-        Button {
-            text: "Cancel";
-            clicked => Bridge.stop-casting();
-        }
-    }
-}
-
-component SelectingSettingsView inherits Rectangle {
-    property <int> video-resolution-idx: 2;
-    property <int> video-framerate-idx: 2;
-
-    VerticalBox {
-        Text {
-            font-size: 12pt;
-            vertical-alignment: center;
-            text: "Max resolution";
-        }
-
-        VideoResolutionPicker {
-            current-index <=> video-resolution-idx;
-        }
-
-        Text {
-            font-size: 12pt;
-            vertical-alignment: center;
-            text: "Max framerate";
-        }
-
-        FrameratePicker {
-            current-index <=> video-framerate-idx;
-        }
-
-        Button {
-            text: "Start";
-            clicked => {
-                let scale = Utils.str-to-scale(video-resolution-idx);
-                Bridge.start-casting(scale.width, scale.height, Utils.video-framerates[video-framerate-idx].to-float())
-            }
-        }
-
-        Button {
-            text: "Disconnect";
-            clicked => Bridge.stop-casting();
-        }
-    }
-}
-
-component WaitingForMediaView inherits Rectangle {
-    VerticalBox {
-        Spinner {
-            indeterminate: true;
-            width: 48px;
-            height: 48px;
-        }
-
-        Text {
-            horizontal-alignment: center;
-            text: "Waiting for media";
-        }
-
-        Button {
-            text: "Cancel";
-            clicked => Bridge.stop-casting();
-        }
-    }
-}
-
-component CastingView inherits Rectangle {
-    VerticalBox {
-        Text {
-            horizontal-alignment: center;
-            text: "Casting";
-        }
-
-        Button {
-            text: "Stop";
-            clicked => Bridge.stop-casting();
-        }
-    }
-}
-
+// ── Root window ───────────────────────────────────────────────────────────────
 export component MainWindow inherits Window {
-    if Bridge.app-state == AppState.Disconnected: ConnectView { }
-
-    if Bridge.app-state == AppState.Connecting: ConnectingView {}
-
-    if Bridge.app-state == AppState.SelectingSettings: SelectingSettingsView {}
-
-    if Bridge.app-state == AppState.WaitingForMedia: WaitingForMediaView { }
-
-    if Bridge.app-state == AppState.Casting : CastingView {}
+    // Conditional elements: only the matching view is instantiated.
+    // Slint docs: https://releases.slint.dev/1.15.1/docs  (Conditional Elements)
+    if Bridge.app-state == AppState.Disconnected:      ConnectView { }
+    if Bridge.app-state == AppState.Connecting:        ConnectingView { }
+    if Bridge.app-state == AppState.SelectingSettings: SettingsPageView { }
+    if Bridge.app-state == AppState.WaitingForMedia:   WaitingForMediaView { }
+    if Bridge.app-state == AppState.Casting:           CastingView { }
 }

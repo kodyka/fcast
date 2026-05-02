@@ -1,0 +1,27 @@
+// connecting_page.slint — "Connecting" in-progress screen.
+// Shown when AppState == Connecting.
+// Extracted verbatim from main.slint.
+
+import { VerticalBox, Button, Spinner } from "std-widgets.slint";
+import { Bridge } from "../bridge.slint";
+
+export component ConnectingView inherits Rectangle {
+    VerticalBox {
+        Spinner {
+            indeterminate: true;
+            width: 48px;
+            height: 48px;
+        }
+
+        Text {
+            font-size: 12pt;
+            vertical-alignment: center;
+            text: "Connecting";
+        }
+
+        Button {
+            text: "Cancel";
+            clicked => Bridge.stop-casting();
+        }
+    }
+}

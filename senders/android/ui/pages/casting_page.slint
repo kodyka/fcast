@@ -1,0 +1,49 @@
+// casting_page.slint — Waiting-for-media and active-casting screens.
+// Both views share this file as they represent adjacent cast lifecycle states.
+//
+//   WaitingForMediaView  →  AppState == WaitingForMedia
+//   CastingView          →  AppState == Casting
+//
+// Phase 5 will add StatusOverlay as a ZStack layer on top of CastingView.
+// Phase 4 will refine the CastButton state machine here.
+
+import { VerticalBox, Button, Spinner } from "std-widgets.slint";
+import { Bridge } from "../bridge.slint";
+
+// ── WaitingForMediaView ───────────────────────────────────────────────────────
+
+export component WaitingForMediaView inherits Rectangle {
+    VerticalBox {
+        Spinner {
+            indeterminate: true;
+            width: 48px;
+            height: 48px;
+        }
+
+        Text {
+            horizontal-alignment: center;
+            text: "Waiting for media";
+        }
+
+        Button {
+            text: "Cancel";
+            clicked => Bridge.stop-casting();
+        }
+    }
+}
+
+// ── CastingView ───────────────────────────────────────────────────────────────
+
+export component CastingView inherits Rectangle {
+    VerticalBox {
+        Text {
+            horizontal-alignment: center;
+            text: "Casting";
+        }
+
+        Button {
+            text: "Stop";
+            clicked => Bridge.stop-casting();
+        }
+    }
+}
