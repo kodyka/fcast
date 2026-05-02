@@ -1,0 +1,33 @@
+import SwiftUI
+
+struct DeepLinkCreatorStreamsSettingsView: View {
+    @ObservedObject var deepLinkCreator: DeepLinkCreator
+
+    var body: some View {
+        Form {
+            Section {
+                List {
+                    ForEach(deepLinkCreator.streams) { stream in
+                        DeepLinkCreatorStreamSettingsView(deepLinkCreator: deepLinkCreator, stream: stream)
+                            .contextMenuDeleteButton {
+                                deepLinkCreator.streams.removeAll { $0.id == stream.id }
+                            }
+                    }
+                    .onMove { froms, to in
+                        deepLinkCreator.streams.move(fromOffsets: froms, toOffset: to)
+                    }
+                    .onDelete { offsets in
+                        deepLinkCreator.streams.remove(atOffsets: offsets)
+                    }
+                }
+                CreateButtonView {
+                    let stream = DeepLinkCreatorStream()
+                    stream.name = makeUniqueName(name: DeepLinkCreatorStream.baseName,
+                                                 existingNames: deepLinkCreator.streams)
+                    deepLinkCreator.streams.append(stream)
+                }
+            }
+        }
+        .navigationTitle("Streams")
+    }
+}

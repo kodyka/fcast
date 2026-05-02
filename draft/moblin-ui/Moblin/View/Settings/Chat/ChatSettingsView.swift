@@ -1,0 +1,106 @@
+import SwiftUI
+
+private struct ChatSettingsGeneralView: View {
+    let model: Model
+    @ObservedObject var database: Database
+    @ObservedObject var chat: SettingsChat
+
+    func submitMaximumAge(value: String) {
+        guard let maximumAge = Int(value) else {
+            return
+        }
+        guard maximumAge > 0 else {
+            return
+        }
+        chat.maximumAge = maximumAge
+    }
+
+    var body: some View {
+        NavigationLink {
+            ChatBotSettingsView()
+        } label: {
+            Toggle(isOn: $chat.botEnabled) {
+                Text("Bot")
+            }
+        }
+        NavigationLink {
+            ChatTextToSpeechSettingsView(chat: chat, ttsMonster: chat.ttsMonster)
+        } label: {
+            Toggle(isOn: Binding(get: {
+                chat.textToSpeechEnabled
+            }, set: { value in
+                chat.textToSpeechEnabled = value
+                if !value {
+                    model.chatTextToSpeech.reset(running: true)
+                }
+            })) {
+                Text("Text to speech")
+            }
+        }
+        if database.showAllSettings {
+            ChatFiltersSettingsView(chat: chat)
+            ChatNicknamesSettingsView(model: model, nicknames: chat.nicknames)
+            NavigationLink {
+                TextEditView(
+                    title: String(localized: "Maximum age"),
+                    value: String(chat.maximumAge),
+                    footers: [String(localized: "Maximum message age in seconds.")]
+                ) {
+                    submitMaximumAge(value: $0)
+                }
+            } label: {
+                Toggle(isOn: $chat.maximumAgeEnabled) {
+                    TextItemLocalizedView(name: "Maximum age", value: String(chat.maximumAge))
+                }
+            }
+            Toggle("Show deleted messages", isOn: $chat.showDeletedMessages)
+                .onChange(of: chat.showDeletedMessages) { _ in
+                    model.reloadChatMessages()
+                }
+        }
+    }
+}
+
+struct ChatSettingsView: View {
+    let model: Model
+    @ObservedObject var database: Database
+    @ObservedObject var chat: SettingsChat
+    @ObservedObject var stream: SettingsStream
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Enabled", isOn: $chat.enabled)
+                    .onChange(of: chat.enabled) { _ in
+                        model.reloadChats()
+                    }
+            }
+            Section {
+                ChatSettingsAppearanceView(model: model, database: database, chat: chat)
+                ChatSettingsLayoutView(model: model, database: database, chat: chat)
+                ChatSettingsGeneralView(model: model, database: database, chat: chat)
+            }
+            if database.showAllSettings {
+                Section {
+                    Toggle("Background chat", isOn: $chat.background)
+                } footer: {
+                    Text("""
+                    Enable to keep chat alive when the app is in background mode, even if not \
+                    streaming.
+                    """)
+                }
+            }
+            if stream !== fallbackStream {
+                ShortcutSectionView {
+                    StreamingPlatformsShortcutView(model: model, stream: stream)
+                    NavigationLink {
+                        StreamEmotesSettingsView(stream: stream)
+                    } label: {
+                        Label("Emotes", systemImage: "dot.radiowaves.left.and.right")
+                    }
+                }
+            }
+        }
+        .navigationTitle("Chat")
+    }
+}

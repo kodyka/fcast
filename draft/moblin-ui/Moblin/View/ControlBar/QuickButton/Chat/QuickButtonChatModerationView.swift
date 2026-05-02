@@ -1,0 +1,973 @@
+import SwiftUI
+
+private enum ExecutorState {
+    case idle
+    case inProgress
+    case success
+    case authError
+    case error
+}
+
+private class Executor: ObservableObject {
+    @Published var state: ExecutorState = .idle
+
+    func startProgress() {
+        state = .inProgress
+    }
+
+    func completed(result: OperationResult) {
+        switch result {
+        case .success:
+            state = .success
+        case .authError:
+            state = .authError
+        case .error:
+            state = .error
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            self.state = .idle
+        }
+    }
+
+    func completedNoTimer(result: OperationResult) {
+        switch result {
+        case .success:
+            state = .idle
+        case .authError:
+            state = .authError
+        case .error:
+            state = .error
+        }
+    }
+}
+
+private struct ExecutorView<Content: View>: View {
+    @EnvironmentObject var model: Model
+    @ObservedObject var executor: Executor
+    var centerNonContent: Bool = false
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        Group {
+            switch executor.state {
+            case .idle:
+                content()
+            case .inProgress:
+                ProgressView()
+                    .id(UUID()) // Only visible first raid search if removed.
+                    .hCenter(centerNonContent)
+            case .success:
+                Text("Success")
+                    .foregroundStyle(.green)
+                    .hCenter(centerNonContent)
+            case .authError:
+                Text("Not logged in")
+                    .foregroundStyle(.red)
+                    .hCenter(centerNonContent)
+            case .error:
+                Text("Failed")
+                    .foregroundStyle(.red)
+                    .hCenter(centerNonContent)
+            }
+        }
+        .onChange(of: executor.state) { _ in
+            if executor.state == .authError {
+                model.showModerationAuth = true
+                model.twitchLogin(stream: model.stream)
+            }
+        }
+    }
+}
+
+private struct ToggleActionView: View {
+    let text: LocalizedStringKey
+    let image: String
+    let action: (Bool, @escaping (OperationResult) -> Void) -> Void
+    @StateObject private var executor = Executor()
+
+    private func button(text: LocalizedStringKey, on: Bool) -> some View {
+        BorderlessButtonView(text: text) {
+            executor.startProgress()
+            action(on, executor.completed)
+        }
+    }
+
+    var body: some View {
+        HStack {
+            IconAndTextLocalizedView(image: image, text: text)
+            Spacer()
+            ExecutorView(executor: executor) {
+                button(text: "On", on: true)
+                    .padding(.trailing, 15)
+                button(text: "Off", on: false)
+            }
+        }
+    }
+}
+
+private struct DurationActionView: View {
+    let text: LocalizedStringKey
+    let image: String
+    let durations: [Int]
+    let action: (Int?, @escaping (OperationResult) -> Void) -> Void
+    @StateObject private var executor = Executor()
+    @State private var duration: Int?
+
+    var body: some View {
+        HStack {
+            IconAndTextLocalizedView(image: image, text: text)
+            Spacer()
+            ExecutorView(executor: executor) {
+                Picker("", selection: $duration) {
+                    Text("Off")
+                        .tag(nil as Int?)
+                    ForEach(durations, id: \.self) {
+                        Text(formatFullDuration(seconds: $0))
+                            .tag($0 as Int?)
+                    }
+                }
+                .padding(.trailing, 15)
+                BorderlessButtonView(text: "Send") {
+                    executor.startProgress()
+                    action(duration, executor.completed)
+                }
+            }
+        }
+    }
+}
+
+private enum ModActionType: CaseIterable {
+    case ban
+    case timeout
+    case unban
+    case mod
+    case unmod
+    case vip
+    case unvip
+
+    func title() -> LocalizedStringKey {
+        switch self {
+        case .ban:
+            return "Ban"
+        case .timeout:
+            return "Timeout"
+        case .unban:
+            return "Unban"
+        case .mod:
+            return "Mod"
+        case .unmod:
+            return "Unmod"
+        case .vip:
+            return "VIP"
+        case .unvip:
+            return "UnVIP"
+        }
+    }
+
+    func image() -> String {
+        switch self {
+        case .ban:
+            return "hand.raised"
+        case .timeout:
+            return "clock"
+        case .unban:
+            return "checkmark.circle"
+        case .mod:
+            return "shield"
+        case .unmod:
+            return "shield.slash"
+        case .vip:
+            return "crown"
+        case .unvip:
+            return "crown"
+        }
+    }
+}
+
+private struct UserModerationItemView: View {
+    let model: Model
+    let action: ModActionType
+    let platform: Platform
+    @State private var username = ""
+    @State private var reason = ""
+    @State private var timeoutDuration = 60
+    @StateObject var executor = Executor()
+    private let timeoutPresets = [60, 300, 600, 1800, 3600, 21600, 86400, 604_800]
+
+    private func canExecute() -> Bool {
+        return !username.trim().isEmpty
+    }
+
+    private func executeAction(onComplete: @escaping (OperationResult) -> Void) {
+        let user = username.trim()
+        let banReason = reason.trim()
+        switch platform {
+        case .kick:
+            executeKickAction(user: user, banReason: banReason, onComplete: onComplete)
+        case .twitch:
+            executeTwitchAction(user: user, banReason: banReason, onComplete: onComplete)
+        default:
+            break
+        }
+    }
+
+    private func executeKickAction(user: String,
+                                   banReason: String,
+                                   onComplete: @escaping (OperationResult) -> Void)
+    {
+        switch action {
+        case .ban:
+            model.banKickUser(user: user,
+                              duration: nil,
+                              reason: banReason.isEmpty ? nil : banReason,
+                              onComplete: onComplete)
+        case .timeout:
+            model.banKickUser(user: user, duration: timeoutDuration, onComplete: onComplete)
+        case .unban:
+            model.unbanKickUser(user: user, onComplete: onComplete)
+        case .mod:
+            model.modKickUser(user: user, onComplete: onComplete)
+        case .unmod:
+            model.unmodKickUser(user: user, onComplete: onComplete)
+        case .vip:
+            model.vipKickUser(user: user, onComplete: onComplete)
+        case .unvip:
+            model.unvipKickUser(user: user, onComplete: onComplete)
+        }
+    }
+
+    private func executeTwitchAction(user: String,
+                                     banReason: String,
+                                     onComplete: @escaping (OperationResult) -> Void)
+    {
+        switch action {
+        case .ban:
+            model.banTwitchUser(
+                user: user,
+                duration: nil,
+                reason: banReason.isEmpty ? nil : banReason,
+                onComplete: onComplete
+            )
+        case .timeout:
+            model.banTwitchUser(user: user, duration: timeoutDuration, reason: nil, onComplete: onComplete)
+        case .unban:
+            model.unbanTwitchUser(user: user, onComplete: onComplete)
+        case .mod:
+            model.modTwitchUser(user: user, onComplete: onComplete)
+        case .unmod:
+            model.unmodTwitchUser(user: user, onComplete: onComplete)
+        case .vip:
+            model.vipTwitchUser(user: user, onComplete: onComplete)
+        case .unvip:
+            model.unvipTwitchUser(user: user, onComplete: onComplete)
+        }
+    }
+
+    var body: some View {
+        NavigationLinkView(text: action.title(), image: action.image()) {
+            Section {
+                TextField("Username", text: $username)
+                    .autocapitalization(.none)
+                    .autocorrectionDisabled()
+            } header: {
+                Text("Username")
+            }
+            if action == .timeout {
+                Section {
+                    Picker("Duration", selection: $timeoutDuration) {
+                        ForEach(timeoutPresets, id: \.self) {
+                            Text(formatFullDuration(seconds: $0))
+                        }
+                    }
+                }
+            }
+            if action == .ban {
+                Section {
+                    TextField("Reason", text: $reason)
+                } header: {
+                    Text("Reason")
+                }
+            }
+            Section {
+                HCenter {
+                    ExecutorView(executor: executor) {
+                        TextButtonView("Send") {
+                            executor.startProgress()
+                            executeAction(onComplete: executor.completed)
+                        }
+                        .disabled(!canExecute())
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct PollOption: Identifiable {
+    let id: UUID = .init()
+    var text: String = ""
+}
+
+private struct CreatePollView: View {
+    let model: Model
+    @State private var title: String = ""
+    @State private var options = [PollOption(), PollOption()]
+    @State private var duration: Int = 30
+    @State private var resultDisplayDuration: Int = 15
+    @StateObject private var executor = Executor()
+
+    private func canExecute() -> Bool {
+        let trimmedTitle = title.trim()
+        let filledOptions = options.filter { !$0.text.trim().isEmpty }
+        return !trimmedTitle.isEmpty && filledOptions.count >= 2
+    }
+
+    var body: some View {
+        NavigationLinkView(text: "Create poll", image: "chart.bar") {
+            Section("Title") {
+                TextField("Title", text: $title)
+            }
+            Section {
+                ForEach($options) { $option in
+                    TextField("Option", text: $option.text)
+                        .deleteDisabled(options.count <= 2)
+                        .contextMenuDeleteButton(disabled: options.count <= 2) {
+                            options.removeAll { $0.id == option.id }
+                        }
+                }
+                .onDelete { offsets in
+                    options.remove(atOffsets: offsets)
+                }
+                if options.count < 6 {
+                    AddButtonView {
+                        options.append(PollOption())
+                    }
+                }
+            } header: {
+                Text("Options")
+            } footer: {
+                SwipeLeftToDeleteHelpView(kind: String(localized: "an option"))
+            }
+            Section {
+                Picker("Duration", selection: $duration) {
+                    ForEach([30, 120, 180, 240, 300], id: \.self) {
+                        Text(formatFullDuration(seconds: $0))
+                    }
+                }
+            }
+            Section {
+                Picker("Result display duration", selection: $resultDisplayDuration) {
+                    ForEach([15, 30, 120, 180, 240, 300], id: \.self) {
+                        Text(formatFullDuration(seconds: $0))
+                    }
+                }
+            }
+            Section {
+                HCenter {
+                    ExecutorView(executor: executor) {
+                        CreateButtonView {
+                            executor.startProgress()
+                            model.createKickPoll(
+                                title: title.trim(),
+                                options: options.map { $0.text.trim() }.filter { !$0.isEmpty },
+                                duration: duration,
+                                resultDisplayDuration: resultDisplayDuration,
+                                onComplete: executor.completed
+                            )
+                        }
+                        .disabled(!canExecute())
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct DeletePollView: View {
+    let model: Model
+    @StateObject private var executor = Executor()
+
+    var body: some View {
+        HStack {
+            IconAndTextLocalizedView(image: "chart.bar", text: "Delete poll")
+            Spacer()
+            ExecutorView(executor: executor) {
+                BorderlessButtonView(text: "Send") {
+                    executor.startProgress()
+                    model.deleteKickPoll(onComplete: executor.completed)
+                }
+            }
+        }
+    }
+}
+
+private struct CreatePredictionView: View {
+    let model: Model
+    @State private var title = ""
+    @State private var outcome1 = ""
+    @State private var outcome2 = ""
+    @State private var duration = 300
+    @StateObject private var executor = Executor()
+
+    private func canExecute() -> Bool {
+        return !title.trim().isEmpty && !outcome1.trim().isEmpty && !outcome2.trim().isEmpty
+    }
+
+    var body: some View {
+        NavigationLinkView(text: "Create prediction", image: "sparkles") {
+            Section("Title") {
+                TextField("Title", text: $title)
+            }
+            Section("Outcomes") {
+                TextField("Outcome", text: $outcome1)
+                TextField("Outcome", text: $outcome2)
+            }
+            Section {
+                Picker("Duration", selection: $duration) {
+                    ForEach([60, 300, 600, 1800], id: \.self) {
+                        Text(formatFullDuration(seconds: $0))
+                    }
+                }
+            }
+            Section {
+                HCenter {
+                    ExecutorView(executor: executor) {
+                        CreateButtonView {
+                            executor.startProgress()
+                            model.createKickPrediction(title: title.trim(),
+                                                       outcomes: [outcome1.trim(), outcome2.trim()],
+                                                       duration: duration,
+                                                       onComplete: executor.completed)
+                        }
+                        .disabled(!canExecute())
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct ChannelImageView: View {
+    let image: String?
+
+    var body: some View {
+        Group {
+            if let image, let url = URL(string: image) {
+                CacheAsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                } placeholder: {
+                    Image("AppIconNoBackground")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                }
+            } else {
+                Image("AppIconNoBackground")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            }
+        }
+        .frame(width: 50, height: 50)
+        .clipShape(Circle())
+    }
+}
+
+private struct RaidChannelView: View {
+    let buttonText: LocalizedStringKey
+    let channel: String
+    let category: String
+    let title: String
+    let image: String?
+    let isLive: Bool
+    let viewerCount: Int?
+    let action: (@escaping (OperationResult) -> Void) -> Void
+    @StateObject private var executor = Executor()
+
+    var body: some View {
+        HStack {
+            ChannelImageView(image: image)
+            VStack(alignment: .leading) {
+                Text(channel)
+                if isLive {
+                    Text(category)
+                        .font(.caption)
+                    Text(title)
+                        .font(.caption)
+                } else {
+                    Text("Offline")
+                        .font(.caption)
+                }
+            }
+            Spacer()
+            if let viewerCount {
+                HStack(spacing: 2) {
+                    Image(systemName: "eye")
+                    Text(countFormatter.format(viewerCount))
+                }
+                .font(.caption)
+            }
+            if isLive {
+                ExecutorView(executor: executor) {
+                    BorderlessButtonView(text: buttonText) {
+                        executor.startProgress()
+                        action(executor.completed)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct StartTwitchRaidView: View {
+    let model: Model
+    @State private var searchText: String = ""
+    @State private var channels: [TwitchApiChannel] = []
+    @StateObject private var executor = Executor()
+
+    var body: some View {
+        NavigationLinkView(text: "Raid channel", image: "play.tv") {
+            Section {
+                TextField("Search", text: $searchText)
+                    .autocapitalization(.none)
+                    .autocorrectionDisabled(true)
+                    .onChange(of: searchText) { _ in
+                        guard !searchText.isEmpty else {
+                            channels = []
+                            return
+                        }
+                        executor.startProgress()
+                        model.searchTwitchChannels(stream: model.stream, filter: searchText) {
+                            switch $0 {
+                            case let .success(channels):
+                                self.channels = channels.sorted(by: {
+                                    let searchText = searchText.lowercased()
+                                    let first = $0.display_name.lowercased()
+                                    let second = $1.display_name.lowercased()
+                                    if first.hasPrefix(searchText) {
+                                        return true
+                                    } else if second.hasPrefix(searchText) {
+                                        return false
+                                    } else {
+                                        return true
+                                    }
+                                })
+                                executor.completedNoTimer(result: .success(Data()))
+                            case .authError:
+                                executor.completedNoTimer(result: .authError)
+                            case .error:
+                                executor.completedNoTimer(result: .error)
+                            }
+                        }
+                    }
+            }
+            Section {
+                ExecutorView(executor: executor, centerNonContent: true) {
+                    ForEach(channels) { channel in
+                        RaidChannelView(buttonText: "Raid",
+                                        channel: channel.display_name,
+                                        category: channel.game_name,
+                                        title: channel.title,
+                                        image: channel.thumbnail_url,
+                                        isLive: true,
+                                        viewerCount: nil)
+                        {
+                            model.startRaidTwitchChannel(channelId: channel.id, onComplete: $0)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct KickHostChannelSearchView: View {
+    let model: Model
+    @State private var searchText: String = ""
+    @State private var channels: [KickLiveSearchChannel] = []
+    @StateObject private var executor = Executor()
+
+    var body: some View {
+        Section {
+            TextField("Search", text: $searchText)
+                .autocapitalization(.none)
+                .autocorrectionDisabled()
+                .onChange(of: searchText) { _ in
+                    guard !searchText.isEmpty else {
+                        channels = []
+                        return
+                    }
+                    executor.startProgress()
+                    model.searchKickChannels(query: searchText) { results in
+                        if let results {
+                            self.channels = results.sorted(by: {
+                                let searchText = searchText.lowercased()
+                                let first = $0.username.lowercased()
+                                let second = $1.username.lowercased()
+                                if first.hasPrefix(searchText) {
+                                    return true
+                                } else if second.hasPrefix(searchText) {
+                                    return false
+                                } else {
+                                    return true
+                                }
+                            })
+                            executor.completedNoTimer(result: .success(Data()))
+                        } else {
+                            executor.completedNoTimer(result: .error)
+                        }
+                    }
+                }
+        }
+        Section {
+            ExecutorView(executor: executor, centerNonContent: true) {
+                ForEach(channels) { channel in
+                    RaidChannelView(buttonText: "Host",
+                                    channel: channel.username,
+                                    category: channel.category ?? "",
+                                    title: "",
+                                    image: channel.profile_pic,
+                                    isLive: channel.is_live,
+                                    viewerCount: channel.viewers_count)
+                    {
+                        model.hostKickChannel(channel: channel.username, onComplete: $0)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct KickHostChannelView: View {
+    let model: Model
+    @State private var channels: [KickFollowedChannel] = []
+    @State private var cursor: Int?
+    @State private var isLoading = false
+
+    private func loadMoreChannels() {
+        guard !isLoading else {
+            return
+        }
+        isLoading = true
+        model.createKickApi(stream: model.stream).getFollowedChannels(cursor: cursor) { response in
+            isLoading = false
+            if let response {
+                channels.append(contentsOf: response.channels)
+                cursor = response.nextCursor
+            }
+        }
+    }
+
+    var body: some View {
+        NavigationLinkView(text: "Host channel", image: "play.tv") {
+            KickHostChannelSearchView(model: model)
+            Section {
+                ForEach(channels.filter { $0.is_live }) { channel in
+                    RaidChannelView(buttonText: "Host",
+                                    channel: channel.user_username,
+                                    category: channel.category_name ?? "",
+                                    title: channel.session_title ?? "",
+                                    image: channel.profile_picture,
+                                    isLive: true,
+                                    viewerCount: channel.viewer_count)
+                    {
+                        model.hostKickChannel(channel: channel.user_username, onComplete: $0)
+                    }
+                }
+                if isLoading {
+                    HCenter {
+                        ProgressView()
+                    }
+                } else if cursor != nil {
+                    HCenter {
+                        BorderlessButtonView(text: "Load more") {
+                            loadMoreChannels()
+                        }
+                    }
+                }
+            } header: {
+                Text("Followed channels")
+            }
+            .onAppear {
+                channels = []
+                loadMoreChannels()
+            }
+        }
+    }
+}
+
+private struct RunCommercialView: View {
+    let model: Model
+    @State private var duration = 30
+    @StateObject private var executor = Executor()
+
+    var body: some View {
+        NavigationLinkView(text: "Run commercial", image: "cup.and.saucer") {
+            Section {
+                Picker("Duration", selection: $duration) {
+                    ForEach([30, 60, 90, 120, 180], id: \.self) {
+                        Text(formatFullDuration(seconds: $0))
+                    }
+                }
+            } header: {
+                Text("Duration")
+            }
+            Section {
+                HCenter {
+                    ExecutorView(executor: executor) {
+                        TextButtonView("Run commercial") {
+                            executor.startProgress()
+                            model.startAds(seconds: duration, onComplete: executor.completed)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private enum AnnouncementColor: String, CaseIterable {
+    case primary
+    case blue
+    case green
+    case orange
+    case purple
+
+    func toString() -> String {
+        switch self {
+        case .primary:
+            return String(localized: "Primary")
+        case .blue:
+            return "🔵"
+        case .green:
+            return "🟢"
+        case .orange:
+            return "🟠"
+        case .purple:
+            return "🟣"
+        }
+    }
+}
+
+private struct SendAnnouncementView: View {
+    let model: Model
+    @State private var message = ""
+    @State private var color: AnnouncementColor = .primary
+    @StateObject private var executor = Executor()
+
+    private func canSend() -> Bool {
+        return !message.trim().isEmpty
+    }
+
+    var body: some View {
+        NavigationLinkView(text: "Send announcement", image: "megaphone") {
+            Section {
+                TextField("Message", text: $message)
+            } header: {
+                Text("Message")
+            }
+            Section {
+                Picker("Color", selection: $color) {
+                    ForEach(AnnouncementColor.allCases, id: \.self) {
+                        Text($0.toString())
+                    }
+                }
+            }
+            Section {
+                HCenter {
+                    ExecutorView(executor: executor) {
+                        TextButtonView("Send") {
+                            executor.startProgress()
+                            model.sendTwitchAnnouncement(message: message.trim(),
+                                                         color: color.rawValue,
+                                                         onComplete: executor.completed)
+                        }
+                        .disabled(!canSend())
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct SlowModeView: View {
+    let durations: [Int]
+    let action: (Int?, @escaping (OperationResult) -> Void) -> Void
+
+    var body: some View {
+        DurationActionView(text: "Slow mode", image: "tortoise", durations: durations, action: action)
+    }
+}
+
+private struct FollowersOnlyView: View {
+    let durations: [Int]
+    let action: (Int?, @escaping (OperationResult) -> Void) -> Void
+
+    var body: some View {
+        DurationActionView(text: "Followers only", image: "person.2", durations: durations, action: action)
+    }
+}
+
+private struct SubscribersOnlyView: View {
+    let action: (Bool, @escaping (OperationResult) -> Void) -> Void
+
+    var body: some View {
+        ToggleActionView(text: "Subscribers only", image: "star", action: action)
+    }
+}
+
+private struct EmotesOnlyView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let action: (Bool, @escaping (OperationResult) -> Void) -> Void
+
+    var body: some View {
+        ToggleActionView(text: "Emotes only",
+                         image: colorScheme == .light ? "face.smiling" : "face.smiling.inverse",
+                         action: action)
+    }
+}
+
+private struct NavigationLinkView<Content: View>: View {
+    let text: LocalizedStringKey
+    let image: String
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        NavigationLink {
+            Form {
+                content()
+            }
+            .navigationTitle(text)
+        } label: {
+            IconAndTextLocalizedView(image: image, text: text)
+        }
+    }
+}
+
+private struct TwitchView: View {
+    let model: Model
+    @Binding var platform: Platform?
+
+    private func slowModeAction(duration: Int?, onComplete: @escaping (OperationResult) -> Void) {
+        model.setTwitchSlowMode(enabled: duration != nil, duration: duration, onComplete: onComplete)
+    }
+
+    private func followersOnlyAction(duration: Int?, onComplete: @escaping (OperationResult) -> Void) {
+        model.setTwitchFollowersMode(enabled: duration != nil,
+                                     duration: (duration ?? 0) / 60,
+                                     onComplete: onComplete)
+    }
+
+    var body: some View {
+        NavigationLink {
+            Form {
+                Section {
+                    StartTwitchRaidView(model: model)
+                    RunCommercialView(model: model)
+                    SendAnnouncementView(model: model)
+                }
+                Section {
+                    SlowModeView(durations: [3, 5, 10, 30, 60, 120], action: slowModeAction)
+                    FollowersOnlyView(durations: [60, 300, 600, 3600], action: followersOnlyAction)
+                    SubscribersOnlyView(action: model.setTwitchSubscribersOnlyMode)
+                    EmotesOnlyView(action: model.setTwitchEmoteOnlyMode)
+                }
+                Section {
+                    ForEach(ModActionType.allCases, id: \.self) {
+                        UserModerationItemView(model: model, action: $0, platform: .twitch)
+                    }
+                }
+            }
+            .navigationTitle("Twitch")
+            .onAppear {
+                platform = .twitch
+            }
+        } label: {
+            TwitchLogoAndNameView()
+        }
+    }
+}
+
+private struct KickView: View {
+    let model: Model
+    @Binding var platform: Platform?
+
+    private func slowModeAction(duration: Int?, onComplete: @escaping (OperationResult) -> Void) {
+        if let duration {
+            model.enableKickSlowMode(messageInterval: duration, onComplete: onComplete)
+        } else {
+            model.disableKickSlowMode(onComplete: onComplete)
+        }
+    }
+
+    private func followersOnlyAction(duration: Int?, onComplete: @escaping (OperationResult) -> Void) {
+        if let duration {
+            model.enableKickFollowersMode(followingMinDuration: duration / 60, onComplete: onComplete)
+        } else {
+            model.disableKickFollowersMode(onComplete: onComplete)
+        }
+    }
+
+    var body: some View {
+        NavigationLink {
+            Form {
+                Section {
+                    KickHostChannelView(model: model)
+                    CreatePollView(model: model)
+                    DeletePollView(model: model)
+                    CreatePredictionView(model: model)
+                }
+                Section {
+                    SlowModeView(durations: [3, 5, 10, 30, 60, 120, 300], action: slowModeAction)
+                    FollowersOnlyView(durations: [60, 300, 600, 3600], action: followersOnlyAction)
+                    SubscribersOnlyView(action: model.setKickSubscribersOnlyMode)
+                    EmotesOnlyView(action: model.setKickEmoteOnlyMode)
+                }
+                Section {
+                    ForEach(ModActionType.allCases, id: \.self) {
+                        UserModerationItemView(model: model, action: $0, platform: .kick)
+                    }
+                }
+            }
+            .navigationTitle("Kick")
+            .onAppear {
+                platform = .kick
+            }
+        } label: {
+            KickLogoAndNameView()
+        }
+    }
+}
+
+struct QuickButtonChatModerationView: View {
+    @ObservedObject var model: Model
+    @Binding var presentingModeration: Bool
+    @State var platform: Platform?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TwitchView(model: model, platform: $platform)
+                    KickView(model: model, platform: $platform)
+                }
+                ShortcutSectionView {
+                    StreamingPlatformsShortcutView(model: model, stream: model.stream)
+                }
+            }
+            .navigationTitle("Moderation")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                CloseToolbar(presenting: $presentingModeration)
+            }
+        }
+        .sheet(isPresented: $model.showModerationAuth) {
+            switch platform {
+            case .twitch:
+                TwitchLoginView(model: model, presenting: $model.showModerationAuth)
+            default:
+                EmptyView()
+            }
+        }
+    }
+}
