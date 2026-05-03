@@ -10,6 +10,7 @@
 import { VerticalBox } from "std-widgets.slint";
 import { Bridge, AppState } from "../bridge.slint";
 import { LoadingView, DestructiveButton } from "../components/buttons.slint";
+import { StatusOverlay } from "../components/status_overlay.slint";
 
 export component CastButton inherits Rectangle {
     // This component dynamically switches label and style based on AppState.
@@ -50,5 +51,12 @@ export component CastingView inherits Rectangle {
         }
 
         CastButton {}
+    }
+
+    StatusOverlay {
+        x: 0;
+        y: 0;
+        width: parent.width * 0.5;
+        items: Bridge.status-items;
     }
 }
