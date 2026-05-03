@@ -61,7 +61,7 @@ export component ConnectView inherits Rectangle {
         // ── Scan QR button ────────────────────────────────────────────────
         PrimaryButton {
             label: "Scan QR";
-            clicked => { Bridge.scan-qr(); }
+            clicked => { Bridge.invoke-action("scan-qr"); }
         }
 
         // ── Debug panel (conditionally visible) ───────────────────────────

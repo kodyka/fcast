@@ -5,3 +5,48 @@
 // Will export: CastControlBar, QuickActionButton
 // Requires bridge.slint to export: QuickAction struct, invoke-action callback
 // Reference:  draft/moblin-ui/Moblin/View/ControlBar/ (design ref only)
+
+import { Theme } from "../theme.slint";
+import { Bridge, QuickAction } from "../bridge.slint";
+
+export component QuickActionButton inherits Rectangle {
+    in property <QuickAction> action;
+    callback invoked(string);
+
+    height: 48px;
+    width: 80px;
+    border-radius: Theme.radius-card;
+    background: root.action.active
+        ? Theme.accent-active
+        : (ta.pressed ? Theme.surface-card.brighter(20%) : Theme.surface-card);
+    opacity: root.action.enabled ? 1.0 : 0.45;
+
+    ta := TouchArea {
+        enabled: root.action.enabled;
+        clicked => { root.invoked(root.action.id); }
+    }
+    Text {
+        text: root.action.title;
+        color: Theme.text-primary;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-size: Theme.font-size-label;
+        wrap: word-wrap;
+    }
+}
+
+export component CastControlBar inherits Rectangle {
+    height: Theme.control-bar-height;
+    background: Theme.surface-bar;
+
+    HorizontalLayout {
+        padding: Theme.padding-card;
+        spacing: Theme.spacing-default;
+        alignment: start;
+
+        for action in Bridge.quick-actions: QuickActionButton {
+            action: action;
+            invoked(id) => { Bridge.invoke-action(id); }
+        }
+    }
+}

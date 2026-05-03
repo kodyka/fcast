@@ -16,6 +16,13 @@ export enum AppState {
     Casting,
 }
 
+export struct QuickAction {
+    id:      string,
+    title:   string,
+    enabled: bool,
+    active:  bool,
+}
+
 export global Bridge {
     // ── Data properties (Rust → Slint) ──────────────────────────────────
     in property <[string]> devices: [
@@ -24,16 +31,13 @@ export global Bridge {
     in-out property <AppState> app-state: AppState.Disconnected;
     in-out property <bool>     show-debug: false;
     in-out property <string>   test-status: "";
+    in property <[QuickAction]> quick-actions: [];
 
     // ── Callbacks (Slint → Rust) ─────────────────────────────────────────
     callback connect-receiver(string);
     callback start-casting(scale-width: int, scale-height: int, max-framerate: int);
     callback stop-casting();
-    callback scan-qr();
-    callback start-migrated-server();
-    callback test-legacy-getinfo();
-    callback test-legacy-crossfade();
-    callback test-smoke-graph();
+    callback invoke-action(string);
 
     // ── Public functions (callable from Slint) ───────────────────────────
     public function change-state(to: AppState) {
