@@ -499,6 +499,27 @@ struct Application {
     our_source_url: Option<String>,
 }
 
+
+fn build_status_items(receiver_name: &str, encoder: &str, network: &str) -> Vec<crate::StatusItem> {
+    vec![
+        crate::StatusItem {
+            label: "Receiver".into(),
+            value: receiver_name.into(),
+            severity: crate::StatusSeverity::Info,
+        },
+        crate::StatusItem {
+            label: "Encoder".into(),
+            value: encoder.into(),
+            severity: crate::StatusSeverity::Info,
+        },
+        crate::StatusItem {
+            label: "Network".into(),
+            value: network.into(),
+            severity: crate::StatusSeverity::Info,
+        },
+    ]
+}
+
 impl Application {
     pub async fn new(
         ui_weak: slint::Weak<MainWindow>,
@@ -618,6 +639,7 @@ impl Application {
         match event {
             Event::EndSession { .. } => {
                 self.ui_weak.upgrade_in_event_loop(|ui| {
+                    ui.global::<Bridge>().set_status_items(std::rc::Rc::new(slint::VecModel::default()).into());
                     ui.global::<Bridge>()
                         .invoke_change_state(AppState::Disconnected);
                 })?;
@@ -713,6 +735,13 @@ impl Application {
                                                 ?new_source,
                                                 "The source on the receiver changed, disconnecting"
                                             );
+
+                                            self.ui_weak.upgrade_in_event_loop(|ui| {
+                                                ui.global::<Bridge>().set_status_items(std::rc::Rc::new(slint::VecModel::default()).into());
+                                                ui.global::<Bridge>()
+                                                    .invoke_change_state(AppState::Disconnected);
+                                            })?;
+
                                             self.stop_cast(false).await?;
                                         }
                                     }
@@ -732,6 +761,7 @@ impl Application {
             Event::CaptureCancelled => {
                 set_capture_active(false);
                 self.ui_weak.upgrade_in_event_loop(|ui| {
+                    ui.global::<Bridge>().set_status_items(std::rc::Rc::new(slint::VecModel::default()).into());
                     ui.global::<Bridge>()
                         .invoke_change_state(AppState::Disconnected);
                 })?;
@@ -827,7 +857,14 @@ impl Application {
                     30,
                 )?);
 
-                self.ui_weak.upgrade_in_event_loop(|ui| {
+                let receiver_name = self.active_device.as_ref().map(|d| d.name()).unwrap_or_default();
+                let encoder_name = "Hardware"; // Blocked by P0-1: Placeholder until encoder selection works
+                let network_info = self.local_address.as_ref().map(|a| a.to_string()).unwrap_or_default();
+                let status_items = build_status_items(&receiver_name, encoder_name, &network_info);
+
+                self.ui_weak.upgrade_in_event_loop(move |ui| {
+                    let status_model = std::rc::Rc::new(slint::VecModel::from(status_items));
+                    ui.global::<Bridge>().set_status_items(status_model.into());
                     ui.global::<Bridge>().invoke_change_state(AppState::Casting);
                 })?;
             }

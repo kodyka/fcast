@@ -23,6 +23,14 @@ export struct QuickAction {
     active:  bool,
 }
 
+export enum StatusSeverity { info, warning, error }
+
+export struct StatusItem {
+    label:    string,
+    value:    string,
+    severity: StatusSeverity,
+}
+
 export global Bridge {
     // ── Data properties (Rust → Slint) ──────────────────────────────────
     in property <[string]> devices: [
@@ -32,6 +40,7 @@ export global Bridge {
     in-out property <bool>     show-debug: false;
     in-out property <string>   test-status: "";
     in property <[QuickAction]> quick-actions: [];
+    in property <[StatusItem]> status-items: [];
 
     // ── Callbacks (Slint → Rust) ─────────────────────────────────────────
     callback connect-receiver(string);

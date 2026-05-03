@@ -254,6 +254,24 @@ pub enum IpAddr {
 }
 
 #[cfg(any_protocol)]
+
+impl std::fmt::Display for IpAddr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::V4 { o1, o2, o3, o4 } => write!(f, "{o1}.{o2}.{o3}.{o4}"),
+            Self::V6 { o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15, o16, scope_id } => {
+                let std_ip = std::net::Ipv6Addr::from([*o1, *o2, *o3, *o4, *o5, *o6, *o7, *o8, *o9, *o10, *o11, *o12, *o13, *o14, *o15, *o16]);
+                if *scope_id > 0 {
+                    write!(f, "{std_ip}%{scope_id}")
+                } else {
+                    write!(f, "{std_ip}")
+                }
+            }
+        }
+    }
+}
+
+#[cfg(any_protocol)]
 impl IpAddr {
     pub fn v4(o1: u8, o2: u8, o3: u8, o4: u8) -> Self {
         Self::V4 { o1, o2, o3, o4 }
