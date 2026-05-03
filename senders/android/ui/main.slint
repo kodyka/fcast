@@ -1,15 +1,19 @@
 // main.slint — Thin root file compiled by slint_build::compile("ui/main.slint").
 //
 // Responsibilities:
-//   1. Re-export Bridge and AppState from bridge.slint so slint_build generates
-//      the correct Rust bindings and ui.global::<Bridge>() resolves at runtime.
+//   1. Import Bridge and AppState from bridge.slint for use by MainWindow,
+//      and re-export them so slint_build generates the Rust bindings and
+//      ui.global::<Bridge>() resolves at runtime.
 //   2. Import all page components.
 //   3. Declare MainWindow and route AppState to the correct page.
 //
-// Per Slint module docs (re-export syntax):
-//   export { X } from "other.slint"   — brings X into scope AND re-exports it.
-//   No separate `import` of the same name is needed after a re-export.
-//   Source: draft/slint/docs/astro/src/content/docs/guide/language/coding/file.mdx
+// Per Slint module docs, `export { X } from "..."` is *re-export only* — it
+// publishes the symbol but does not bring it into the current file's scope.
+// Two separate statements are required when a symbol is both used locally and
+// re-exported (the canonical pattern shown in the Slint Modules reference):
+//   import { X } from "other.slint";
+//   export { X };
+// Reference: https://releases.slint.dev/1.15.1/docs/slint/src/language/syntax/modules
 //
 // All UI logic lives in the imported modules:
 //   bridge.slint          — AppState enum + Bridge global
@@ -21,10 +25,9 @@
 //   pages/debug_page      — DebugPage (used inside connect_page)
 //   components/*          — shared components (stubs, populated Phase 3–5)
 
-// ── Re-export Bridge + AppState for the Rust backend ─────────────────────────
-// This single line both makes Bridge/AppState available within this file AND
-// exposes them to native code via the compiled Slint bindings.
-export { Bridge, AppState } from "bridge.slint";
+// ── Bridge + AppState: import for local use, re-export for the Rust backend ──
+import { Bridge, AppState } from "bridge.slint";
+export { Bridge, AppState };
 
 // ── Page component imports ────────────────────────────────────────────────────
 import { ConnectView }                   from "pages/connect_page.slint";
