@@ -39,15 +39,23 @@ import { SettingsPageView }             from "pages/settings_page.slint";
 import { WaitingForMediaView,
          CastingView }                  from "pages/casting_page.slint";
 import { Theme } from "theme.slint";
+import { CastControlBar } from "components/control_bar.slint";
 
 // ── Root window ───────────────────────────────────────────────────────────────
 export component MainWindow inherits Window {
     background: Theme.surface-primary;
-    // Conditional elements: only the matching view is instantiated.
-    // Slint docs: https://releases.slint.dev/1.15.1/docs  (Conditional Elements)
-    if Bridge.app-state == AppState.Disconnected:      ConnectView { }
-    if Bridge.app-state == AppState.Connecting:        ConnectingView { }
-    if Bridge.app-state == AppState.SelectingSettings: SettingsPageView { }
-    if Bridge.app-state == AppState.WaitingForMedia:   WaitingForMediaView { }
-    if Bridge.app-state == AppState.Casting:           CastingView { }
+
+    VerticalLayout {
+        Rectangle {
+            vertical-stretch: 1;
+            // Conditional elements: only the matching view is instantiated.
+            // Slint docs: https://releases.slint.dev/1.15.1/docs  (Conditional Elements)
+            if Bridge.app-state == AppState.Disconnected:      ConnectView { }
+            if Bridge.app-state == AppState.Connecting:        ConnectingView { }
+            if Bridge.app-state == AppState.SelectingSettings: SettingsPageView { }
+            if Bridge.app-state == AppState.WaitingForMedia:   WaitingForMediaView { }
+            if Bridge.app-state == AppState.Casting:           CastingView { }
+        }
+        CastControlBar { }
+    }
 }

@@ -8,22 +8,34 @@
 // Phase 4 will refine the CastButton state machine here.
 
 import { VerticalBox } from "std-widgets.slint";
-import { Bridge } from "../bridge.slint";
-import { Theme } from "../theme.slint";
+import { Bridge, AppState } from "../bridge.slint";
 import { LoadingView, DestructiveButton } from "../components/buttons.slint";
+
+export component CastButton inherits Rectangle {
+    // This component dynamically switches label and style based on AppState.
+    // It should only be visible/instantiated in WaitingForMedia and Casting states.
+
+    if Bridge.app-state == AppState.WaitingForMedia: DestructiveButton {
+        label: "Cancel";
+        clicked => { Bridge.stop-casting(); }
+    }
+
+    if Bridge.app-state == AppState.Casting: DestructiveButton {
+        label: "Stop Casting";
+        clicked => { Bridge.stop-casting(); }
+    }
+}
 
 // ── WaitingForMediaView ───────────────────────────────────────────────────────
 
 export component WaitingForMediaView inherits Rectangle {
     VerticalBox {
+        alignment: center;
         LoadingView {
             label: "Waiting for media";
         }
 
-        DestructiveButton {
-            label: "Cancel";
-            clicked => { Bridge.stop-casting(); }
-        }
+        CastButton {}
     }
 }
 
@@ -31,14 +43,12 @@ export component WaitingForMediaView inherits Rectangle {
 
 export component CastingView inherits Rectangle {
     VerticalBox {
+        alignment: center;
         Text {
             horizontal-alignment: center;
             text: "Casting";
         }
 
-        DestructiveButton {
-            label: "Stop";
-            clicked => { Bridge.stop-casting(); }
-        }
+        CastButton {}
     }
 }

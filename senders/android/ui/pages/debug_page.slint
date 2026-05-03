@@ -18,6 +18,7 @@ import { Theme } from "../theme.slint";
 import { PrimaryButton, TextButton } from "../components/buttons.slint";
 
 export component DebugPage inherits VerticalBox {
+    alignment: start;
     Text {
         horizontal-alignment: center;
         font-size: Theme.font-size-label;
@@ -26,29 +27,29 @@ export component DebugPage inherits VerticalBox {
 
     PrimaryButton {
         label: "Start Migrated Server";
-        clicked => { Bridge.start-migrated-server(); }
+        clicked => { Bridge.invoke-action("migrated-server"); }
     }
 
     TextButton {
         label: "Test Legacy GetInfo";
-        clicked => { Bridge.test-legacy-getinfo(); }
+        clicked => { Bridge.invoke-action("test-getinfo"); }
     }
 
     TextButton {
         label: "Test Legacy Crossfade";
-        clicked => { Bridge.test-legacy-crossfade(); }
+        clicked => { Bridge.invoke-action("test-crossfade"); }
     }
 
     TextButton {
         label: "Test Graph Smoke";
-        clicked => { Bridge.test-smoke-graph(); }
+        clicked => { Bridge.invoke-action("test-smoke"); }
     }
 
     // Scrollable test-status log.
     // viewport-width uses root.width (the DebugPage/VerticalBox root element)
     // which is equivalent to the original `parent.width` that referred to the
     // outer VerticalBox in ConnectView.
-    ScrollView {
+    if Bridge.test-status != "": ScrollView {
         // Intrinsic test-log height; not tokenized (Phase 2-H).
         height: 100px;
         viewport-width: root.width;
