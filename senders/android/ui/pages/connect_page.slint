@@ -14,6 +14,7 @@ import { PrimaryButton } from "../components/buttons.slint";
 
 export component ConnectView inherits Rectangle {
     VerticalBox {
+        alignment: start;
         Text {
             horizontal-alignment: center;
             font-size: Theme.font-size-body;
@@ -56,12 +57,6 @@ export component ConnectView inherits Rectangle {
                     }
                 }
             }
-        }
-
-        // ── Scan QR button ────────────────────────────────────────────────
-        PrimaryButton {
-            label: "Scan QR";
-            clicked => { Bridge.invoke-action("scan-qr"); }
         }
 
         // ── Debug panel (conditionally visible) ───────────────────────────

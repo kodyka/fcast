@@ -943,12 +943,13 @@ fn android_main(app: PlatformApp) {
     slint::android::init(app).unwrap();
 
     let ui = MainWindow::new().unwrap();
-    ui.global::<Bridge>().set_show_debug(cfg!(debug_assertions));
+
 
     let mut actions = vec![
         QuickAction { id: "scan-qr".into(), title: "Scan QR".into(), enabled: true, active: false },
     ];
     let show_debug = cfg!(debug_assertions);
+    ui.global::<Bridge>().set_show_debug(show_debug);
     if show_debug {
         actions.extend([
             QuickAction { id: "migrated-server".into(), title: "Start Server".into(), enabled: true, active: false },
