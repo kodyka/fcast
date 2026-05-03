@@ -117,7 +117,7 @@ export component SettingsSliderRow inherits Rectangle {
                 horizontal-stretch: 1;
             }
             Text {
-                text: Math.round(root.value) + root.unit;
+                text: "\{Math.round(root.value)}\{root.unit}";
                 color: Theme.text-secondary;
                 vertical-alignment: center;
             }
@@ -135,12 +135,14 @@ export component SettingsSection inherits VerticalLayout {
     in property <string> title: "";
     spacing: 1px;
 
-    if root.title != "": Text {
-        text: root.title;
-        color: Theme.text-secondary;
-        font-size: Theme.font-size-label;
+    if root.title != "": HorizontalLayout {
         padding-left: Theme.padding-screen;
         padding-bottom: 4px;
+        Text {
+            text: root.title;
+            color: Theme.text-secondary;
+            font-size: Theme.font-size-label;
+        }
     }
 
     @children

@@ -5,17 +5,12 @@
 import { VerticalBox } from "std-widgets.slint";
 import { Bridge } from "../bridge.slint";
 import { Theme } from "../theme.slint";
-import { LoadingView, DestructiveButton } from "../components/buttons.slint";
+import { LoadingView } from "../components/buttons.slint";
 
 export component ConnectingView inherits Rectangle {
     VerticalBox {
         LoadingView {
             label: "Connecting";
-        }
-
-        DestructiveButton {
-            label: "Cancel";
-            clicked => { Bridge.stop-casting(); }
         }
     }
 }
