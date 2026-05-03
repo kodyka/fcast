@@ -12,7 +12,10 @@
 // Two separate statements are required when a symbol is both used locally and
 // re-exported (the canonical pattern shown in the Slint Modules reference):
 //   import { X } from "other.slint";
-//   export { X };
+//   export { X }
+// Note: `import` ends with `;`, but a bare `export { ... }` block has no
+// trailing semicolon — the slint v1.15.1 parser rejects it as "extra
+// semicolon" if you add one.
 // Reference: https://releases.slint.dev/1.15.1/docs/slint/src/language/syntax/modules
 //
 // All UI logic lives in the imported modules:
@@ -27,7 +30,7 @@
 
 // ── Bridge + AppState: import for local use, re-export for the Rust backend ──
 import { Bridge, AppState } from "bridge.slint";
-export { Bridge, AppState };
+export { Bridge, AppState }
 
 // ── Page component imports ────────────────────────────────────────────────────
 import { ConnectView }                   from "pages/connect_page.slint";
