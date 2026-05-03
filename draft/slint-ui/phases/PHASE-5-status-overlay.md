@@ -28,18 +28,25 @@
 
 ## Tasks
 
-### 5-A — Add `StatusItem` struct to `bridge.slint`
+### 5-A — Add `StatusSeverity` enum and `StatusItem` struct to `bridge.slint`
 
 - [ ] Open `senders/android/ui/bridge.slint`.
 - [ ] Add before the `Bridge` global:
 
   ```
+  export enum StatusSeverity { info, warning, error }
+
   export struct StatusItem {
       label:    string,
       value:    string,
-      severity: string,   // "info" | "warning" | "error"
+      severity: StatusSeverity,
   }
   ```
+
+  > Slint structs accept enum-typed fields directly. Using a `string` here would be
+  > stringly-typed: a typo like `"warn"` would silently fall through to the info branch,
+  > and Phase 9 explicitly leaves these values un-translated as internal tags.
+  > Reference: [`guide/language/coding/structs-and-enums.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/guide/language/coding/structs-and-enums.mdx).
 
 - [ ] Add to `Bridge`:
 
@@ -54,7 +61,7 @@
 ### 5-B — Implement `StatusPill` sub-component
 
 - [ ] Open `senders/android/ui/components/status_overlay.slint`.
-- [ ] Add imports: `import { Theme } from "../theme.slint"; import { StatusItem } from "../bridge.slint";`.
+- [ ] Add imports: `import { Theme } from "../theme.slint"; import { StatusItem, StatusSeverity } from "../bridge.slint";`.
 - [ ] Implement internal (non-exported) `component StatusPill`:
 
   ```
@@ -63,9 +70,9 @@
 
       height: 28px;
       border-radius: Theme.radius-pill;
-      background: root.item.severity == "error"   ? Theme.error
-                : root.item.severity == "warning" ? Theme.warning
-                :                                   Theme.surface-overlay;
+      background: root.item.severity == StatusSeverity.error   ? Theme.error
+                : root.item.severity == StatusSeverity.warning ? Theme.warning
+                :                                                Theme.surface-overlay;
 
       HorizontalLayout {
           padding-left:  Theme.padding-card;
@@ -157,16 +164,19 @@ existing content without affecting layout flow.
           StatusItem {
               label: "Receiver".into(),
               value: receiver_name.into(),
-              severity: "info".into(),
+              severity: StatusSeverity::Info,
           },
           StatusItem {
               label: "Encoder".into(),
               value: encoder.into(),
-              severity: "info".into(),
+              severity: StatusSeverity::Info,
           },
       ]
   }
   ```
+
+  > Slint generates `StatusSeverity::Info` / `Warning` / `Error` from the kebab-case
+  > Slint enum variants. Use the typed enum on the Rust side too — no `.into()` needed.
 
 - [ ] Call this when cast state changes and push to `Bridge.status-items`.
 - [ ] Use `slint::VecModel` to push updates: `bridge.set_status_items(model.into())`.
@@ -178,7 +188,7 @@ existing content without affecting layout flow.
 ### 5-F — Add severity escalation for error states
 
 - [ ] When `AppState` transitions to an error condition (connection lost, encoder failed),
-  update the affected `StatusItem` with `severity: "error"`.
+  update the affected `StatusItem` with `severity: StatusSeverity::Error`.
 - [ ] When GStreamer codec blocker P0-1 is resolved, read the actual selected encoder name
   from the destination node and populate the "Encoder" status item.
 - [ ] Add a "Network" status item sourced from the Rust device info (IP address / hostname).
@@ -221,3 +231,14 @@ Phase 5 is complete when:
   the GStreamer pipeline. Leave as a placeholder with empty `value` until then.
 - The overlay width cap (`parent.width * 0.5`) is a starting point. Adjust during Phase 10
   device testing if items truncate awkwardly.
+
+---
+
+## Slint best practices applied here
+
+- **Use enums for closed value sets.** `StatusSeverity` is type-safe, exhaustive in
+  `match` patterns on the Rust side, and survives renames better than magic strings.
+- **`visible: false` skips both rendering and event handling.** Preferred over
+  `opacity: 0` for hiding overlays — hidden elements don't intercept clicks.
+- **Model-driven `for item in root.items: ...` loops are reactive.** When Rust
+  replaces or mutates the underlying `VecModel`, the overlay re-renders automatically.

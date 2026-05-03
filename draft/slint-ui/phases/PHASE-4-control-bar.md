@@ -95,7 +95,7 @@
   ```
   export component CastControlBar inherits Rectangle {
       height: Theme.control-bar-height;
-      background: #111827;   // TODO Phase 2: add Theme.surface-bar token
+      background: Theme.surface-bar;
 
       HorizontalLayout {
           padding: Theme.padding-card;
@@ -110,6 +110,9 @@
   }
   ```
 
+  > Phase 2-A defines `Theme.surface-bar` (`#111827`). Do not embed raw hex literals in
+  > component files — Phase 2-J will fail the audit if you do.
+
 - [ ] **Build check.**
 
 ---
@@ -117,18 +120,37 @@
 ### 4-D — Add `CastControlBar` to `main.slint`
 
 - [ ] Import `CastControlBar` in `main.slint`.
-- [ ] Add to `MainWindow`:
+- [ ] Restructure `MainWindow` to use a `VerticalLayout` so the page stack and the
+  control bar share the screen automatically (no per-page bottom padding needed):
 
   ```
   export component MainWindow inherits Window {
-      // ... existing AppState page routing ...
+      VerticalLayout {
+          // Page stack — takes the remaining vertical space.
+          // The Rectangle wrapper is intentional: layouts position children, but the
+          // `if Bridge.app-state == ...` conditionals need a parent that positions
+          // them at (0, 0) covering the full slot, not stacked vertically.
+          Rectangle {
+              vertical-stretch: 1;
+              if Bridge.app-state == AppState.Disconnected:      ConnectView { }
+              if Bridge.app-state == AppState.Connecting:        ConnectingView { }
+              if Bridge.app-state == AppState.SelectingSettings: SettingsPageView { }
+              if Bridge.app-state == AppState.WaitingForMedia:   WaitingForMediaView { }
+              if Bridge.app-state == AppState.Casting:           CastingView { }
+          }
 
-      CastControlBar {
-          y: parent.height - self.height;
-          width: parent.width;
+          // Control bar — takes its natural height at the bottom.
+          CastControlBar { }
       }
   }
   ```
+
+- [ ] **Why `VerticalLayout` instead of absolute positioning?** Using
+  `CastControlBar { y: parent.height - self.height; ... }` as a sibling of the page
+  conditionals causes the bottom `Theme.control-bar-height` band of every page to be
+  hidden behind the bar. The layout above subtracts the bar height once and gives
+  pages the rest. Phase 7's `Panel` overlays should be added as siblings of the
+  `VerticalLayout` (not inside it), so they overlay both the pages and the bar.
 
 - [ ] Verify the bar is pinned to the bottom in `slint-viewer` or on device.
 - [ ] **Build check.**
@@ -137,19 +159,23 @@
 
 ### 4-E — Implement `CastButton` state machine in `casting_page.slint`
 
-Replace the simple "Stop" / "Cancel" buttons with a context-aware `CastButton` that changes
-label and style based on `AppState`.
+Replace the simple "Stop" / "Cancel" buttons in `CastingView` and `WaitingForMediaView`
+with a context-aware `CastButton` that changes label and style based on `AppState`.
 
 - [ ] Import `Bridge, AppState` from `bridge.slint`, `PrimaryButton`, `DestructiveButton`, `LoadingView`
   from components.
-- [ ] Add a `CastButton` component or inline state logic in `CastingView`:
+- [ ] Add a `CastButton` component or inline state logic. The button only renders inside
+  `WaitingForMediaView` and `CastingView`, so only those states need a row in the table:
 
   | State | Button text | Style | Callback |
   |---|---|---|---|
-  | `Disconnected` | "Connect" | `PrimaryButton` | `Bridge.scan-qr()` |
-  | `Connecting` | "Cancel" | `DestructiveButton` | `Bridge.stop-casting()` |
   | `WaitingForMedia` | "Cancel" | `DestructiveButton` | `Bridge.stop-casting()` |
   | `Casting` | "Stop Casting" | `DestructiveButton` | `Bridge.stop-casting()` |
+
+  > `Disconnected` and `Connecting` route to `ConnectView` / `ConnectingView` in
+  > `MainWindow`, which already provide their own primary actions ("Scan QR" /
+  > "Cancel"). Putting them in `CastButton` would be dead code unless `CastButton` is
+  > later moved into `CastControlBar` (a possible refinement in Phase 7).
 
 - [ ] Confirm spinner is shown for `Connecting` and `WaitingForMedia` via `LoadingView` from Phase 3.
 - [ ] **Build check.**
@@ -233,8 +259,23 @@ Phase 4 is complete when:
 
 ## Notes
 
-- The control bar overlaps page content at the bottom. Pages should add `padding-bottom:
-  Theme.control-bar-height` or equivalent to avoid content being hidden behind the bar.
-  This is best addressed in Phase 7 when the full page layouts are finalized.
+- The `VerticalLayout` chassis in 4-D handles the bar/page split automatically — no
+  per-page `padding-bottom` is needed. Phase 7's `Panel` overlays should be added as
+  siblings of the `VerticalLayout` so they overlay both the page and the bar.
 - Portrait-only for now; landscape variant (horizontal sidebar) can be added later if FCast
   sender needs landscape locking. Moblin's `ControlBarLandscapeView` is the reference.
+
+---
+
+## Slint best practices applied here
+
+- **Model-driven `for` loops are the canonical way to render a variable list of items.**
+  `for action in Bridge.quick-actions: QuickActionButton { ... }` is reactive: when Rust
+  pushes/removes from the underlying `VecModel`, the bar updates without any explicit
+  refresh logic.
+- **Layouts subtract space, absolute positioning fights for it.** `VerticalLayout` with
+  `vertical-stretch: 1` on the page slot gives the bar its natural height and the pages
+  the rest, no math required. Reference:
+  [`guide/language/coding/positioning-and-layouts.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/guide/language/coding/positioning-and-layouts.mdx).
+- **Theme tokens for surface colors, never raw hex.** Phase 2-J grep audit will fail if
+  you re-introduce hex literals here. Always add a token first.

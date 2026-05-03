@@ -82,10 +82,16 @@ Android minimum recommended touch target: **48dp** (Android material guidelines)
 
 - [ ] Populate `Bridge.devices` with 20+ mock `ReceiverItem` entries.
 - [ ] Scroll the list rapidly — confirm no janky frame drops.
-- [ ] Confirm `ListView` handles 50+ items without significant slowdown (Slint `ListView`
-  does not virtualize by default — monitor this limit).
-- [ ] If performance degrades: investigate `ListView` virtualization options for the Slint
-  version in use, or add a result cap in the Rust discovery handler.
+- [ ] Confirm `ListView` handles 50+ items smoothly. Slint's `ListView` virtualizes
+  by default — only the rows currently visible (and a small overscan) are
+  instantiated, so scroll cost is roughly constant in the model size.
+  Reference: [`reference/std-widgets/views/listview.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/views/listview.mdx)
+  — _"Elements are only instantiated if they are visible"_.
+- [ ] If performance degrades, the bottleneck is per-row cost (image decoding,
+  expensive bindings, deep nesting), not the list itself. Profile the row component
+  and simplify it; do not switch to a non-virtualizing layout.
+- [ ] **Do not wrap `ListView` inside another `ScrollView`.** Doing so disables
+  virtualization and instantiates every row at once.
 
 ---
 
@@ -157,3 +163,16 @@ Run this matrix at the end of each phase:
 | Desktop preview renders | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
 | On-device portrait layout | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
 | No new Slint warnings | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
+
+---
+
+## Slint best practices applied here
+
+- **`ListView` virtualizes; `for` inside `VerticalLayout` does not.** If a list grows
+  beyond ~30 items, switch from `for ... in ...` to `ListView` for O(viewport) cost.
+- **Hot-reload via `slint-viewer` is the fastest validation loop.** Most layout/theme
+  bugs can be caught from `cargo install slint-viewer && slint-viewer ui/main.slint`
+  without an Android build cycle.
+- **Compiler warnings should be treated as errors.** Slint's reactive-graph diagnostics
+  (`Binding loop detected`, `Property never read`) catch real bugs that are otherwise
+  silent at runtime.

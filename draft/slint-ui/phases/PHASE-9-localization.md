@@ -21,9 +21,19 @@
 ### 9-A — Confirm `@tr` support in pinned Slint version
 
 - [ ] Check `Cargo.lock` / Slint release notes for the pinned version.
-- [ ] Confirm `@tr("...")` is supported (available since Slint 1.3).
-- [ ] Confirm `slint-tr-extractor` binary is available:
-  `cargo install slint-tr-extractor --version <locked version>`.
+- [ ] Confirm `@tr("...")` is supported (available since Slint 1.3 — the futo fork is on
+  1.15.x which is well past that).
+- [ ] Install `slint-tr-extractor`:
+
+  ```sh
+  cargo install slint-tr-extractor
+  ```
+
+  > The extractor crate is versioned independently from `slint`; install the latest
+  > stable. If the futo fork has changed `@tr` parsing in incompatible ways, pin the
+  > extractor to a known-compatible version once identified. Reference:
+  > [`guide/development/translations.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/guide/development/translations.mdx).
+
 - [ ] If `@tr` is not yet supported, mark this phase **deferred** and skip to Phase 10.
 
 ---
@@ -91,26 +101,33 @@
 
 ### 9-G — Wrap strings with context where needed
 
-For strings that are short or ambiguous, add a context hint:
+For strings that are short or ambiguous, add a context hint. Slint's context syntax is
+`@tr("context" => "string")`. The `|` operator is for plurals (`@tr("one" | "many" % n)`)
+and is **not** valid for context.
 
 ```
-@tr("Cancel" | "cancel-cast-button")
-@tr("Start"  | "start-cast-button")
-@tr("Done"   | "close-panel-button")
+@tr("cancel-cast-button" => "Cancel")
+@tr("start-cast-button"  => "Start")
+@tr("close-panel-button" => "Done")
 ```
 
 - [ ] Identify any string that appears in multiple places with different meanings.
-- [ ] Add context suffixes to distinguish them for translators.
+- [ ] Add a context prefix to distinguish them for translators.
+- [ ] Reference: [translations § Context](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/guide/development/translations.mdx#context).
 
 ---
 
 ### 9-H — Generate `.pot` template
 
-- [ ] After wrapping all strings, run:
-  ```
-  slint-tr-extractor senders/android/ui/**/*.slint -o senders/android/ui/i18n/messages.pot
-  ```
 - [ ] Create directory `senders/android/ui/i18n/` if it does not exist.
+- [ ] Use `find ... | xargs` for portability — the bash `**` glob requires `globstar`
+  to be enabled and is not portable across CI environments:
+
+  ```sh
+  find senders/android/ui -name '*.slint' \
+    | xargs slint-tr-extractor -o senders/android/ui/i18n/messages.pot
+  ```
+
 - [ ] Commit `messages.pot` as the translation template.
 - [ ] Add `i18n/*.po` and `i18n/*.mo` to `.gitignore` until actual translations are provided.
 
@@ -130,7 +147,7 @@ For strings that are short or ambiguous, add a context hint:
 | String type | Reason |
 |---|---|
 | Action IDs (`"scan-qr"`, `"settings"`, etc.) | Internal identifiers, never shown to user |
-| Severity values (`"info"`, `"warning"`, `"error"`) | Programmatic tags, not displayed directly |
+| `StatusSeverity` enum values | Typed enum after Phase 5-A, never user-visible |
 | Version strings from `env!("CARGO_PKG_VERSION")` | Set in Rust, not in `.slint` |
 | Debug log output from `Bridge.test-status` | Raw technical output, not translated |
 | `Panel` enum values | Internal routing, not displayed |
@@ -145,3 +162,18 @@ Phase 9 is complete when:
 2. `messages.pot` exists in `senders/android/ui/i18n/`.
 3. `cargo build -p android-sender` passes.
 4. English text is visually unchanged (same strings, just wrapped).
+
+---
+
+## Slint best practices applied here
+
+- **Context uses `=>`, plurals use `|`.** The two `@tr` operators are independent:
+  - `@tr("ctx" => "Cancel")` \u2014 disambiguates two strings that share an English form.
+  - `@tr("{n} item" | "{n} items" % count)` \u2014 plural form.
+  - They can combine: `@tr("ctx" => "{n} item" | "{n} items" % count)`.
+  Reference: [`guide/development/translations.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/guide/development/translations.mdx).
+- **Use `find ... | xargs` rather than the bash `**` glob.** The double-star recursive
+  glob requires `shopt -s globstar` and is not enabled by default in CI shells.
+- **Never wrap enum-tag strings with `@tr`.** `StatusSeverity` is an enum after Phase 5-A,
+  but even when intermediate phases stringly-type a value (e.g. action IDs), those
+  strings are routing keys, not UI labels.

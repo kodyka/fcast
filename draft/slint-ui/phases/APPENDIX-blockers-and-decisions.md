@@ -95,17 +95,26 @@ to let the user pick resolution and framerate. After Phase 7, there is also `Ful
 Slint on Android may or may not intercept the system back button depending on the version.
 
 - [ ] Test after Phase 7 whether tapping Android back while a `Panel` is open closes it.
-- [ ] If not handled automatically, add a `key-pressed` handler on `MainWindow`:
+- [ ] If not handled automatically, add a `FocusScope` (or `key-pressed` callback on
+  the window itself) and return an `EventResult` value from the handler:
 
   ```
-  key-pressed(event) => {
-      if event.text == Key.Escape && Bridge.active-panel != Panel.none {
-          Bridge.close-panel();
-          return accept;
+  FocusScope {
+      key-pressed(event) => {
+          if event.text == Key.Escape && Bridge.active-panel != Panel.none {
+              Bridge.close-panel();
+              return EventResult.accept;
+          }
+          return EventResult.reject;
       }
-      return reject;
+      // ... rest of MainWindow content as children ...
   }
   ```
+
+  > Slint's keyboard event API uses the `EventResult` enum (`accept` / `reject`) and
+  > the `Key` enum from `std-widgets.slint`. Returning a bare `accept` /  `reject`
+  > identifier does not compile. Reference:
+  > [`reference/elements/focusscope.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/elements/focusscope.mdx).
 
 - [ ] Document the chosen approach in `senders/android/README.md`.
 

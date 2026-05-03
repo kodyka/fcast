@@ -55,9 +55,14 @@
           horizontal-alignment: center;
           vertical-alignment: center;
           font-size: Theme.font-size-body;
+          font-weight: FontWeight.semi-bold;
       }
   }
   ```
+
+  > Note: `font-weight` uses Slint's built-in `FontWeight` namespace, not a `Theme` token.
+  > See Phase 2-B — the property is typed `int` and `FontWeight.bold` / `FontWeight.semi-bold` etc.
+  > are the canonical constants.
 
 - [ ] **Build check.**
 
@@ -271,7 +276,9 @@
           CheckBox {
               checked <=> root.checked;
               enabled: root.enabled;
-              toggled => { root.toggled(self.checked); }
+              // CheckBox.toggled has signature `()` — read state from `self.checked`.
+              // Reference: reference/std-widgets/basic-widgets/checkbox.mdx
+              toggled() => { root.toggled(self.checked); }
           }
       }
   }
@@ -318,7 +325,11 @@
               minimum: root.minimum;
               maximum: root.maximum;
               value <=> root.value;
-              changed => { root.changed(self.value); }
+              // Slider.changed has signature `changed(float)` — the new value is
+              // passed as a parameter. Bind it explicitly to `value` rather than
+              // re-reading from `self.value`.
+              // Reference: reference/std-widgets/basic-widgets/slider.mdx
+              changed(value) => { root.changed(value); }
           }
       }
   }
@@ -381,3 +392,25 @@ Phase 3 is complete when:
 4. `ConnectingView` and `WaitingForMediaView` use `LoadingView`.
 5. `cargo build -p android-sender` passes cleanly.
 6. All five app states still render and function correctly on device or `slint-viewer`.
+
+---
+
+## Slint best practices applied here
+
+- **Std-widget callback signatures match the docs verbatim.** `CheckBox.toggled` is `()`,
+  `Slider.changed` is `changed(float)`. When forwarding to a wrapper component callback,
+  always declare the parameter list explicitly (`toggled() => { ... }`, `changed(value) => { ... }`)
+  rather than relying on the no-param shorthand. References:
+  [`reference/std-widgets/basic-widgets/checkbox.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/basic-widgets/checkbox.mdx),
+  [`reference/std-widgets/basic-widgets/slider.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/basic-widgets/slider.mdx).
+- **`@children` is the canonical way to make a container component.** `SettingsSection`
+  uses `@children` to accept arbitrary row components, which is how std-widgets like
+  `VerticalBox` work internally.
+- **Color manipulation uses brush methods**, e.g. `Theme.error.darker(20%)`,
+  `Theme.accent.brighter(0.2)`. Reference:
+  [`reference/colors-and-brushes.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/colors-and-brushes.mdx).
+- **Button accessibility tip (future improvement):** the std-widget `Button` exposes
+  accessibility properties (`accessible-role`, `accessible-label`) that our custom
+  Rectangle-based buttons currently miss. If accessibility becomes a requirement, swap
+  the `inherits Rectangle` chassis for `inherits TouchArea` (no Rectangle wrapping needed)
+  or add explicit `accessible-*` properties.

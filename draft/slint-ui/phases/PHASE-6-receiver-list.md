@@ -147,6 +147,32 @@ Replace the plain static text with an animated spinner + label.
   ```
 
 - [ ] Update the `VecModel` construction to use `ReceiverItem` instead of `String`.
+- [ ] If the Rust code needs to inspect the model with `row_count()` / `row_data()` /
+  `remove()` (e.g. to remove a device by address), add the trait import:
+
+  ```rust
+  use slint::Model;
+  ```
+
+  These are trait methods on `Model`, not inherent methods on `Rc<VecModel<T>>` or
+  `VecModel<T>`. Inherent methods on `VecModel` (`push`, `set_row_data`, `iter`,
+  `set_vec` if available) work without the import; trait methods do not.
+
+  Example removal-by-address pattern:
+
+  ```rust
+  use slint::Model;
+
+  fn remove_device(model: &Rc<VecModel<ReceiverItem>>, addr: &str) {
+      let addr: SharedString = addr.into();
+      if let Some(idx) = (0..model.row_count())
+          .find(|&i| model.row_data(i).map_or(false, |r| r.address == addr))
+      {
+          model.remove(idx);
+      }
+  }
+  ```
+
 - [ ] `Bridge.connect-receiver` callback still receives a `SharedString` (the address) — confirm
   the Rust handler parses it correctly.
 - [ ] **Build check.**
@@ -203,3 +229,18 @@ Phase 6 is complete when:
   room. Adjust during Phase 10 device testing if text is too cramped.
 - "Forget" / saved receiver history is deferred to Phase 6b. It requires persistent storage
   on the Rust side, which is outside the scope of UI restructuring.
+
+---
+
+## Slint best practices applied here
+
+- **Typed `[ReceiverItem]` model is preferable to `[string]`.** Composable, extensible
+  (add `last-seen` / `kind` fields without changing the consumer), and survives the
+  Rust `Model` trait's row API.
+- **The `Model` trait must be in scope to call `row_count` / `row_data` / `remove`
+  on a `Rc<VecModel<T>>`.** Add `use slint::Model;` to whichever module performs row
+  inspection. `VecModel`'s inherent methods (`push`, `set_row_data`) are always
+  available, but the trait methods are not.
+- **`overflow: elide` on `Text` prevents long device names/addresses from breaking
+  the row layout.** Combined with `width: 100%` or `horizontal-stretch: 1`, this is
+  the standard Slint pattern for one-line strings of unknown length.

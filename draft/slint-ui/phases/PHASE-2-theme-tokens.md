@@ -25,6 +25,7 @@ All hardcoded colors found in `main.slint` before the split:
 | `lightsteelblue` | device row idle / scan row background (idle) | `Theme.accent-muted` |
 | `white` (implicit `Text` default) | all primary text labels | `Theme.text-primary` |
 | `#0b1020` | proposed window background (from skeleton) | `Theme.surface-primary` |
+| `#111827` | bottom control bar background (Phase 4) | `Theme.surface-bar` |
 | `#7f1d1d` | error severity in status overlay (Phase 5) | `Theme.error` |
 | `#78350f` | warning severity in status overlay (Phase 5) | `Theme.warning` |
 | `#1f2937cc` | info severity pill background (Phase 5) | `Theme.info` |
@@ -44,6 +45,7 @@ All hardcoded colors found in `main.slint` before the split:
       // Surfaces
       out property <color> surface-primary:  #0b1020;
       out property <color> surface-card:     #222633;
+      out property <color> surface-bar:      #111827;
       out property <color> surface-overlay:  #1f2937cc;
 
       // Text
@@ -73,15 +75,26 @@ All hardcoded colors found in `main.slint` before the split:
 - [ ] Add font-size properties to `Theme`:
 
   ```
-      // Typography
+      // Typography — font sizes are `length`
       out property <length> font-size-heading:  20px;
       out property <length> font-size-body:     16px;
       out property <length> font-size-label:    12px;
-      out property <length> font-weight-bold:   700;
-      out property <length> font-weight-normal: 400;
   ```
 
-  > Note: `font-weight` is a `float` in Slint, not `length`. Adjust type as needed.
+- [ ] **Do not add `font-weight-*` tokens.** Slint's `Text.font-weight` is typed `int`,
+  and Slint already exposes a `FontWeight` namespace with constants (`FontWeight.thin`,
+  `FontWeight.normal`, `FontWeight.medium`, `FontWeight.semi-bold`, `FontWeight.bold`,
+  `FontWeight.extra-bold`, `FontWeight.black`). Use these directly at call sites:
+
+  ```
+  Text {
+      text: "Heading";
+      font-weight: FontWeight.bold;
+  }
+  ```
+
+  Reference: [`reference/global-namespaces/font-weight.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/global-namespaces/font-weight.mdx)
+  and [`reference/elements/text.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/elements/text.mdx) (font-weight is `int`).
 
 - [ ] **Build check.**
 
@@ -100,7 +113,7 @@ All hardcoded colors found in `main.slint` before the split:
       // Shape
       out property <length> radius-card:       8px;
       out property <length> radius-pill:        6px;
-      out property <length> row-height:        44px;
+      out property <length> row-height:        48px;
       out property <length> control-bar-height: 72px;
   ```
 
@@ -189,5 +202,20 @@ Phase 2 is complete when:
   `#4682b4` and `#b0c4de` respectively. Use those in `Theme` for consistency.
 - The accent colors will likely be updated in Phase 3–4 to match an FCast brand color.
   The token names are stable; only the values change.
-- `Theme.row-height: 44px` matches iOS HIG minimum touch target. Android's is 48dp —
-  consider bumping to `48px` during Phase 10 testing if touch targets feel small on device.
+- `Theme.row-height` is set to `48px` to match Android's recommended minimum touch
+  target (48dp per Material guidelines). iOS HIG uses 44pt; we standardise on Android's
+  larger value so we don't have to revisit every row in Phase 10. Adjust the spacing
+  token instead if the layout feels too sparse.
+
+## Slint best practices applied here
+
+- **Use `out property` for read-only theme tokens.** External readers see the value;
+  the `Theme` global owns the binding. Reference: [`guide/language/coding/properties.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/guide/language/coding/properties.mdx).
+- **Use existing global namespaces (`FontWeight`, `Math`, `Colors`) before inventing
+  new ones.** Slint ships several global utility namespaces; duplicating them in
+  `Theme` is noise. Reference: [`reference/global-namespaces/`](https://github.com/slint-ui/slint/tree/master/docs/astro/src/content/docs/reference/global-namespaces).
+- **`Theme` is deliberately not built on top of the standard `Palette` global**
+  because the FCast Android sender wants fixed brand colors regardless of system
+  light/dark mode. If we ever want to follow the system theme, model `Theme` as a
+  layer that reads `Palette.color-scheme` to pick variants. Reference:
+  [`reference/std-widgets/globals/palette.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/globals/palette.mdx).

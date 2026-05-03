@@ -17,13 +17,19 @@
 | Moblin group | Files | FCast Slint target | Phase | Status |
 |---|---|---|---|---|
 | `View/Utils` | 36 | `ui/components/buttons.slint`, `ui/components/settings_rows.slint` | 3 | [ ] |
-| `View/ControlBar` | 23 | `ui/components/control_bar.slint`, `CastButton` in `casting_page.slint` | 4 | [ ] |
+| `View/ControlBar` | 23 | `ui/components/control_bar.slint`; `CastButton` lives in `casting_page.slint` (Phase 4-E) | 4 | [ ] |
 | `View/Stream` | 23 | `ui/components/status_overlay.slint`, `casting_page.slint` | 5 | [ ] |
 | `View/Settings` | 190 | `ui/pages/settings_page.slint` — FCast subset only | 7 | [ ] |
 | `View/MainView.swift` | 1 | `main.slint` `MainWindow` routing | 1 | [ ] |
 | `View/Main` | 4 | Deferred — no FCast equivalent | — | Defer |
 | `View/WebBrowser` | 1 | Deferred — no FCast browser target | — | Defer |
 | `View/ExternalDisplay` | 1 | Deferred — no Android multi-display target | — | Defer |
+
+> **Pattern counts in this document are SwiftUI matches in the Moblin source** (e.g.
+> `Button ×721`, `Form ×300`). They quantify the size of the original codebase, not
+> the size of the Slint port. The FCast port re-implements the equivalent behaviours
+> with far fewer Slint elements thanks to model-driven `for` loops, `@children`-based
+> container components, and shared global tokens.
 
 ---
 
@@ -62,7 +68,7 @@ Top Moblin patterns: `Button` ×721, `@ObservedObject` ×117, `HStack` ×55, `Fo
 |---|---|---|
 | `ControlBarPortraitView.swift` | `CastControlBar` (portrait, bottom-pinned) | [ ] |
 | `ControlBarLandscapeView.swift` | Deferred — landscape variant | Defer |
-| `StreamButton.swift` | `CastButton` state machine in `casting_page.slint` | [ ] |
+| `StreamButton.swift` | `CastButton` state machine in `casting_page.slint` (Phase 4-E) | [ ] |
 | `QuickButtonsView.swift` | `for action in Bridge.quick-actions: QuickActionButton` loop | [ ] |
 | `BatteryView.swift` | `StatusItem` pill in `StatusOverlay` (Phase 5) | [ ] |
 | `ThermalStateSheetView.swift` | `StatusItem` severity pill — "thermal" severity | Defer |

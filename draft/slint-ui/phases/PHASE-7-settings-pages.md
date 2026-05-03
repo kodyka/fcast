@@ -104,12 +104,21 @@
 - [ ] Open `senders/android/ui/pages/settings_page.slint`.
 - [ ] The file currently contains `SettingsPageView` (the old `SelectingSettingsView`). Keep it
   for now; add `FullSettingsPage` as a second component in the same file.
-- [ ] Import `SettingsSection`, `SettingsValueRow`, `SettingsToggleRow` from components.
-- [ ] Import `Theme`, `Bridge`, `Panel`.
-- [ ] Implement `export component FullSettingsPage`:
+- [ ] Import `SettingsSection`, `SettingsValueRow`, `SettingsToggleRow`, `SettingsTextRow` from
+  `../components/settings_rows.slint`.
+- [ ] Import `TextButton` from `../components/buttons.slint` (used for the Done button in the header).
+- [ ] Import `Theme` from `../theme.slint`, and `Bridge`, `Panel` from `../bridge.slint`.
+- [ ] Implement `export component FullSettingsPage`. Note that `resolution-idx` and
+  `framerate-idx` are declared at the top level of the component (not inside a
+  `SettingsSection { ... }` block) so they are addressable from outside the page if
+  ever needed:
 
   ```
   export component FullSettingsPage inherits Rectangle {
+      // Persisted across Done/reopen; consumed by the picker bindings in 7-F.
+      in-out property <int> resolution-idx: 2;
+      in-out property <int> framerate-idx:  2;
+
       background: Theme.surface-primary;
 
       VerticalLayout {
@@ -197,14 +206,16 @@ framerate pickers from the SDK. Migrate them into `FullSettingsPage`:
 - [ ] Add inside "VIDEO QUALITY" `SettingsSection`:
 
   ```
-  property <int> resolution-idx: 2;
-  property <int> framerate-idx:  2;
+  // Note: resolution-idx / framerate-idx are top-level properties on
+  // FullSettingsPage (declared in 7-D), not local to this section.
+  // Properties declared inside a SettingsSection { ... } block belong to
+  // that anonymous instance and are not addressable from outside.
 
   SettingsTextRow { title: "Max resolution"; }
-  VideoResolutionPicker { current-index <=> resolution-idx; }
+  VideoResolutionPicker { current-index <=> root.resolution-idx; }
 
   SettingsTextRow { title: "Max framerate"; }
-  FrameratePicker { current-index <=> framerate-idx; }
+  FrameratePicker { current-index <=> root.framerate-idx; }
   ```
 
 - [ ] Wire "Start" button in the existing flow to read values from `resolution-idx` and
@@ -219,9 +230,11 @@ framerate pickers from the SDK. Migrate them into `FullSettingsPage`:
 - [ ] Add inside "CODEC & DEBUG" `SettingsSection`:
 
   ```
+  // Trailing chevron is enough affordance — leave value empty.
   SettingsValueRow {
       title: "H.264 encoder test";
-      value: "Tap to run";
+      value: "";
+      show-chevron: true;
       clicked => Bridge.open-panel(Panel.codec-test);
   }
   SettingsToggleRow {
@@ -285,3 +298,22 @@ Phase 7 is complete when:
 5. "Done" button closes the panel by setting `Bridge.active-panel = Panel.none`.
 6. No unsupported Moblin settings are stubbed — they simply do not appear.
 7. `cargo build -p android-sender` passes.
+
+---
+
+## Slint best practices applied here
+
+- **Properties declared on a child element block belong to that child.** Two-way
+  bindings inside `SettingsSection { property <int> x: 0; ... }` resolve to the
+  section instance, not the surrounding component. Hoist anything that needs to be
+  read from outside (or persisted across panel open/close) to the top of the
+  enclosing component. Reference: [`guide/language/coding/properties.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/guide/language/coding/properties.mdx).
+- **Panel routing via `if Bridge.active-panel == ...` overlays is the canonical
+  Slint pattern for sheet-style navigation.** Each panel is a top-level conditional
+  child whose backing page stays mounted underneath. Combined with the
+  `VerticalLayout` chassis from Phase 4-D, panels overlay both the page stack and
+  the control bar.
+- **Slint enums round-trip to Rust as PascalCase.** `Panel { none, settings, debug,
+  codec-test }` becomes `Panel::None`, `Panel::Settings`, `Panel::Debug`,
+  `Panel::CodecTest` on the Rust side. Default-initialized enum values are the
+  first variant — `none` first means a fresh `Bridge.active-panel` is `Panel.none`.

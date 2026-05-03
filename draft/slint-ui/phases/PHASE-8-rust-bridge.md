@@ -34,21 +34,24 @@
 ### 8-A — Create `ui_state.rs` helper module
 
 Rather than putting all model management directly in `lib.rs`, extract it into a small
-`ui_state` module:
+`ui_state` module. **`UiState` only holds the `Weak<MainWindow>`** — it does **not**
+store `Rc<VecModel<T>>` directly, because `Rc` is `!Send` and any task spawned from
+a background thread (mDNS, GStreamer callbacks, JNI) would refuse to compile.
 
 - [ ] Create `senders/android/src/ui_state.rs`.
-- [ ] Define a struct `UiState` that holds `Weak<MainWindow>` and the shared models:
+- [ ] Define a struct `UiState` that holds only the window handle:
 
   ```rust
   use std::rc::Rc;
-  use slint::{VecModel, Weak};
-  use crate::{MainWindow, QuickAction, ReceiverItem, StatusItem, Panel};
+  use slint::{ComponentHandle, Model, SharedString, VecModel, Weak};
+  use crate::{MainWindow, QuickAction, ReceiverItem, StatusItem, StatusSeverity, Panel};
 
+  /// UI thread is the only owner of the MainWindow handle. Cloning a `Weak`
+  /// is `Send`, so this struct can travel across threads (tokio tasks, JNI
+  /// callbacks, GStreamer bus handlers).
+  #[derive(Clone)]
   pub struct UiState {
-      handle:        Weak<MainWindow>,
-      quick_actions: Rc<VecModel<QuickAction>>,
-      receivers:     Rc<VecModel<ReceiverItem>>,
-      status_items:  Rc<VecModel<StatusItem>>,
+      handle: Weak<MainWindow>,
   }
   ```
 
@@ -59,26 +62,47 @@ Rather than putting all model management directly in `lib.rs`, extract it into a
 
 ### 8-B — Wire `quick-actions` model in Rust
 
-- [ ] In `ui_state.rs`, implement `fn init(handle: Weak<MainWindow>) -> UiState`:
+- [ ] In `ui_state.rs`, implement `fn new(handle: Weak<MainWindow>) -> UiState`. The
+  `Rc<VecModel<...>>` instances are constructed and consumed entirely on the UI thread
+  inside `upgrade_in_event_loop` — they never escape to a background thread.
 
   ```rust
-  pub fn init(handle: Weak<MainWindow>) -> Self {
-      let quick_actions = Rc::new(VecModel::default());
-      let receivers     = Rc::new(VecModel::default());
-      let status_items  = Rc::new(VecModel::default());
+  use crate::Bridge;
 
-      handle.upgrade_in_event_loop(move |w| {
-          let bridge = w.global::<Bridge>();
-          bridge.set_quick_actions(quick_actions.clone().into());
-          bridge.set_devices(receivers.clone().into());
-          bridge.set_status_items(status_items.clone().into());
-      }).ok();
+  impl UiState {
+      pub fn new(handle: Weak<MainWindow>) -> Self {
+          let me = Self { handle };
+          me.replace_quick_actions(vec![]);
+          me.replace_devices(vec![]);
+          me.replace_status_items(vec![]);
+          me
+      }
 
-      Self { handle, quick_actions, receivers, status_items }
+      /// Replace the entire quick-actions list.
+      pub fn replace_quick_actions(&self, items: Vec<QuickAction>) {
+          let _ = self.handle.upgrade_in_event_loop(move |w| {
+              let model = Rc::new(VecModel::from(items));
+              w.global::<Bridge>().set_quick_actions(model.into());
+          });
+      }
+
+      pub fn replace_devices(&self, items: Vec<ReceiverItem>) {
+          let _ = self.handle.upgrade_in_event_loop(move |w| {
+              let model = Rc::new(VecModel::from(items));
+              w.global::<Bridge>().set_devices(model.into());
+          });
+      }
+
+      pub fn replace_status_items(&self, items: Vec<StatusItem>) {
+          let _ = self.handle.upgrade_in_event_loop(move |w| {
+              let model = Rc::new(VecModel::from(items));
+              w.global::<Bridge>().set_status_items(model.into());
+          });
+      }
   }
   ```
 
-- [ ] Call `UiState::init` after the `MainWindow` is created in `lib.rs`.
+- [ ] Call `UiState::new(window.as_weak())` after the `MainWindow` is created in `lib.rs`.
 - [ ] **Build check.**
 
 ---
@@ -150,25 +174,49 @@ Rather than putting all model management directly in `lib.rs`, extract it into a
 ### 8-E — Update `devices` model to push `ReceiverItem`
 
 - [ ] Find the existing `DeviceEvent` handler in `lib.rs` (where `Bridge.devices` is updated).
-- [ ] Replace the `String` push with `ReceiverItem`:
+- [ ] Add an `add_device` / `remove_device` pair to `UiState` that hops back to the UI
+  thread before mutating the `VecModel`. Keeping the model behind
+  `upgrade_in_event_loop` is the only safe way to mutate it from a background
+  discovery task. Note `use slint::Model;` so `row_count`/`row_data`/`remove` are in
+  scope (these are trait methods, not inherent on `VecModel`):
 
   ```rust
-  DeviceEvent::Added(info) => {
-      ui_state.receivers.push(ReceiverItem {
-          name:    info.name.clone().into(),
-          address: info.address.to_string().into(),
-      });
-  }
-  DeviceEvent::Removed(addr) => {
-      let addr_str: slint::SharedString = addr.to_string().into();
-      if let Some(idx) = (0..ui_state.receivers.row_count())
-          .find(|&i| ui_state.receivers.row_data(i).map_or(false, |r| r.address == addr_str))
-      {
-          ui_state.receivers.remove(idx);
+  impl UiState {
+      pub fn add_device(&self, info: DeviceInfo) {
+          let item = ReceiverItem {
+              name:    info.name.clone().into(),
+              address: info.address.to_string().into(),
+          };
+          let _ = self.handle.upgrade_in_event_loop(move |w| {
+              if let Some(model) = w.global::<Bridge>().get_devices()
+                  .as_any().downcast_ref::<VecModel<ReceiverItem>>()
+              {
+                  model.push(item);
+              }
+          });
+      }
+
+      pub fn remove_device(&self, addr: SharedString) {
+          let _ = self.handle.upgrade_in_event_loop(move |w| {
+              if let Some(model) = w.global::<Bridge>().get_devices()
+                  .as_any().downcast_ref::<VecModel<ReceiverItem>>()
+              {
+                  if let Some(idx) = (0..model.row_count())
+                      .find(|&i| model.row_data(i).map_or(false, |r| r.address == addr))
+                  {
+                      model.remove(idx);
+                  }
+              }
+          });
       }
   }
   ```
 
+  Alternative pattern (simpler if discovery already has the full list): call
+  `replace_devices(full_list)` instead of incremental add/remove.
+
+- [ ] Wire `DeviceEvent::Added(info) => ui_state.add_device(info)` and
+  `DeviceEvent::Removed(addr) => ui_state.remove_device(addr.to_string().into())`.
 - [ ] Confirm `connect-receiver` callback still receives the address string.
 - [ ] **Build check.**
 
@@ -189,34 +237,46 @@ Rather than putting all model management directly in `lib.rs`, extract it into a
 
 ### 8-G — Populate `status-items` during cast lifecycle
 
-- [ ] When `AppState` transitions to `Casting`, push initial items:
+- [ ] When `AppState` transitions to `Casting`, replace the items via
+  `replace_status_items` (which posts to the UI thread under the hood). Use the
+  `StatusSeverity` enum from Phase 5-A, not magic strings:
 
   ```rust
   fn on_cast_started(ui_state: &UiState, receiver_name: &str, encoder: &str) {
-      let items = vec![
-          StatusItem { label: "Receiver".into(), value: receiver_name.into(), severity: "info".into() },
-          StatusItem { label: "Encoder".into(),  value: encoder.into(),       severity: "info".into() },
-      ];
-      // Replace the model contents
-      ui_state.status_items.set_vec(items);
+      ui_state.replace_status_items(vec![
+          StatusItem { label: "Receiver".into(), value: receiver_name.into(), severity: StatusSeverity::Info },
+          StatusItem { label: "Encoder".into(),  value: encoder.into(),       severity: StatusSeverity::Info },
+      ]);
   }
 
   fn on_cast_stopped(ui_state: &UiState) {
-      ui_state.status_items.set_vec(vec![]);
+      ui_state.replace_status_items(vec![]);
   }
   ```
 
-- [ ] When a cast error occurs, update the affected item's severity:
+- [ ] When a cast error occurs, update the affected item's severity. The read-modify-write
+  has to happen on the UI thread:
 
   ```rust
-  fn on_encoder_error(ui_state: &UiState, message: &str) {
-      if let Some(mut item) = ui_state.status_items.row_data(1) {
-          item.severity = "error".into();
-          item.value    = message.into();
-          ui_state.status_items.set_row_data(1, item);
-      }
+  pub fn set_encoder_error(&self, message: SharedString) {
+      let _ = self.handle.upgrade_in_event_loop(move |w| {
+          if let Some(model) = w.global::<Bridge>().get_status_items()
+              .as_any().downcast_ref::<VecModel<StatusItem>>()
+          {
+              if let Some(mut item) = model.row_data(1) {
+                  item.severity = StatusSeverity::Error;
+                  item.value    = message;
+                  model.set_row_data(1, item);
+              }
+          }
+      });
   }
   ```
+
+  > Avoid `VecModel::set_vec` — it is **not** part of the public API in older Slint
+  > releases. The portable replacement is to construct a fresh `Rc<VecModel::from(vec)>`
+  > and call `bridge.set_status_items(model.into())` (what `replace_status_items` does
+  > above). This is also slightly faster than clear-and-push for full replacements.
 
 - [ ] **Build check.**
 
@@ -228,7 +288,9 @@ Rather than putting all model management directly in `lib.rs`, extract it into a
 - [ ] Confirm every mutation either:
   - Is already inside a Slint event loop callback (safe), or
   - Uses `handle.upgrade_in_event_loop(move |w| { ... })` to post to the UI thread.
-- [ ] No `Rc<VecModel<T>>` should be mutated from a non-UI thread without `upgrade_in_event_loop`.
+- [ ] No `Rc<VecModel<T>>` should ever escape `upgrade_in_event_loop`. The pattern in
+  this phase keeps every `Rc` short-lived and UI-thread-scoped — it is constructed
+  inside the closure, handed to `set_<property>`, and then dropped.
 - [ ] **Build check.**
 
 ---
@@ -261,9 +323,26 @@ Phase 8 is complete when:
 
 ## Notes
 
-- Keep `UiState` small. Its job is only to hold the model `Rc`s and the window `Weak`.
+- Keep `UiState` small. Its job is only to hold the `Weak<MainWindow>` handle.
   Do **not** put business logic, GStreamer state, or JNI calls in `UiState`.
-- `Weak<MainWindow>` avoids the callback ownership cycle that would occur with `Rc<MainWindow>`.
-  Always use `weak.upgrade()` and handle the `None` case (window may have been destroyed).
-- `slint::VecModel::set_vec` replaces the entire contents atomically — prefer it over
-  individual `push`/`remove` calls when the list is fully replaced (e.g. on cast start).
+- `Weak<MainWindow>` is `Send`, so `UiState` is `Send + Clone` and can be passed to
+  any background task. Always use `upgrade_in_event_loop` to access the window;
+  never `weak.upgrade()` directly from a non-UI thread.
+- For full-list replacements, construct a fresh `Rc<VecModel::from(vec))>` and call
+  `set_<property>(model.into())`. This is portable across Slint versions and avoids
+  reaching for `VecModel::set_vec` (which may not be exposed in the pinned futo fork).
+
+---
+
+## Slint best practices applied here
+
+- **`Rc<T>` is `!Send`. `Weak<MainWindow>` is `Send`.** All cross-thread state lives
+  behind the `Weak`; the `Rc<VecModel<T>>` is constructed inside the
+  `upgrade_in_event_loop` closure and dropped before the closure returns.
+- **The `Model` trait must be in scope** to call `row_count` / `row_data` / `remove`.
+  The `use slint::Model;` line at the top of `ui_state.rs` is mandatory.
+- **Prefer `set_<property>(Rc::new(VecModel::from(vec)).into())` for full replacements**
+  over per-item `push` / `remove`. Less code, atomic from the UI thread's perspective,
+  and version-portable.
+- **Use the typed Slint enums on the Rust side too.** `StatusSeverity::Info` is
+  better than `"info".into()` — type-safe, exhaustive `match`, and survives renames.
