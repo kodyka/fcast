@@ -5,8 +5,41 @@
 // Slint docs ref (globals): draft/slint/docs/astro/src/content/docs/guide/language/coding/globals.mdx
 
 export global Theme {
-    // ── Phase 2 will add ─────────────────────────────────────────────────
-    // Surface colors, text colors, accent colors, severity colors,
-    // font-size tokens, spacing tokens, border-radius tokens.
-    // ─────────────────────────────────────────────────────────────────────
+    // Surfaces
+    out property <color> surface-primary:  #0b1020;
+    out property <color> surface-card:     #222633;
+    out property <color> surface-bar:      #111827;
+    out property <color> surface-overlay:  #1f2937cc;
+
+    // Text
+    out property <color> text-primary:     #ffffff;
+    out property <color> text-secondary:   #b8becd;
+    out property <color> text-disabled:    #6b7280;
+
+    // Accent / interactive
+    out property <color> accent:           #4682b4;   // steelblue
+    out property <color> accent-muted:     #b0c4de;   // lightsteelblue
+    out property <color> accent-active:    #2563eb;
+    out property <color> accent-pressed:   #1e40af;
+
+    // Severity
+    out property <color> error:            #7f1d1d;
+    out property <color> warning:          #78350f;
+    out property <color> success:          #14532d;
+
+    // Typography — font sizes are `length`
+    out property <length> font-size-heading:  20px;
+    out property <length> font-size-body:     16px;
+    out property <length> font-size-label:    12px;
+
+    // Spacing
+    out property <length> padding-screen:   12px;
+    out property <length> padding-card:      8px;
+    out property <length> spacing-default:   8px;
+
+    // Shape
+    out property <length> radius-card:       8px;
+    out property <length> radius-pill:        6px;
+    out property <length> row-height:        48px;
+    out property <length> control-bar-height: 72px;
 }

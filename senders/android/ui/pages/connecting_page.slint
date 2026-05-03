@@ -4,6 +4,7 @@
 
 import { VerticalBox, Button, Spinner } from "std-widgets.slint";
 import { Bridge } from "../bridge.slint";
+import { Theme } from "../theme.slint";
 
 export component ConnectingView inherits Rectangle {
     VerticalBox {
@@ -14,7 +15,7 @@ export component ConnectingView inherits Rectangle {
         }
 
         Text {
-            font-size: 12pt;
+            font-size: Theme.font-size-body;
             vertical-alignment: center;
             text: "Connecting";
         }

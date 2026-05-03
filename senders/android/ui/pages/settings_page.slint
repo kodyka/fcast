@@ -16,6 +16,7 @@
 import { VerticalBox, Button } from "std-widgets.slint";
 import { Utils, VideoResolutionPicker, FrameratePicker } from "../../../../sdk/mirroring_core/ui/common.slint";
 import { Bridge } from "../bridge.slint";
+import { Theme } from "../theme.slint";
 
 export component SettingsPageView inherits Rectangle {
     property <int> video-resolution-idx: 2;
@@ -23,7 +24,7 @@ export component SettingsPageView inherits Rectangle {
 
     VerticalBox {
         Text {
-            font-size: 12pt;
+            font-size: Theme.font-size-body;
             vertical-alignment: center;
             text: "Max resolution";
         }
@@ -33,7 +34,7 @@ export component SettingsPageView inherits Rectangle {
         }
 
         Text {
-            font-size: 12pt;
+            font-size: Theme.font-size-body;
             vertical-alignment: center;
             text: "Max framerate";
         }

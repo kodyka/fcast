@@ -14,11 +14,12 @@
 
 import { VerticalBox, Button, ScrollView } from "std-widgets.slint";
 import { Bridge } from "../bridge.slint";
+import { Theme } from "../theme.slint";
 
 export component DebugPage inherits VerticalBox {
     Text {
         horizontal-alignment: center;
-        font-size: 12px;
+        font-size: Theme.font-size-label;
         text: "Migrated server tests";
     }
 

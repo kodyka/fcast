@@ -38,9 +38,11 @@ import { ConnectingView }               from "pages/connecting_page.slint";
 import { SettingsPageView }             from "pages/settings_page.slint";
 import { WaitingForMediaView,
          CastingView }                  from "pages/casting_page.slint";
+import { Theme } from "theme.slint";
 
 // ── Root window ───────────────────────────────────────────────────────────────
 export component MainWindow inherits Window {
+    background: Theme.surface-primary;
     // Conditional elements: only the matching view is instantiated.
     // Slint docs: https://releases.slint.dev/1.15.1/docs  (Conditional Elements)
     if Bridge.app-state == AppState.Disconnected:      ConnectView { }

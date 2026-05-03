@@ -3,7 +3,7 @@
 > Replace every hardcoded hex color, font size, and magic number with named constants
 > exported from `ui/theme.slint`. No new components; existing components only get cleaner.
 
-**Status:** `[ ] Not started`
+**Status:** `[x] Completed`
 **Depends on:** Phase 1 (module split complete — all page files exist)
 **Unlocks:** Phase 3 (components can import theme tokens from day one)
 **Related files:**

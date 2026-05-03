@@ -9,12 +9,13 @@
 import { VerticalBox, ListView } from "std-widgets.slint";
 import { Bridge } from "../bridge.slint";
 import { DebugPage } from "debug_page.slint";
+import { Theme } from "../theme.slint";
 
 export component ConnectView inherits Rectangle {
     VerticalBox {
         Text {
             horizontal-alignment: center;
-            font-size: 16px;
+            font-size: Theme.font-size-body;
             font-weight: 600;
             text: "Connect to your receiver";
         }
@@ -22,13 +23,13 @@ export component ConnectView inherits Rectangle {
         // ── Empty state: searching ────────────────────────────────────────
         if Bridge.devices.length == 0: Rectangle {
             height: 90px;
-            border-radius: 8px;
-            background: #222633;
+            border-radius: Theme.radius-card;
+            background: Theme.surface-card;
 
             Text {
                 horizontal-alignment: center;
                 vertical-alignment: center;
-                color: #B8BECD;
+                color: Theme.text-secondary;
                 text: "Searching for receivers...";
             }
         }
@@ -36,7 +37,7 @@ export component ConnectView inherits Rectangle {
         // ── Populated state: device list ──────────────────────────────────
         if Bridge.devices.length > 0: ListView {
             for device in Bridge.devices: Rectangle {
-                height: 45px;
+                height: Theme.row-height;
 
                 device_ta := TouchArea {
                     clicked => Bridge.connect-receiver(device);
@@ -45,8 +46,8 @@ export component ConnectView inherits Rectangle {
                 Rectangle {
                     width: parent.width - 10px;
                     height: parent.height - 10px;
-                    background: device_ta.pressed ? steelblue : lightsteelblue;
-                    border-radius: 8px;
+                    background: device_ta.pressed ? Theme.accent-pressed : Theme.accent-muted;
+                    border-radius: Theme.radius-card;
                     Text {
                         vertical-alignment: center;
                         horizontal-alignment: left;
@@ -58,7 +59,7 @@ export component ConnectView inherits Rectangle {
 
         // ── Scan QR button ────────────────────────────────────────────────
         Rectangle {
-            height: 45px;
+            height: Theme.row-height;
 
             scan_ta := TouchArea {
                 clicked => Bridge.scan-qr();
@@ -67,8 +68,8 @@ export component ConnectView inherits Rectangle {
             Rectangle {
                 width: parent.width - 10px;
                 height: parent.height - 10px;
-                background: scan_ta.pressed ? steelblue : lightsteelblue;
-                border-radius: 8px;
+                background: scan_ta.pressed ? Theme.accent-pressed : Theme.accent-muted;
+                border-radius: Theme.radius-card;
                 Text {
                     vertical-alignment: center;
                     horizontal-alignment: left;
