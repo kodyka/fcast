@@ -854,9 +854,9 @@ impl Application {
                 let encoder_name = "Hardware"; // Blocked by P0-1: Placeholder until encoder selection works
                 let network_info = self.local_address.as_ref().map(|a| a.to_string()).unwrap_or_default();
                 let status_items = build_status_items(&receiver_name, encoder_name, &network_info);
-                let status_model = std::rc::Rc::new(slint::VecModel::from(status_items));
 
                 self.ui_weak.upgrade_in_event_loop(move |ui| {
+                    let status_model = std::rc::Rc::new(slint::VecModel::from(status_items));
                     ui.global::<Bridge>().set_status_items(status_model.into());
                     ui.global::<Bridge>().invoke_change_state(AppState::Casting);
                 })?;
