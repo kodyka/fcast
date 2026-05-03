@@ -21,6 +21,7 @@ use mcore::{
     AudioSource, Event, FileSystemEntry, MediaFileEntry, RootDirType, ShouldQuit,
     transmission::WhepSink,
 };
+use mimalloc::MiMalloc;
 use serde::{Deserialize, Serialize};
 use slint::{Model, ToSharedString};
 use std::{
@@ -36,7 +37,6 @@ use std::{
 };
 use tokio::{
     io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
-    runtime::Runtime,
     sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender, channel},
 };
 use tracing::{Instrument, debug, error, level_filters::LevelFilter, warn};
@@ -46,24 +46,16 @@ use tracing_subscriber::{
 
 use desktop_sender::slint_generated::*;
 
-#[cfg(not(any(
-    target_os = "windows",
-    all(target_arch = "aarch64", target_os = "linux")
-)))]
-use tikv_jemallocator::Jemalloc;
-
-#[cfg(not(any(
-    target_os = "windows",
-    all(target_arch = "aarch64", target_os = "linux")
-)))]
 #[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
+static GLOBAL: MiMalloc = MiMalloc;
 
 const MAX_VEC_LOG_ENTRIES: usize = 1500;
 const MIN_TIME_BETWEEN_SEEKS: Duration = Duration::from_millis(200);
 const MIN_TIME_BETWEEN_VOLUME_CHANGES: Duration = Duration::from_millis(75);
 const DEFAULT_FILE_SERVER_PORT: u16 = 0;
 const DEFAULT_MIRRORING_SERVER_PORT: u16 = 0;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+const UPDATER_BASE_URL: &str = "http://dl.fcast.org/sender/desktop";
 
 pub type ProducerId = String;
 
@@ -172,22 +164,6 @@ async fn process_files(
     }
 
     Ok(())
-}
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-fn restart_application() -> ! {
-    use std::process::Command;
-
-    if let Ok(path) = desktop_sender::starting_binary::STARTING_BINARY.cloned() {
-        // NOTE: for updates; the new exe is expected to be named the same as the current one
-        if let Err(err) = Command::new(path).spawn() {
-            error!(?err, "failed to restart app");
-        }
-    } else {
-        error!("Executable path not found, app will not be restarted");
-    }
-
-    std::process::exit(0);
 }
 
 type DirectoryId = i32;
@@ -479,7 +455,7 @@ struct Application {
     session_state: Option<SessionState>,
     settings: Settings,
     #[cfg(any(target_os = "macos", target_os = "windows"))]
-    update: Option<mcore::Release>,
+    update: Option<app_updater::Release>,
 }
 
 async fn spawn_video_source_fetcher(event_tx: UnboundedSender<Event>) -> Sender<FetchEvent> {
@@ -541,14 +517,14 @@ async fn spawn_video_source_fetcher(event_tx: UnboundedSender<Event>) -> Sender<
                     FetchEvent::Fetch => {
                         use gst::prelude::*;
                         let Some(dev_provider) =
-                            gst::DeviceProviderFactory::by_name("d3d11screencapturedeviceprovider")
+                            gst::DeviceProviderFactory::by_name("d3d12screencapturedeviceprovider")
                         else {
-                            error!("Failed to create `d3d11screencapturedeviceprovider`");
+                            error!("Failed to create `d3d12screencapturedeviceprovider`");
                             continue;
                         };
 
                         if let Err(err) = dev_provider.start() {
-                            error!("Failed to start d3d11 device provider: {err}");
+                            error!("Failed to start d3d12 device provider: {err}");
                             continue;
                         }
                         let devs = dev_provider.devices();
@@ -571,7 +547,7 @@ async fn spawn_video_source_fetcher(event_tx: UnboundedSender<Event>) -> Sender<
                                     continue;
                                 }
                             };
-                            converted_devs.push((idx, VideoSource::D3d11Monitor { name, handle }));
+                            converted_devs.push((idx, VideoSource::D3d12Monitor { name, handle }));
                         }
 
                         event_tx
@@ -683,7 +659,7 @@ impl Application {
                         tx_sink.shutdown();
                     }
 
-                    video_source_fetcher_tx.send(FetchEvent::Quit).await?;
+                    let _ = video_source_fetcher_tx.send(FetchEvent::Quit).await;
                 }
                 SessionSpecificState::YtDlp {
                     mut fetcher_quit_tx,
@@ -1132,7 +1108,7 @@ impl Application {
         path.push(&file_entry.name);
         debug!(?path, "Getting ready to cast");
         let id = file_server.add_file(path, file_entry.mime_type);
-        let url = file_server.get_url(local_addr, &id);
+        let url = file_server.get_url(&(local_addr.into()), &id);
         device.load(device::LoadRequest::Url {
             content_type: file_entry.mime_type.to_string(),
             url,
@@ -2022,7 +1998,7 @@ impl Application {
 
                 let ui_weak = self.ui_weak.clone();
                 tokio::spawn(async move {
-                    let res = desktop_sender::updater::download_update(&update, {
+                    let res = app_updater::download_update(UPDATER_BASE_URL, &update, {
                         let ui_weak = ui_weak.clone();
                         move |progress, total| {
                             let progress_percent = if total == 0 {
@@ -2057,7 +2033,9 @@ impl Application {
                             .set_updater_state(UiUpdaterState::Installing);
                     });
 
-                    if let Err(err) = desktop_sender::updater::install_update(
+                    if let Err(err) = app_updater::install_update(
+                        #[cfg(target_os = "macos")]
+                        "FCast Sender.app",
                         update_file,
                         Box::new(|closure| {
                             slint::invoke_from_event_loop(move || {
@@ -2089,7 +2067,7 @@ impl Application {
             #[cfg(any(target_os = "macos", target_os = "windows"))]
             Event::RestartApplication => {
                 let _ = self.end_session(true);
-                restart_application();
+                app_updater::restart_application();
             }
             #[cfg(not(any(target_os = "macos", target_os = "windows")))]
             Event::RestartApplication => (),
@@ -2286,6 +2264,7 @@ impl Application {
         gst::log::remove_default_log_function();
         gst::log::set_default_threshold(gst::DebugLevel::Warning);
         gst::init()?;
+        gst::rust_allocator().clone().set_default();
         gstrsrtp::plugin_register_static()?;
 
         self.load_settings()
@@ -2316,7 +2295,7 @@ impl Application {
         tokio::spawn({
             let event_tx = self.event_tx.clone();
             async move {
-                match desktop_sender::updater::check_for_update()
+                match app_updater::check_for_update(UPDATER_BASE_URL, env!("CARGO_PKG_VERSION"))
                     .instrument(tracing::debug_span!("check_for_updates"))
                     .await
                 {
@@ -2474,6 +2453,13 @@ impl<S: tracing::Subscriber> Layer<S> for VecLayer {
     }
 }
 
+fn create_log_filter(default: LevelFilter) -> tracing_subscriber::filter::Targets {
+    tracing_subscriber::filter::Targets::new()
+        .with_target("tracing_gstreamer::callsite", LevelFilter::OFF)
+        .with_target("mdns_sd", LevelFilter::INFO)
+        .with_default(default)
+}
+
 fn main() -> Result<()> {
     let init_start = std::time::Instant::now();
 
@@ -2497,10 +2483,11 @@ fn main() -> Result<()> {
         unsafe { std::env::set_var("GST_PLUGIN_PATH", plugin_dir) };
     }
 
-    let fmt_layer = tracing_subscriber::fmt::layer().with_filter(log_level());
+    let fmt_layer = tracing_subscriber::fmt::layer().with_filter(create_log_filter(log_level()));
     let tracing_events: Arc<parking_lot::Mutex<std::collections::VecDeque<String>>> =
         Arc::new(parking_lot::Mutex::new(std::collections::VecDeque::new()));
-    let vec_layer = VecLayer::new(Arc::clone(&tracing_events)).with_filter(LevelFilter::DEBUG);
+    let vec_layer = VecLayer::new(Arc::clone(&tracing_events))
+        .with_filter(create_log_filter(LevelFilter::DEBUG));
 
     let prev_panic_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
@@ -2521,7 +2508,11 @@ fn main() -> Result<()> {
         );
     }
 
-    let runtime = Runtime::new()?;
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .worker_threads(num_cpus::get().min(4))
+        .thread_name("main-async-worker")
+        .build()?;
 
     let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
 

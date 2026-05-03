@@ -4,12 +4,20 @@ import {
     ScrollView,
     Button,
 } from "../../../../../senders/ui-components/std-widgets.slint";
-import { Bridge, UiMediaTrack, GuiPlaybackState, UiMediaTrackType } from "../globals.slint";
+import {
+    Bridge,
+    UiMediaTrack,
+    GuiPlaybackState,
+    UiMediaTrackType,
+    UiMode,
+} from "../globals.slint";
 import {
     PositionScrubber,
     ProgressLabels,
     MasterButton,
     ScrubbyMcScrub,
+    VolumePreview,
+    SubtitleView,
 } from "../common.slint";
 import {
     FCastPalette,
@@ -103,7 +111,6 @@ component SettingsPopupBase inherits PopupWindow {
 }
 
 component SettingItem inherits Rectangle {
-    // in property <float> rate;
     in property <string> value;
     in property <bool> selected;
 
@@ -133,7 +140,6 @@ component SettingItem inherits Rectangle {
         padding-right: 12px;
 
         FText {
-            // text: rate;
             text: value;
         }
 
@@ -173,7 +179,7 @@ component PlaybackSettingHeader inherits HorizontalLayout {
         font-size: 18px;
         vertical-alignment: center;
     }
- }
+}
 
 component SettingsTrackList inherits VerticalLayout {
     in property <[UiMediaTrack]> tracks;
@@ -205,6 +211,207 @@ component SettingsTrackList inherits VerticalLayout {
         Rectangle {
             height: 1px;
             background: #FFFFFF0A;
+        }
+    }
+}
+
+component ButtonControls inherits HorizontalLayout {
+    alignment: space-between;
+
+    Rectangle {
+        width: right-side-ctrls.preferred-width;
+    }
+
+    Rectangle {
+        MasterButton {
+            height: 50px;
+            width: 50px;
+        }
+    }
+
+    right-side-ctrls := HorizontalLayout {
+        alignment: end;
+        spacing: 15px;
+
+        settings-btn := SecondaryButton {
+            icon: Icons.settings;
+            clicked => settings-popup.show();
+        }
+
+        settings-popup := SettingsPopupBase {
+            x: settings-btn.x - self.width + settings-btn.width;
+            y: settings-btn.y - self.height - 15px;
+
+            FText {
+                text: "Playback settings";
+                font-weight: 500;
+                font-size: 18px;
+            }
+
+            VerticalLayout {
+                padding-top: 10px;
+                spacing: 5px;
+
+                if Bridge.video-tracks.length > 0: PlaybackSettingsMenuItem {
+                    label: "Video";
+                    icon: Icons.settings-video;
+
+                    clicked => {
+                        pb-video-popup.show();
+                        settings-popup.close();
+                    }
+                }
+
+                if Bridge.audio-tracks.length > 0: PlaybackSettingsMenuItem {
+                    label: "Audio";
+                    icon: Icons.details-audio;
+
+                    clicked => {
+                        pb-audio-popup.show();
+                        settings-popup.close();
+                    }
+                }
+
+                if Bridge.subtitle-tracks.length > 0: PlaybackSettingsMenuItem {
+                    label: "Subtitles";
+                    icon: Icons.subtitles;
+
+                    clicked => {
+                        pb-subtitle-popup.show();
+                        settings-popup.close();
+                    }
+                }
+
+                PlaybackSettingsMenuItem {
+                    label: "Playback Speed";
+                    icon: Icons.playback-rate;
+
+                    clicked => {
+                        pb-rate-popup.show();
+                        settings-popup.close();
+                    }
+                }
+            }
+        }
+
+        pb-video-popup := SettingsPopupBase {
+            x: settings-btn.x - self.width + settings-btn.width;
+            y: settings-btn.y - self.height - 15px;
+
+            PlaybackSettingHeader {
+                title: "Video track";
+
+                navigate-previous => {
+                    settings-popup.show();
+                    pb-video-popup.close();
+                }
+            }
+
+            VerticalLayout {
+                padding-top: 10px;
+                spacing: 5px;
+
+                // TODO: scroll view if needed
+                SettingsTrackList {
+                    tracks: Bridge.video-tracks;
+                    selected-id: Bridge.current-video-track;
+                    clicked(id) => Bridge.select-track(id, UiMediaTrackType.Video);
+                }
+            }
+        }
+
+        pb-audio-popup := SettingsPopupBase {
+            x: settings-btn.x - self.width + settings-btn.width;
+            y: settings-btn.y - self.height - 15px;
+
+            PlaybackSettingHeader {
+                title: "Audio track";
+
+                navigate-previous => {
+                    settings-popup.show();
+                    pb-audio-popup.close();
+                }
+            }
+
+            VerticalLayout {
+                padding-top: 10px;
+                spacing: 5px;
+
+                // TODO: scroll view if needed
+                SettingsTrackList {
+                    tracks: Bridge.audio-tracks;
+                    selected-id: Bridge.current-audio-track;
+                    clicked(id) => Bridge.select-track(id, UiMediaTrackType.Audio);
+                }
+            }
+        }
+
+        pb-subtitle-popup := SettingsPopupBase {
+            height: Math.min(root.height, Bridge.subtitle-tracks.length * 50px);
+            x: settings-btn.x - self.width + settings-btn.width;
+            y: settings-btn.y - self.height - 15px;
+
+            PlaybackSettingHeader {
+                title: "Subtitles";
+
+                navigate-previous => {
+                    settings-popup.show();
+                    pb-subtitle-popup.close();
+                }
+            }
+
+            VerticalLayout {
+                padding-top: 10px;
+                spacing: 5px;
+
+                // TODO: scroll view if needed
+                SettingsTrackList {
+                    alignment: start;
+                    tracks: Bridge.subtitle-tracks;
+                    selected-id: Bridge.current-subtitle-track;
+                    can-be-disabled: true;
+                    clicked(id) => Bridge.select-track(id, UiMediaTrackType.Subtitle);
+                }
+            }
+        }
+
+        pb-rate-popup := SettingsPopupBase {
+            x: settings-btn.x - self.width + settings-btn.width;
+            y: settings-btn.y - self.height - 15px;
+
+            PlaybackSettingHeader {
+                title: "Playback speed";
+
+                navigate-previous => {
+                    settings-popup.show();
+                    pb-rate-popup.close();
+                }
+            }
+
+            VerticalLayout {
+                padding-top: 10px;
+                spacing: 5px;
+
+                property <[float]> rates: [0.25, 0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0];
+
+                // TODO: scroll view if needed
+                for rate in rates: VerticalLayout {
+                    SettingItem {
+                        value: rate;
+                        selected: Bridge.playback-rate == rate;
+
+                        clicked => {
+                            Bridge.change-playback-rate(rate);
+                            Bridge.playback-rate = rate;
+                        }
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: #FFFFFF0A;
+                    }
+                }
+            }
         }
     }
 }
@@ -243,7 +450,7 @@ component PlaybackControls inherits Rectangle {
         padding-bottom: 20px;
         spacing: 5px;
 
-        HorizontalLayout {
+        if Bridge.ui-mode == UiMode.Full: HorizontalLayout {
             Rectangle { }
 
             SecondaryButton {
@@ -258,6 +465,8 @@ component PlaybackControls inherits Rectangle {
         }
 
         Rectangle { }
+
+        if Bridge.subtitles.length > 0: SubtitleView { }
 
         HorizontalLayout {
             padding: 10px;
@@ -313,218 +522,11 @@ component PlaybackControls inherits Rectangle {
 
         ScrubbyMcScrub { }
 
-        Rectangle {
+        if Bridge.ui-mode == UiMode.Full: Rectangle {
             height: 5px;
         }
 
-        HorizontalLayout {
-            alignment: space-between;
-
-            Rectangle {
-                width: right-side-ctrls.preferred-width;
-            }
-
-            Rectangle {
-                MasterButton {
-                    height: 50px;
-                    width: 50px;
-                }
-            }
-
-            right-side-ctrls := HorizontalLayout {
-                alignment: end;
-                spacing: 15px;
-
-                // SecondaryButton {
-                //     icon: Icons.subtitles;
-                // }
-
-                settings-btn := SecondaryButton {
-                    icon: Icons.settings;
-
-                    clicked => settings-popup.show();
-                }
-
-                settings-popup := SettingsPopupBase {
-                    x: settings-btn.x - self.width + settings-btn.width;
-                    y: settings-btn.y - self.height - 15px;
-
-                    FText {
-                        text: "Playback settings";
-                        font-weight: 500;
-                        font-size: 18px;
-                    }
-
-                    VerticalLayout {
-                        padding-top: 10px;
-                        spacing: 5px;
-
-                        if Bridge.video-tracks.length > 0: PlaybackSettingsMenuItem {
-                            label: "Video";
-                            icon: Icons.settings-video;
-
-                            clicked => {
-                                pb-video-popup.show();
-                                settings-popup.close();
-                            }
-                        }
-
-                        if Bridge.audio-tracks.length > 0: PlaybackSettingsMenuItem {
-                            label: "Audio";
-                            icon: Icons.details-audio;
-
-                            clicked => {
-                                pb-audio-popup.show();
-                                settings-popup.close();
-                            }
-                        }
-
-                        if Bridge.subtitle-tracks.length > 0: PlaybackSettingsMenuItem {
-                            label: "Subtitles";
-                            icon: Icons.subtitles;
-
-                            clicked => {
-                                pb-subtitle-popup.show();
-                                settings-popup.close();
-                            }
-                        }
-
-                        PlaybackSettingsMenuItem {
-                            label: "Playback Speed";
-                            icon: Icons.playback-rate;
-
-                            clicked => {
-                                pb-rate-popup.show();
-                                settings-popup.close();
-                            }
-                        }
-                    }
-                }
-
-                pb-video-popup := SettingsPopupBase {
-                    x: settings-btn.x - self.width + settings-btn.width;
-                    y: settings-btn.y - self.height - 15px;
-
-                    PlaybackSettingHeader {
-                        title: "Video track";
-
-                        navigate-previous => {
-                            settings-popup.show();
-                            pb-video-popup.close();
-                        }
-                    }
-
-                    VerticalLayout {
-                        padding-top: 10px;
-                        spacing: 5px;
-
-                        // TODO: scroll view if needed
-
-                        SettingsTrackList {
-                            tracks: Bridge.video-tracks;
-                            selected-id: Bridge.current-video-track;
-                            clicked(id) => Bridge.select-track(id, UiMediaTrackType.Video);
-                        }
-                    }
-                }
-
-                pb-audio-popup := SettingsPopupBase {
-                    x: settings-btn.x - self.width + settings-btn.width;
-                    y: settings-btn.y - self.height - 15px;
-
-                    PlaybackSettingHeader {
-                        title: "Audio track";
-
-                        navigate-previous => {
-                            settings-popup.show();
-                            pb-audio-popup.close();
-                        }
-                    }
-
-                    VerticalLayout {
-                        padding-top: 10px;
-                        spacing: 5px;
-
-                        // TODO: scroll view if needed
-
-                        SettingsTrackList {
-                            tracks: Bridge.audio-tracks;
-                            selected-id: Bridge.current-audio-track;
-                            clicked(id) => Bridge.select-track(id, UiMediaTrackType.Audio);
-                        }
-                    }
-                }
-
-                pb-subtitle-popup := SettingsPopupBase {
-                    x: settings-btn.x - self.width + settings-btn.width;
-                    y: settings-btn.y - self.height - 15px;
-
-                    PlaybackSettingHeader {
-                        title: "Subtitles";
-
-                        navigate-previous => {
-                            settings-popup.show();
-                            pb-subtitle-popup.close();
-                        }
-                    }
-
-                    VerticalLayout {
-                        padding-top: 10px;
-                        spacing: 5px;
-
-                        // TODO: scroll view if needed
-
-                        SettingsTrackList {
-                            tracks: Bridge.subtitle-tracks;
-                            selected-id: Bridge.current-subtitle-track;
-                            can-be-disabled: true;
-                            clicked(id) => Bridge.select-track(id, UiMediaTrackType.Subtitle);
-                        }
-                    }
-                }
-
-                pb-rate-popup := SettingsPopupBase {
-                    x: settings-btn.x - self.width + settings-btn.width;
-                    y: settings-btn.y - self.height - 15px;
-
-                    PlaybackSettingHeader {
-                        title: "Playback speed";
-
-                        navigate-previous => {
-                            settings-popup.show();
-                            pb-rate-popup.close();
-                        }
-                    }
-
-                    VerticalLayout {
-                        padding-top: 10px;
-                        spacing: 5px;
-
-                        property <[float]> rates: [0.25, 0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0];
-
-                        // TODO: scroll view if needed
-
-                        for rate in rates: VerticalLayout {
-                            SettingItem {
-                                // rate: rate;
-                                value: rate;
-                                selected: Bridge.playback-rate == rate;
-
-                                clicked => {
-                                    Bridge.change-playback-rate(rate);
-                                    Bridge.playback-rate = rate;
-                                }
-                            }
-
-                            Rectangle {
-                                height: 1px;
-                                background: #FFFFFF0A;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        if Bridge.ui-mode == UiMode.Full: ButtonControls { }
     }
 
     tim := Timer {
@@ -554,41 +556,45 @@ component PlaybackControls inherits Rectangle {
 export component VideoPlayerView inherits Rectangle {
     width: 100%;
     height: 100%;
-    background: black;
-
-    vframe := Image {
-        source <=> Bridge.video-frame;
-        image-fit: contain;
-        width: 100%;
-        height: 100%;
-    }
+    background: transparent;
 
     pure function scale() -> length {
-        Math.min(root.height / vframe.source.height, root.width / vframe.source.width)
+        Math.min(root.height / Bridge.video-frame-height, root.width / Bridge.video-frame-width)
     }
 
     pure function frame-x() -> length {
-        root.width / 2 - vframe.source.width * scale() / 2
+        root.width / 2 - Bridge.video-frame-width * scale() / 2
     }
 
     pure function frame-y() -> length {
-        root.height / 2 - vframe.source.height * scale() / 2
+        root.height / 2 - Bridge.video-frame-height * scale() / 2
     }
 
     for overlay in Bridge.overlays: Image {
         x: frame-x() + (overlay.x * scale() / 1px);
         y: frame-y() + (overlay.y * scale() / 1px);
-        width: scale() * overlay.img.width;
-        height: scale() * overlay.img.height;
+        width: overlay.img.width * 1px * scale() / 1px;
+        height: overlay.img.height * 1px * scale() / 1px;
         source: overlay.img;
+    }
+
+    if !playback-control.visible && Bridge.subtitles.length > 0: VerticalLayout {
+        padding: 30px;
+
+        Rectangle { }
+
+        SubtitleView { }
+    }
+
+    VolumePreview {
+        width: 100%;
+        height: 100%;
     }
 
     TouchArea {
         width: 100%;
         height: 100%;
-
-        visible: Bridge.playing;
-
+        visible: Bridge.is-playing();
         mouse-cursor: self.visible && !playback-control.visible ? none : default;
 
         FocusScope {

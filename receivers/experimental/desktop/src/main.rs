@@ -1,24 +1,24 @@
-use rcore::clap::Parser;
-#[cfg(not(any(
-    target_os = "windows",
-    all(target_arch = "aarch64", target_os = "linux")
-)))]
-use tikv_jemallocator::Jemalloc;
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-#[cfg(not(any(
-    target_os = "windows",
-    all(target_arch = "aarch64", target_os = "linux")
-)))]
+use rcore::clap::Parser;
+use mimalloc::MiMalloc;
+
 #[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
+static GLOBAL: MiMalloc = MiMalloc;
 
 fn main() -> anyhow::Result<()> {
     let args = rcore::CliArgs::parse();
 
+    #[cfg(target_os = "windows")]
+    let _ = enable_ansi_support::enable_ansi_support();
+
     if std::env::var("SLINT_BACKEND") == Err(std::env::VarError::NotPresent) {
-        rcore::slint::BackendSelector::new()
-            .require_opengl()
-            .select()?;
+        let selector = rcore::slint::BackendSelector::new();
+        #[cfg(not(target_os = "windows"))]
+        let selector = selector.require_opengl_with_version(3, 30);
+        #[cfg(target_os = "windows")]
+        let selector = selector.require_opengl_with_version(4, 0);
+        selector.select()?;
     }
 
     rcore::run(args)

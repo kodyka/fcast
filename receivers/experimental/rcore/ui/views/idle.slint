@@ -1,6 +1,12 @@
-import { Icons, FText } from "../../../../../senders/ui-components/std-widgets.slint";
-import { FCastPalette } from "../../../../../senders/ui-components/styling.slint";
-import { Bridge } from "../globals.slint";
+import {
+    Icons,
+    FText,
+    Button,
+} from "../../../../../senders/ui-components/std-widgets.slint";
+import {
+    FCastPalette,
+} from "../../../../../senders/ui-components/styling.slint";
+import { Bridge, UiUpdaterState } from "../globals.slint";
 
 component ReceiverInfoEntry inherits HorizontalLayout {
     in property <image> icon <=> i-icon.source;
@@ -15,8 +21,7 @@ component ReceiverInfoEntry inherits HorizontalLayout {
     VerticalLayout {
         alignment: center;
 
-        i-icon := Image {
-        }
+        i-icon := Image { }
     }
 
     VerticalLayout {
@@ -34,7 +39,12 @@ component ReceiverInfoEntry inherits HorizontalLayout {
         }
     }
 
-    Rectangle {}
+    Rectangle { }
+}
+
+component IdleText inherits FText {
+    color: @linear-gradient(180deg, #FFFFFF 17.11%, #B4B4B4 78.95%);
+    wrap: word-wrap;
 }
 
 export component IdleView inherits Rectangle {
@@ -80,24 +90,22 @@ export component IdleView inherits Rectangle {
                 VerticalLayout {
                     padding: 10px;
                     spacing: 10px;
-
-                    visible: !Bridge.playing;
+                    visible: !Bridge.is-playing();
                     alignment: center;
-                    Text {
+
+                    IdleText {
                         font-size: 28px;
                         text: "Idle. Ready to cast";
                         font-weight: 600;
-                        // horizontal-alignment: center;
                         font-family: "Outfit Semibold";
                         overflow: elide;
-                        color: @linear-gradient(180deg, #FFFFFF 17.11%, #B4B4B4 78.95%);
+                        // color: @linear-gradient(180deg, #FFFFFF 17.11%, #B4B4B4 78.95%);
                     }
 
                     if root.height > 380px: Text {
                         font-size: 12pt;
                         text: "Stream to this device by opening your FCast sender app and selecting this device from the Cast menu, or scan the QR code for instant setup.";
                         wrap: word-wrap;
-                        // horizontal-alignment: center;
                         color: FCastPalette.opacity-light-500;
                     }
 
@@ -133,6 +141,78 @@ export component IdleView inherits Rectangle {
                             }
                         }
                     }
+
+                    if Bridge.updater-state == UiUpdaterState.ShowingDialog: VerticalLayout {
+                        IdleText {
+                            text: "An update is available. Do you want to update now?";
+                        }
+
+                        HorizontalLayout {
+                            padding-top: 5px;
+                            spacing: 5px;
+
+                            Button {
+                                text: "Yes";
+
+                                clicked => Bridge.perform-app-update();
+                            }
+
+                            Button {
+                                text: "No";
+
+                                clicked => {
+                                    Bridge.updater-state = UiUpdaterState.None;
+                                }
+                            }
+                        }
+                    }
+
+                    if Bridge.updater-state == UiUpdaterState.Downloading: VerticalLayout {
+                        IdleText {
+                            text: "Downloading update...";
+                        }
+
+                        IdleText {
+                            horizontal-alignment: center;
+                            text: Bridge.update-download-progress + "%";
+                        }
+                    }
+
+                    if Bridge.updater-state == UiUpdaterState.DownloadFailed: VerticalLayout {
+                        IdleText {
+                            text: "Failed to download update: " + Bridge.updater-error-msg;
+                        }
+                    }
+
+                    if Bridge.updater-state == UiUpdaterState.InstallFailed: VerticalLayout {
+                        IdleText {
+                            text: "Failed to install update: " + Bridge.updater-error-msg;
+                        }
+                    }
+
+                    if Bridge.updater-state == UiUpdaterState.InstallSuccessful: VerticalLayout {
+                        IdleText {
+                            text: "Installed update successfully. Do you want to restart the app now?";
+                        }
+
+                        HorizontalLayout {
+                            padding-top: 5px;
+                            spacing: 5px;
+                            Button {
+                                text: "Yes";
+
+                                clicked => Bridge.restart-app();
+                            }
+
+                            Button {
+                                text: "No";
+
+                                clicked => {
+                                    Bridge.updater-state = UiUpdaterState.None;
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -162,12 +242,12 @@ export component IdleView inherits Rectangle {
 
                         Rectangle {
                             Image {
-                                source: @image-url("../warning-triangle.svg");
+                                source: Icons.warning-triangle;
                                 width: 80px;
                             }
 
                             Image {
-                                source: @image-url("../exclamation-mark.svg");
+                                source: Icons.exclamation-mark;
                                 width: 60px;
                             }
                         }

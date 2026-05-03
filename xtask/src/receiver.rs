@@ -1,9 +1,33 @@
 use anyhow::Result;
+#[cfg(target_os = "macos")]
+use camino::Utf8Path;
 use camino::Utf8PathBuf;
 use clap::{Args, Subcommand};
 use xshell::cmd;
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use crate::concat_paths;
+#[cfg(target_os = "macos")]
+use crate::BuildMacosInstallerArgs;
 use crate::{sh, workspace, AndroidAbiTarget};
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use receiver_resources::*;
+
+#[cfg(target_os = "macos")]
+#[derive(askama::Template)]
+#[template(path = "receiver.Info.plist.askama")]
+struct InfoPlistTemplate {
+    version: String,
+}
+
+#[cfg(target_os = "windows")]
+#[derive(askama::Template)]
+#[template(path = "receiver.Product.wxs.askama", escape = "none")]
+struct ProductTemplate {
+    version: String,
+    dll_components: String,
+    gio_components: String,
+}
 
 #[derive(Subcommand)]
 pub enum AndroidReceiverCommand {
@@ -33,6 +57,10 @@ pub struct AndroidReceiverArgs {
 #[derive(Subcommand)]
 pub enum ReceiverCommand {
     Android(AndroidReceiverArgs),
+    #[cfg(target_os = "windows")]
+    BuildWindowsInstaller,
+    #[cfg(target_os = "macos")]
+    BuildMacosInstaller(BuildMacosInstallerArgs),
 }
 
 #[derive(Args)]
@@ -45,6 +73,14 @@ fn concat_path(a: &Utf8PathBuf, b: &str) -> Utf8PathBuf {
     let mut res = a.clone();
     res.push(b);
     res
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn get_receiver_version() -> String {
+    let receiver_toml =
+        std::fs::read_to_string("receivers/experimental/desktop/Cargo.toml").unwrap();
+    let doc = receiver_toml.parse::<toml_edit::DocumentMut>().unwrap();
+    doc["package"]["version"].as_str().unwrap().to_string()
 }
 
 impl ReceiverArgs {
@@ -113,7 +149,10 @@ impl ReceiverArgs {
                         );
                         let _env_gst_java_src_dir = sh.push_env(
                             "GSTREAMER_JAVA_SRC_DIR",
-                            concat_path(&root_path, "receivers/experimental/android/app/src/main/java"),
+                            concat_path(
+                                &root_path,
+                                "receivers/experimental/android/app/src/main/java",
+                            ),
                         );
                         let _env_ndk_project_path = sh.push_env(
                             "NDK_PROJECT_PATH",
@@ -130,9 +169,14 @@ impl ReceiverArgs {
                         let ndk_root = sh.var("ANDROID_NDK_ROOT").unwrap();
                         cmd!(sh, "make -f {ndk_root}/build/core/build-local.mk").run()?;
                     }
-                    AndroidReceiverCommand::Build { release, target } => {
-                        let out_dir =
-                            concat_path(&root_path, "receivers/experimental/android/app/src/main/jniLibs");
+                    AndroidReceiverCommand::Build {
+                        release,
+                        target,
+                    } => {
+                        let out_dir = concat_path(
+                            &root_path,
+                            "receivers/experimental/android/app/src/main/jniLibs",
+                        );
 
                         let targets = target.map(|t| vec![t]).unwrap_or(vec![
                             AndroidAbiTarget::X64,
@@ -174,6 +218,187 @@ impl ReceiverArgs {
                         }
                     }
                 }
+            }
+            #[cfg(target_os = "windows")]
+            ReceiverCommand::BuildWindowsInstaller => {
+                let gst_root = crate::get_gst_root(&sh);
+
+                cmd!(sh, "cargo build --release --package desktop-receiver --features static-gst-plugins").run()?;
+
+                let build_dir_root = crate::setup_build_dir(&sh, &root_path);
+
+                let mut files_to_copy = Vec::new();
+                files_to_copy.push((
+                    concat_paths(&[
+                        root_path.as_str(),
+                        "target",
+                        "release",
+                        "desktop-receiver.exe",
+                    ]),
+                    "fcast-receiver.exe".to_string(),
+                ));
+
+                fn dlls() -> Vec<String> {
+                    let mut dlls: Vec<String> = GST_WIN_DEPENDENCY_LIBS
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect();
+                    for lib in GST_BASE_LIBS {
+                        dlls.push(format!("{lib}-1.0-0.dll"));
+                    }
+                    dlls
+                }
+
+                files_to_copy.extend(crate::find_dlls(&gst_root, dlls()));
+                files_to_copy.extend(crate::find_plugins(&gst_root, all_plugins_for_win()));
+                files_to_copy.extend(crate::find_msvc_redists(&sh));
+                files_to_copy.extend(crate::find_c_runtime(
+                    crate::find_windows_sdk_installation_path(),
+                ));
+                files_to_copy.push(("receivers/experimental/extra/fcast.ico".into(), "fcast.ico".to_owned()));
+
+                let mut dll_components = String::new();
+
+                for (src, dst) in files_to_copy {
+                    let dst = concat_path(&build_dir_root, &dst);
+                    sh.copy_file(&src, &dst)?;
+                    println!("Copied `{src}` to `{dst}`");
+
+                    if dst.extension() == Some("dll") {
+                        dll_components += &format!(r#"<File Source="{dst}" />"#);
+                        dll_components += "\n";
+                    }
+                }
+
+                let src = gst_root.join("lib").join("gio").join("modules").join("gioopenssl.dll");
+                sh.create_dir(build_dir_root.join("gio").join("modules"))?;
+                let dst = "gio\\modules\\gioopenssl.dll".to_owned();
+                let dst = concat_path(&build_dir_root, &dst);
+                sh.copy_file(&src, &dst)?;
+                let mut gio_components = format!(r#"<File Source="{dst}" />"#);
+                gio_components += "\n";
+
+                use askama::Template;
+
+                let receiver_version = get_receiver_version();
+                let product_wxs = ProductTemplate {
+                    version: receiver_version.clone(),
+                    dll_components,
+                    gio_components,
+                }
+                .render()?;
+
+                sh.write_file(
+                    concat_path(&build_dir_root, &"FCastReceiverInstaller.wxs"),
+                    product_wxs,
+                )?;
+
+                println!("############### Building installer ###############");
+
+                {
+                    let output = format!("FCastReceiver-{receiver_version}-win64-installer.msi");
+                    let _win_build_p = sh.push_dir(&build_dir_root);
+                    cmd!(sh, "wix build -out {output} .\\FCastReceiverInstaller.wxs").run()?;
+                }
+            }
+            #[cfg(target_os = "macos")]
+            ReceiverCommand::BuildMacosInstaller(BuildMacosInstallerArgs {
+                sign,
+                p12_file,
+                p12_password_file,
+                api_key_file,
+            }) => {
+                let path_to_dmg_dir = root_path.join("target").join("fcast-receiver-dmg");
+                let app_top_level = path_to_dmg_dir.join("FCast Receiver.app");
+                let build_dir_root = app_top_level.join("Contents").join("MacOS");
+
+                if sh.remove_path(&path_to_dmg_dir).is_ok() {
+                    println!("Removed old build dir at `{path_to_dmg_dir:?}`")
+                }
+
+                let library_target_directory = build_dir_root.join("lib");
+                sh.create_dir(&library_target_directory)?;
+
+                // "cargo build --release --package desktop-receiver --features static-gst-plugins"
+                cmd!(
+                    sh,
+                    "cargo build --release --package desktop-receiver --no-default-features --features static-gst-plugins"
+                )
+                .run()?;
+
+                let binary_path = concat_paths(&[
+                    root_path.as_str(),
+                    "target",
+                    "release",
+                    "desktop-receiver",
+                ]);
+
+                std::fs::copy(&binary_path, build_dir_root.join("fcast-receiver"))?;
+
+                use askama::Template;
+
+                let binary_dependencies =
+                    crate::find_libraries(&binary_path, all_plugins_for_macos(), &["libsoup-3.0.dylib"]);
+                let relative_path = Utf8PathBuf::from("lib/");
+
+                println!("############### Rewriting dependencies to be relative ###############");
+
+                crate::rewrite_dependencies_to_be_relative(
+                    &binary_path,
+                    &binary_dependencies,
+                    &relative_path,
+                );
+
+                let extras = ["gio/modules/libgioopenssl.so"];
+                crate::process_dependencies(
+                    &sh,
+                    binary_dependencies,
+                    library_target_directory,
+                    &extras,
+                );
+
+                println!("############### Writing resources ###############");
+
+                let receiver_version = get_receiver_version();
+                let info_plist = InfoPlistTemplate {
+                    version: receiver_version.clone(),
+                }
+                .render()?;
+                sh.create_dir(app_top_level.join("Contents").join("Resources"))?;
+                sh.copy_file(
+                    root_path
+                        .join("receivers")
+                        .join("experimental")
+                        .join("extra")
+                        .join("fcast.icns"),
+                    app_top_level
+                        .join("Contents")
+                        .join("Resources")
+                        .join("fcast.icns"),
+                )?;
+                sh.write_file(
+                    app_top_level.join("Contents").join("Info.plist"),
+                    info_plist,
+                )?;
+                let applications_link_path = path_to_dmg_dir.join("Applications");
+                let path_to_dmg = root_path.join("target").join(format!(
+                    "fcast-receiver-{receiver_version}-macos-aarch64.dmg"
+                ));
+                sh.remove_path(&path_to_dmg)?;
+
+                crate::create_package(
+                    &sh,
+                    crate::AppType::Receiver,
+                    receiver_version,
+                    app_top_level,
+                    applications_link_path,
+                    path_to_dmg,
+                    path_to_dmg_dir,
+                    sign,
+                    p12_file,
+                    p12_password_file,
+                    api_key_file,
+                );
             }
         }
 

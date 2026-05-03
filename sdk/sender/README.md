@@ -4,7 +4,6 @@
 
 * [Rust](https://www.rust-lang.org/)
 * [Cargo](https://doc.rust-lang.org/cargo/)
-* [protoc](https://protobuf.dev/installation/)
 
 ## Android
 
@@ -20,7 +19,7 @@
 To build the android library locally you first need to clone [fcast-sdk-jitpack](https://gitlab.futo.org/videostreaming/fcast-sdk-jitpack) locally, build the rust binaries and generate the UniFFI kotlin module:
 
 ```console
-$ cargo xtask kotlin build-android-library --release --src-dir <path-to-fcast-sdk-jitpack>/src
+$ cargo utask kotlin build-android-library --release --src-dir <path-to-fcast-sdk-jitpack>/src
 ```
 
 Then follow the `Local testing` section [here](https://gitlab.futo.org/videostreaming/fcast-sdk-jitpack/-/blob/main/README.md?ref_type=heads).
@@ -43,7 +42,7 @@ $ # xcode-select --switch /Applications/Xcode.app/Contents/Developer/
 Execute:
 
 ```console
-$ cargo xtask generate-ios
+$ cargo utask generate-ios
 ```
 
 You can now import the SDK in your project by drag and dropping `ios-bindings/uniffi/{fcast_sender_sdk.swift, fcast_sender_sdkFFI.h}` and `ios-bindings/fcast_sender_sdk.xcframework` into Xcode.

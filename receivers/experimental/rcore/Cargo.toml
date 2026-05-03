@@ -1,16 +1,15 @@
 [package]
 name = "rcore"
-version = "0.1.0"
+version = "0.1.2"
 edition = "2024"
 
 [dependencies]
 tokio.workspace = true
 gst = { workspace = true, features = [ "v1_26" ] }
 fcast-protocol = { path = "../../../sdk/common/fcast-protocol" }
-# common.path = "../common"
 gethostname = "1"
 anyhow.workspace = true
-futures = "0.3"
+futures.workspace = true
 tokio-stream = "0.1"
 url = "2"
 thiserror = "2"
@@ -19,83 +18,106 @@ fast_qr = { version = "0.13", features = [ "svg" ] }
 gst-app.workspace = true
 gst-video.workspace = true
 gst-base.workspace = true
-# gst-gl = { package = "gstreamer-gl", version = "0.24.2" }
-gst-allocators = { package = "gstreamer-allocators", version = "0.24.4" }
+serde.workspace = true
+# gst-gl = { package = "gstreamer-gl", version = "0.25", features = ["v1_20"], optional = true }
 serde_json.workspace = true
 if-addrs = "0.14"
 base64 = "0.22"
 bitflags = "2.10"
 smallvec.workspace = true
 parking_lot.workspace = true
-image_swizzle = "0.2.0"
+image_swizzle.workspace = true
 bytes.workspace = true
-# libheif-rs = { version = "2.6", default-features = false, features = [ "v1_20", "image" ] } # TODO
-gst-plugin-reqwest = { rev = "5d4c8c93ab3a84113f1326037e82259c0d77ee25", git = "https://github.com/MAlba124/gst-plugins-rs.git", features = [ "static" ] }
-gst-plugin-webrtc = { version = "0.14.4", default-features = false, features = [ "static" ] }
-gst-plugin-webrtchttp = { version = "0.14.4", features = [ "static" ] }
-gst-tag = { package = "gstreamer-tag", version = "0.24.4" }
-num_cpus = "1"
-rand.workspace = true
+gst-plugin-reqwest = { rev = "1371ed652de9d8bd7f9efb60198beda2fedd62d3", git = "https://github.com/MAlba124/gst-plugins-rs.git", features = [ "static" ] }
+gst-plugin-webrtc = { version = "0.15", default-features = false, features = [ "static" ], optional = true }
+gst-plugin-webrtchttp = { version = "0.15", features = [ "static" ], optional = true }
+gst-plugin-dav1d = { version = "0.15", features = [ "static" ], optional = true }
+gst-tag = { package = "gstreamer-tag", version = "0.25" }
+num_cpus.workspace = true
+rand = { workspace = true, features = ["std_rng"] }
+remote-pipeline-dbg = { path = "../../../tools/remote-pipeline-dbg", default-features = false, features = ["client"] }
+tracing-tracy = { version = "=0.11.2", optional = true }
+pango = { version = "0.22.0", features = ["v1_44"] }
+hayro-jpeg2000 = "0.3"
+jxl-oxide = { version = "0.12", features = ["image"] }
+oneshot = { version = "0.2", features = ["std"] }
+ctrlc.workspace = true
+libplacebo.path = "../../../crates/libplacebo"
+
+# RAOP
+rtsp-types = "0.1"
+sdp-types = "0.1"
+rsa = { version = "0.9", features = ["sha2", "sha1"] }
+sha2 = "0.10"
+sha1 = "0.10"
+lazy_static = "1.5"
+md-5 = "0.10"
+aes = "0.8"
+alac = { version = "0.5", default-features = false }
+cbc = { version = "0.1", features = ["alloc", "std"] }
+nom = "7.1"
+gst-audio = { package = "gstreamer-audio", version = "0.25" }
+byte-slice-cast = "1"
+rtp-types = "0.1"
+
+# Google Cast
+rustls-pki-types = "1.12.0"
+google-cast-protocol = { path = "../../../sdk/common/google-cast-protocol" }
+rcgen = "0.14.7"
+uuid.workspace = true
+
+glow = "0.17.0"
 
 [dependencies.slint]
-# path = "../../../../slint/api/rs/slint"
-# git = "https://gitlab.futo.org/videostreaming/fcast-slint.git"
-# rev = "cefc48cad0b6425c223577af9b27c88c70cceb7c"
 workspace = true
-# default-features = false
 features = [
-    "accessibility",
-    "backend-default",
+    "backend-winit",
     "compat-1-2",
-    "renderer-skia-opengl",
+    "renderer-femtovg",
     "std",
-    "backend-linuxkms"
 ]
 
-[dependencies.image]
+[dependencies.imagelib]
+package = "image"
 version = "0.25"
 default-features = false
-features = [
-    # TODO:
-    #  * APNG
-    #  * GIF
-    # "rayon", Only good for encoding?
-    "avif",
-    "avif-native",
-    "bmp",
-    "gif",
-    "ico",
-    "jpeg",
-    "png",
-    "webp",
-]
+features = ["default-formats", "avif-native"]
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 tracing-gstreamer.workspace = true
 tracing-panic.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-gst-plugin-rtp = { version = "0.14.4", features = [ "static" ] }
+gst-plugin-rtp = { workspace = true, optional = true }
 clap.workspace = true
+keepawake = "0.6"
+
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+gst-allocators = { package = "gstreamer-allocators", version = "0.25" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-app-kit = "0.3.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-# gst-gl-egl = { package = "gstreamer-gl-egl", version = "0.24.0" }
-# gst-gl-x11 = { package = "gstreamer-gl-x11", version = "0.24.0" }
-# glutin_egl_sys = { version = "0.7.1" }
+# gst-gl-egl = { package = "gstreamer-gl-egl", version = "0.25" }
+# gst-gl-x11 = { package = "gstreamer-gl-x11", version = "0.25" }
+glutin_egl_sys = { version = "0.7.1" }
 # glutin_glx_sys = { version = "0.6.1" }
 rustls = { version = "0.23", default-features = false, features = [ "prefer-post-quantum", "tls12", "std", "ring" ]}
 reqwest = { version = "0.13", default-features = false, features = [ "charset", "http2", "system-proxy", "default-tls" ] }
-ksni = { version = "0.3", default-features = false, features = ["async-io"] }
+ksni = { version = "0.3", default-features = false, features = ["async-io"], optional = true }
+# TODO: add this to all targets once linking is figured out
+libheif-rs = { version = "2.6", default-features = false, features = [ "v1_20", "image" ], optional = true }
+tokio-rustls = { version = "0.26.4", default-features = false, features = [ "logging", "ring", "tls12" ] }
+egl-sys.path = "../../../crates/egl-sys"
+drm-fourcc = "2.2.0"
 
 [target.'cfg(any(target_os = "windows", target_os = "macos"))'.dependencies]
-tray-icon = { version = "0.21.3", default-features = false }
+tray-icon = { version = "0.21.3", default-features = false, optional = true }
 
 [target.'cfg(target_os = "android")'.dependencies]
-# gst-gl-egl = { package = "gstreamer-gl-egl", version = "0.24.0" }
-# glutin_egl_sys = { version = "0.7.1" }
+gst-gl-egl = { package = "gstreamer-gl-egl", version = "0.25" }
+glutin_egl_sys = { version = "0.7.1" }
 tracing-gstreamer.workspace = true
 tracing-panic.workspace = true
 tracing = { workspace = true, features = [ "log" ] }
@@ -104,15 +126,19 @@ reqwest = { version = "0.13", default-features = false, features = [ "native-tls
 
 [target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
 reqwest = { version = "0.13", features = [ "native-tls" ] }
+app-updater = { path = "../../../crates/app-updater"}
+tokio-rustls = { version = "0.26.4", default-features = false, features = [ "logging", "aws_lc_rs", "tls12" ] }
+receiver-resources.path = "../../../crates/receiver-resources"
+gst-gl = { package = "gstreamer-gl", version = "0.25", features = ["v1_20"] }
 
 [build-dependencies]
 slint-build.workspace = true
-# slint-build = { path = "../../../../slint/api/rs/build" }
 
 [features]
-# desktop = ["slint/backend-linuxkms"]
-desktop = []
-android = ["slint/backend-android-activity-06", "slint/renderer-skia"]
 default = []
-
-# TODO: have a build mode which statically links every rust plugin we use + use fat LTO to check performance gains
+desktop = ["dep:libheif-rs"]
+systray = ["dep:ksni", "dep:tray-icon"]
+kms-backend = ["slint/backend-linuxkms"]
+android = ["slint/backend-android-activity-06", "slint/renderer-skia"]
+tracy = ["dep:tracing-tracy"]
+static-gst-plugins = ["dep:gst-plugin-webrtchttp", "dep:gst-plugin-webrtc", "dep:gst-plugin-dav1d", "dep:gst-plugin-rtp"]

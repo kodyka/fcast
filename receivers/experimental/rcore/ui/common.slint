@@ -1,23 +1,17 @@
-import { Slider, Button, Icons } from "../../../../senders/ui-components/std-widgets.slint";
+import { Slider, Button, Icons, FText } from "../../../../senders/ui-components/std-widgets.slint";
 import { Bridge, GuiPlaybackState } from "globals.slint";
 import { FCastPalette } from "../../../../senders/ui-components/styling.slint";
 
 export component PositionScrubber inherits Slider {
     hide-thumb: true;
-    maximum: 1.0;
+    maximum: Bridge.duration-secs;
     minimum: 0.0;
-    value <=> Bridge.playback-position;
-    enabled: false;
+    value <=> Bridge.progress-secs;
     rail-color: #FFFFFF33;
     track-color: Bridge.is-live ? FCastPalette.negative-800 : FCastPalette.foreground;
     thumb-color: black.transparentize(85%);
     thumb-border-color: FCastPalette.foreground;
-
-    states [
-        enabled when Bridge.playback-state != GuiPlaybackState.Loading: {
-            enabled: true;
-        }
-    ]
+    enabled: Bridge.playback-state != GuiPlaybackState.Loading;
 }
 
 export component ProgressLabelBox inherits Rectangle {
@@ -39,13 +33,13 @@ export component ProgressLabels inherits HorizontalLayout {
     padding-right: self.padding-left;
 
     ProgressLabelBox {
-        text: Bridge.progress-label;
+        text: Bridge.sec-float-to-string(Bridge.progress-secs);
     }
 
     Rectangle {}
 
     if !Bridge.is-live: ProgressLabelBox {
-        text: Bridge.duration-label;
+        text: Bridge.sec-float-to-string(Bridge.duration-secs);
     }
 }
 
@@ -54,9 +48,15 @@ export component ScrubbyMcScrub {
         spacing: 8px;
 
         scrubber := PositionScrubber {
+            changed(_) => {
+                Bridge.is-scrubbing-position = true;
+            }
+
             released(position) => {
                 Bridge.is-scrubbing-position = false;
-                Bridge.seek-to-percent(position);
+                if position <= Bridge.duration-secs && Bridge.duration-secs != 0.0 {
+                    Bridge.seek-to-percent(position / Bridge.duration-secs);
+                }
             }
         }
 
@@ -73,7 +73,7 @@ export component ScrubbyMcScrub {
         height: plb.height;
 
         plb := ProgressLabelBox {
-            text: Bridge.sec-to-string(Bridge.duration-seconds * scrubber.mouse-x / scrubber.width);
+            text: Bridge.sec-to-string(Bridge.duration-secs * scrubber.mouse-x / scrubber.width);
         }
     }
 }
@@ -98,5 +98,95 @@ export component MasterButton inherits Button {
 
     clicked => {
         Bridge.resume-or-pause();
+    }
+}
+
+export component VolumePreview {
+    volume-preview := HorizontalLayout {
+        visible: Bridge.volume-set-at > 0;
+
+        Rectangle {}
+
+        VerticalLayout {
+            padding: 45px;
+            alignment: center;
+            spacing: 15px;
+
+            Rectangle {
+                border-radius: self.width / 2;
+                background: #00000080;
+                height: root.height * 40%;
+                border-width: 1px;
+                width: bar.preferred-width + 26px * 2;
+
+                vl := VerticalLayout {
+                    padding-top: 10px;
+                    padding-bottom: 10px;
+                    alignment: space-between;
+
+                    bar := Slider {
+                        maximum: 1.0;
+                        minimum: 0.0;
+                        value: Bridge.volume;
+                        height: parent.height - icon-rect.height - 15px;
+                        orientation: vertical;
+                        rail-color: #FFFFFF33;
+                        hide-thumb: true;
+                    }
+
+                    icon-rect := Rectangle {
+                        width: parent.width;
+                        height: vol-img.height + 15px;
+
+                        vol-img := Image {
+                            colorize: FCastPalette.neutral-100;
+                            width: 25px;
+                            height: 23px;
+                            x: parent.width / 2 - self.width / 2;
+                            y: parent.height / 2 - self.height / 2;
+
+                            states [
+                                high when Bridge.volume > 50%: {
+                                    source: Icons.volume-high;
+                                }
+                                muted when Bridge.volume == 0%: {
+                                    source: Icons.volume-muted;
+                                }
+                                low when Bridge.volume < 50%: {
+                                    source: Icons.volume-low;
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Timer {
+        running: Bridge.volume-set-at > 0;
+        interval: 250ms;
+
+        triggered => {
+            Bridge.volume-set-at -= 0.25;
+        }
+    }
+}
+
+export component SubtitleView inherits VerticalLayout {
+    for sub in Bridge.subtitles: Rectangle {
+        width: Math.min(txt.preferred-width + 10px * 2, parent.width);
+        height: txt.preferred-height + 5px * 2;
+        x: parent.width / 2 - self.width / 2;
+        background: black.transparentize(50%);
+
+        txt := FText {
+            width: parent.width;
+            font-size: 30px;
+            text: sub;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            wrap: word-wrap;
+        }
     }
 }

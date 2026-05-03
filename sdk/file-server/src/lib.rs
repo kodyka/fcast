@@ -140,16 +140,16 @@ fn bad_request() -> Result<Response<FileBody>, hyper::http::Error> {
 #[derive(Debug, Clone)]
 struct FileEntry {
     path: PathBuf,
-    content_type: &'static str,
+    content_type: smol_str::SmolStr,
     #[cfg(feature = "headers")]
     required_headers: Option<HashMap<String, String>>,
 }
 
 impl FileEntry {
-    pub fn new(path: PathBuf, content_type: &'static str) -> Self {
+    pub fn new(path: PathBuf, content_type: &str) -> Self {
         Self {
             path,
-            content_type,
+            content_type: smol_str::SmolStr::from(content_type),
             #[cfg(feature = "headers")]
             required_headers: None,
         }
@@ -241,7 +241,7 @@ async fn handle_request(
 
                 Response::builder()
                     .status(StatusCode::PARTIAL_CONTENT)
-                    .header(header::CONTENT_TYPE, content_type)
+                    .header(header::CONTENT_TYPE, content_type.as_str())
                     .header(header::CONTENT_RANGE, bytes_range_str)
                     .header(header::CONTENT_LENGTH, range.length)
                     .header(header::ACCEPT_RANGES, "bytes")
@@ -257,7 +257,7 @@ async fn handle_request(
         }
         None => Response::builder()
             .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, content_type)
+            .header(header::CONTENT_TYPE, content_type.as_str())
             .header(header::CONTENT_LENGTH, file_len)
             .header(header::ACCEPT_RANGES, "bytes")
             .body(FileBody::Full {
@@ -399,7 +399,7 @@ impl FileServer {
         })
     }
 
-    pub fn add_file(&self, path: PathBuf, content_type: &'static str) -> Uuid {
+    pub fn add_file(&self, path: PathBuf, content_type: &str) -> Uuid {
         let id = Uuid::new_v4();
         let mut files = self.files.write();
         debug!(?id, ?path, "Adding file");
@@ -427,7 +427,7 @@ impl FileServer {
             id,
             FileEntry {
                 path,
-                content_type,
+                content_type: smol_str::SmolStr::from(content_type),
                 required_headers: Some(required_headers),
             },
         );
@@ -440,14 +440,14 @@ impl FileServer {
     //     debug!(?path, ?id, "Removed file");
     // }
 
-    pub fn get_url(&self, local_addr: &fcast_sender_sdk::IpAddr, file_id: &Uuid) -> String {
-        let port = match local_addr {
-            fcast_sender_sdk::IpAddr::V4 { .. } => self.bound_ports.ipv4,
-            fcast_sender_sdk::IpAddr::V6 { .. } => self.bound_ports.ipv6,
+    pub fn get_url(&self, local_addr: &std::net::IpAddr, file_id: &Uuid) -> String {
+        let (port, addr_str) = match local_addr {
+            std::net::IpAddr::V4(addr) => (self.bound_ports.ipv4, addr.to_string()),
+            std::net::IpAddr::V6(addr) => (self.bound_ports.ipv6, format!("[{addr}]")),
         };
         format!(
             "http://{}:{}/{}",
-            fcast_sender_sdk::url_format_ip_addr(local_addr),
+            addr_str,
             port,
             file_id,
         )

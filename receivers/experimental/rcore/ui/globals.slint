@@ -16,6 +16,7 @@ export enum UiPlayerVariant {
     Image,
     Audio,
     Video,
+    Raop,
 }
 
 export struct UiSubOverlay {
@@ -39,22 +40,44 @@ export struct UiMediaTrack {
     name: string,
 }
 
+export struct CompoundImage {
+    img: image,
+    rotation: angle,
+}
+
+export enum UiMode {
+    Minimal,
+    Full,
+}
+
+export enum UiUpdaterState {
+    None,
+    ShowingDialog,
+    Downloading,
+    DownloadFailed,
+    InstallFailed,
+    InstallSuccessful,
+}
+
+export struct UiAnimationFrame {
+    img: image,
+    delay: duration,
+}
+
 export global Bridge {
-    in property <string> label;
-    in property <string> progress-label;
-    in property <string> duration-label;
-    in property <int> duration-seconds;
+    in property <float> progress-secs;
+    in property <float> duration-secs;
     in property <AppState> app-state: AppState.Idle;
     in property <[UiSubOverlay]> overlays;
+    in property <[string]> subtitles;
     in property <bool> is-live: false;
     in property <string> media-title;
     in property <string> artist-name;
     in property <bool> is-fullscreen;
     in property <image> qr-code;
-    in property <image> video-frame;
-    in property <image> image-preview;
-    in property <image> audio-track-cover;
-    in property <image> blured-audio-track-cover;
+    in property <CompoundImage> image-preview;
+    in property <CompoundImage> audio-track-cover;
+    in property <CompoundImage> blured-audio-track-cover;
     in property <string> local-ip-addrs;
     in property <string> device-name;
     in property <[UiMediaTrack]> video-tracks;
@@ -65,18 +88,27 @@ export global Bridge {
     in property <int> current-subtitle-track;
     in property <string> error-message;
     in property <string> warning-message;
+    in property <int> playlist-idx;
+    in property <int> playlist-length;
+    in property <UiMode> ui-mode: UiMode.Full;
+    in property <int> update-download-progress;
+    in property <string> updater-error-msg;
+    in property <[UiAnimationFrame]> animation-frames;
+    in property <int> current-animation-frame;
+    in property <int> video-frame-width;
+    in property <int> video-frame-height;
 
     in-out property <GuiPlaybackState> playback-state: GuiPlaybackState.Idle;
-    in-out property <bool> playing: false;
     in-out property <float> volume: 1.0;
     in-out property <bool> is-debugging: false;
     in-out property <int> connected_devices: 0;
-    in-out property <float> playback-position: 0.0;
     in-out property <bool> is-scrubbing-position: false;
     in-out property <UiPlayerVariant> player-variant: UiPlayerVariant.Unknown;
     in-out property <float> playback-rate: 1.0;
     in-out property <bool> is-showing-error-message: false;
     in-out property <bool> is-showing-warning-message: false;
+    in-out property <float> volume-set-at: 0.0;
+    in-out property <UiUpdaterState> updater-state: UiUpdaterState.None;
 
     out property <brush> controls-bg-gradient: @linear-gradient(0deg, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.2) 50%, rgba(0, 0, 0, 0.60) 100%, rgba(0, 0, 0, 0));
 
@@ -89,7 +121,11 @@ export global Bridge {
     callback change-playback-rate(rate: float);
     callback hide-cursor-hack();
     callback select-track(id: int, variant: UiMediaTrackType);
+    callback select-playlist-item(idx: int);
+    callback perform-app-update();
+    callback restart-app();
     pure callback sec-to-string(sec: int) -> string;
+    pure callback sec-float-to-string(sec: float) -> string;
 
     public pure function should-show-toast-overlay() -> bool {
         is-showing-error-message || is-showing-warning-message
@@ -111,6 +147,10 @@ export global Bridge {
         return "Invalid";
     }
 
+    public pure function is-playing() -> bool {
+        playback-state != GuiPlaybackState.Idle && playback-state != GuiPlaybackState.Loading
+    }
+
     public function toggle-debug-mode() {
         is-debugging = !is-debugging;
         debug-toggled();
@@ -130,10 +170,10 @@ export global Bridge {
         } else if event.text == "f" {
             toggle-fullscreen();
             return accept;
-        } else if Bridge.playing && event.text == Key.Space {
+        } else if Bridge.is-playing() && event.text == Key.Space {
             resume-or-pause();
             return accept;
-        } else if Bridge.playing && (event.text == Key.LeftArrow || event.text == Key.RightArrow || event.text == Key.UpArrow || event.text == Key.DownArrow || event.text == Key.Return) {
+        } else if Bridge.is-playing() && (event.text == Key.LeftArrow || event.text == Key.RightArrow || event.text == Key.UpArrow || event.text == Key.DownArrow || event.text == Key.Return) {
             // TODO: do something
         }
         reject

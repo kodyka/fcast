@@ -1,16 +1,15 @@
-use image::GenericImageView;
+use imagelib::GenericImageView;
 use ksni::menu::*;
-use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{Event, TrayEvent};
+use crate::{MessageSender, message::Tray};
 
 pub struct LinuxSysTray {
-    pub event_tx: UnboundedSender<Event>,
+    pub msg_tx: MessageSender,
 }
 
 impl LinuxSysTray {
     fn toggle_window(&self) {
-        let _ = self.event_tx.send(Event::Tray(TrayEvent::Toggle));
+        self.msg_tx.tray(Tray::Toggle);
     }
 }
 
@@ -21,7 +20,7 @@ impl ksni::Tray for LinuxSysTray {
 
     fn icon_pixmap(&self) -> Vec<ksni::Icon> {
         let icn = include_bytes!("../../../electron/assets/icons/app/icon.png");
-        let img = image::load_from_memory_with_format(icn, image::ImageFormat::Png).unwrap();
+        let img = imagelib::load_from_memory_with_format(icn, imagelib::ImageFormat::Png).unwrap();
         let (width, height) = img.dimensions();
         let mut data = img.into_rgba8().into_vec();
         for pixel in data.chunks_exact_mut(4) {
@@ -52,9 +51,7 @@ impl ksni::Tray for LinuxSysTray {
             ksni::MenuItem::Separator,
             StandardItem {
                 label: "Quit".to_owned(),
-                activate: Box::new(|this: &mut Self| {
-                    let _ = this.event_tx.send(Event::Tray(TrayEvent::Quit));
-                }),
+                activate: Box::new(|this: &mut Self| this.msg_tx.tray(Tray::Quit)),
                 ..Default::default()
             }
             .into(),
