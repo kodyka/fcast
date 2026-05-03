@@ -48,6 +48,7 @@ export component DebugPage inherits VerticalBox {
     // which is equivalent to the original `parent.width` that referred to the
     // outer VerticalBox in ConnectView.
     ScrollView {
+        // Intrinsic test-log height; not tokenized (Phase 2-H).
         height: 100px;
         viewport-width: root.width;
         viewport-height: status-text.preferred-height;
