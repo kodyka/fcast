@@ -1,15 +1,25 @@
-# Phase 6 — Receiver List and Discovery UX
+# Phase 6 — Receiver List and Discovery UX (UI-only placeholder)
 
 > Upgrade the flat `[string]` device list to a rich `ReceiverItem` model with name
-> and address sub-text. Improve the empty-state and searching experience.
+> and address sub-text, plus an animated empty state. **UI placeholder only — no
+> Rust wiring changes.** The list reads from a stub model declared inline.
 
-**Status:** `[ ] Not started`
+**Status:** `[ ] UI placeholder — no functionality`
 **Depends on:** Phase 1 (modules), Phase 2 (theme), Phase 3 (components)
-**Unlocks:** Phase 7 (settings can show receiver count), Phase 8 (Rust maps `DeviceInfo` to `ReceiverItem`)
+**Functional integration:** Deferred — Rust mDNS discovery still pushes the legacy
+`[string]` list into `Bridge.devices`. The new UI consumes a separate stub property.
 **Related files:**
-- `senders/android/ui/bridge.slint` — `ReceiverItem` struct + `devices` type change
-- `senders/android/ui/pages/connect_page.slint` — `ListView` updated
-- `senders/android/src/lib.rs` — `DeviceInfo` mapped to `ReceiverItem`
+- `senders/android/ui/bridge.slint` — `ReceiverItem` struct added here
+- `senders/android/ui/pages/connect_page.slint` — `ListView` rebuilt to two-line cards using stub model
+
+---
+
+## Goal
+
+Build the visual surface of the new receiver list (two-line card with name + address,
+animated "Searching…" empty state, optional manual-IP row) without touching any Rust
+discovery code. The existing legacy `Bridge.devices: [string]` stays for now and is
+ignored by this phase's UI; live data is parked in `futures/`.
 
 ---
 
@@ -17,39 +27,58 @@
 
 ### 6-A — Add `ReceiverItem` struct to `bridge.slint`
 
+Type definition only — no `Bridge` property yet.
+
 - [ ] Open `senders/android/ui/bridge.slint`.
 - [ ] Add before the `Bridge` global:
 
-  ```
+  ```slint
   export struct ReceiverItem {
       name:    string,
       address: string,
   }
   ```
 
-- [ ] Change existing `in property <[string]> devices: []` to:
-
-  ```
-      in property <[ReceiverItem]> devices: [];
-  ```
-
-- [ ] **Build check** — `lib.rs` will fail to compile until 6-D updates the Rust side.
-  Do 6-A and 6-D together in the same commit.
+- [ ] **Do not** change the existing `in property <[string]> devices: []`. Leaving the
+  legacy property untouched keeps Rust building during the placeholder phase.
+- [ ] **Build check.**
 
 ---
 
-### 6-B — Update `connect_page.slint` `ListView`
+### 6-B — Declare inline stub model on `ConnectView`
 
 - [ ] Open `senders/android/ui/pages/connect_page.slint`.
 - [ ] Import `ReceiverItem` from `../bridge.slint`.
-- [ ] Change the `for device in Bridge.devices` loop body from a single `Text` to a two-line card:
+- [ ] Add an inline mock at the top of `ConnectView`:
 
+  ```slint
+  export component ConnectView inherits Rectangle {
+      // UI-only placeholder. Live data lives in `futures/` until Rust mDNS maps
+      // `DeviceInfo` → `ReceiverItem`.
+      in-out property <[ReceiverItem]> mock-devices: [
+          { name: "Living Room TV",     address: "192.168.1.50" },
+          { name: "Office Display",     address: "192.168.1.51" },
+          { name: "Kitchen Chromecast", address: "192.168.1.52:46899" },
+      ];
+      // ... existing layout
+  }
   ```
-  for device in Bridge.devices: Rectangle {
+
+- [ ] **Build check.**
+
+---
+
+### 6-C — Replace the existing one-line list body with two-line cards
+
+- [ ] In the same file, replace the existing `for device in Bridge.devices: ...` loop with:
+
+  ```slint
+  for device in root.mock-devices: Rectangle {
       height: Theme.row-height + 18px;
 
       ta := TouchArea {
-          clicked => Bridge.connect-receiver(device.address);
+          // UI-only — no real connect handler in this phase.
+          clicked => { /* placeholder: would call connect-receiver(device.address) */ }
       }
 
       Rectangle {
@@ -81,31 +110,19 @@
   }
   ```
 
-- [ ] Update `Bridge.connect-receiver` call: it now passes `device.address` (was `device`).
-  Verify `lib.rs` still receives the correct string type.
 - [ ] **Build check.**
 
 ---
 
-### 6-C — Improve empty-state "Searching" placeholder
-
-Replace the plain static text with an animated spinner + label.
+### 6-D — Improve empty-state with animated spinner
 
 - [ ] Import `Spinner` from `std-widgets.slint` in `connect_page.slint`.
-- [ ] Replace:
+- [ ] Add an `in-out property <bool> mock-empty: false;` to make the empty-state easy
+  to preview by flipping a single property.
+- [ ] Replace the existing static "Searching…" placeholder with:
 
-  ```
-  if Bridge.devices.length == 0: Rectangle {
-      height: 90px;
-      ...
-      Text { text: "Searching for receivers..."; }
-  }
-  ```
-
-  With:
-
-  ```
-  if Bridge.devices.length == 0: Rectangle {
+  ```slint
+  if root.mock-empty || root.mock-devices.length == 0: Rectangle {
       height: 90px;
       border-radius: Theme.radius-card;
       background: Theme.surface-card;
@@ -128,65 +145,17 @@ Replace the plain static text with an animated spinner + label.
   }
   ```
 
-- [ ] **Build check.**
+- [ ] **Build check.** Manually flip `mock-empty: true` once to verify the empty state
+  visually, then revert.
 
 ---
 
-### 6-D — Update Rust `lib.rs` to produce `ReceiverItem`
+### 6-E — Add manual-IP row (placeholder)
 
-- [ ] Find where `Bridge.devices` is set from `DeviceInfo` in `lib.rs`.
-- [ ] Map `DeviceInfo` → `ReceiverItem`:
+- [ ] Import `LineEdit` from `std-widgets.slint`.
+- [ ] Add the row below the device list:
 
-  ```rust
-  fn device_info_to_receiver_item(d: &DeviceInfo) -> ReceiverItem {
-      ReceiverItem {
-          name:    d.name.clone().into(),
-          address: d.address.to_string().into(),
-      }
-  }
-  ```
-
-- [ ] Update the `VecModel` construction to use `ReceiverItem` instead of `String`.
-- [ ] If the Rust code needs to inspect the model with `row_count()` / `row_data()` /
-  `remove()` (e.g. to remove a device by address), add the trait import:
-
-  ```rust
-  use slint::Model;
-  ```
-
-  These are trait methods on `Model`, not inherent methods on `Rc<VecModel<T>>` or
-  `VecModel<T>`. Inherent methods on `VecModel` (`push`, `set_row_data`, `iter`,
-  `set_vec` if available) work without the import; trait methods do not.
-
-  Example removal-by-address pattern:
-
-  ```rust
-  use slint::Model;
-
-  fn remove_device(model: &Rc<VecModel<ReceiverItem>>, addr: &str) {
-      let addr: SharedString = addr.into();
-      if let Some(idx) = (0..model.row_count())
-          .find(|&i| model.row_data(i).map_or(false, |r| r.address == addr))
-      {
-          model.remove(idx);
-      }
-  }
-  ```
-
-- [ ] `Bridge.connect-receiver` callback still receives a `SharedString` (the address) — confirm
-  the Rust handler parses it correctly.
-- [ ] **Build check.**
-
----
-
-### 6-E — Add manual IP entry row (optional — Phase 6b)
-
-> Defer unless there is a specific user need for manual IP receiver entry.
-
-- [ ] Add a `LineEdit` + `PrimaryButton` row below the `ListView` in `connect_page.slint`:
-
-  ```
-  // Phase 6b — manual IP
+  ```slint
   HorizontalLayout {
       spacing: Theme.spacing-default;
       ip-input := LineEdit {
@@ -196,51 +165,47 @@ Replace the plain static text with an animated spinner + label.
       PrimaryButton {
           label: "Connect";
           enabled: ip-input.text != "";
-          clicked => Bridge.connect-receiver(ip-input.text);
+          // UI-only — no real connect handler in this phase.
+          clicked => { /* placeholder */ }
       }
   }
   ```
 
-- [ ] Add `import { LineEdit } from "std-widgets.slint";` to `connect_page.slint`.
-- [ ] Wire the callback on the Rust side to attempt a direct TCP connection to the entered address.
+- [ ] **Build check.**
 
 ---
 
 ## Exit criteria
 
-Phase 6 is complete when:
-
-1. `bridge.slint` defines `ReceiverItem { name, address }` and `devices` is typed as
-   `[ReceiverItem]`.
-2. `connect_page.slint` shows name + address for each discovered receiver.
-3. Empty state shows an animated spinner with "Searching…" text.
-4. `Bridge.connect-receiver` still receives the address string and Rust handles it correctly.
-5. `cargo build -p android-sender` passes.
-6. On-device test: mDNS discovery populates the list with names and addresses.
+1. `bridge.slint` defines `ReceiverItem { name, address }` (struct only — no `Bridge` property added).
+2. `connect_page.slint` shows two-line cards (name + address) for each entry in
+   `mock-devices`.
+3. Empty state shows an animated spinner with "Searching…" text when `mock-empty` is true
+   or `mock-devices.length == 0`.
+4. Manual-IP row renders with a `LineEdit` + `PrimaryButton`. Click is a no-op.
+5. Existing `Bridge.devices: [string]` is untouched — Rust still builds.
+6. `cargo build -p android-sender` passes.
 
 ---
 
-## Notes
+## What's NOT in this phase (deferred)
 
-- `connect-receiver` callback currently takes a raw `string`. After this phase it will pass
-  the `address` field specifically. If Rust needs the display name too, consider changing
-  the callback signature to `(name: string, address: string)` — but only if needed.
-- The `height: Theme.row-height + 18px` for two-line rows ensures both lines have breathing
-  room. Adjust during Phase 10 device testing if text is too cramped.
-- "Forget" / saved receiver history is deferred to Phase 6b. It requires persistent storage
-  on the Rust side, which is outside the scope of UI restructuring.
+- Mapping `DeviceInfo` → `ReceiverItem` in Rust.
+- Replacing the legacy `Bridge.devices: [string]` with `[ReceiverItem]`.
+- `connect-receiver(address)` callback wiring.
+- Manual-IP row wired to a real TCP connect.
+- "Forget" / saved receiver history (needs persistent storage).
+- `@tr(...)` wrapping (Phase 9).
 
 ---
 
 ## Slint best practices applied here
 
 - **Typed `[ReceiverItem]` model is preferable to `[string]`.** Composable, extensible
-  (add `last-seen` / `kind` fields without changing the consumer), and survives the
-  Rust `Model` trait's row API.
-- **The `Model` trait must be in scope to call `row_count` / `row_data` / `remove`
-  on a `Rc<VecModel<T>>`.** Add `use slint::Model;` to whichever module performs row
-  inspection. `VecModel`'s inherent methods (`push`, `set_row_data`) are always
-  available, but the trait methods are not.
+  (add `last-seen` / `kind` fields without changing the consumer).
 - **`overflow: elide` on `Text` prevents long device names/addresses from breaking
   the row layout.** Combined with `width: 100%` or `horizontal-stretch: 1`, this is
   the standard Slint pattern for one-line strings of unknown length.
+- **A boolean `mock-empty` property paired with `||`** lets a developer flip between
+  populated and empty states with a single toggle for visual QA — far easier than
+  emptying the list and remembering to refill it.

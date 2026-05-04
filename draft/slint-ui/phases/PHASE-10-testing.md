@@ -1,13 +1,15 @@
-# Phase 10 — Testing and Android Validation
+# Phase 10 — UI Validation (build + visual checks only)
 
-> Verify every UI change works on a real Android device, not just in desktop preview.
-> Run after each phase merge — this is a recurring checklist, not a one-time task.
+> Verify every UI placeholder builds, renders, and looks right on a real
+> Android device. **Build-only validation** — no end-to-end functional testing,
+> because Phases 5–7 and 12–27 ship UI without functionality.
 
-**Status:** `[ ] Ongoing — run after each phase`
-**Blocked by (for casting flow tests):** `TODO.codecs.md` P0-1, P0-2, P0-3
+**Status:** `[ ] Ongoing — run after each UI phase merge`
+**Functional integration:** None. Functional/casting validation is parked in
+`futures/` until the Rust wiring placeholder (Phase 8) is reactivated.
 **Related files:**
 - `senders/android/src/migration/` — unit tests that must not regress
-- `senders/android/TODO.codecs.md` — P0 blockers for end-to-end casting test
+- `senders/android/TODO.codecs.md` — P0 blockers tracked separately, not in scope here
 
 ---
 
@@ -17,41 +19,41 @@
 - [ ] `cargo test  -p android-sender` — all tests pass.
 - [ ] Slint compiler output: zero new warnings compared to Phase 0 baseline.
   - Especially watch for: `ERROR: missing layout size` and `Binding loop detected`.
-- [ ] For Android cross-compile (if CI available): build `aarch64-linux-android` target.
+- [ ] For Android cross-compile (when CI is available): build `aarch64-linux-android` target.
 
 ---
 
 ## 10-B — Desktop Slint preview check (fast iteration)
 
-Use `slint-viewer` or `cargo run` with a desktop backend for rapid visual checks before
-deploying to device:
+`slint-viewer` lets you preview a `.slint` file with all its inline stub data
+without compiling Rust. This is the fastest visual loop for UI-only phases.
 
-- [ ] Install or confirm `slint-viewer` is available.
-- [ ] After Phase 1 split: open `main.slint` in viewer and confirm all five `AppState` views render.
-- [ ] After Phase 2 theme: confirm colors match expected dark palette.
-- [ ] After Phase 3 components: confirm button styles and row types render correctly.
-- [ ] After Phase 4 control bar: confirm bar is pinned to bottom and quick action buttons appear.
-- [ ] After Phase 5 overlay: confirm pills appear/disappear with mock `status-items` data.
-- [ ] After Phase 7 settings: confirm `FullSettingsPage` sections render with correct row types.
+- [ ] Install/confirm `slint-viewer` is available (matching the futo Slint fork version).
+- [ ] After any UI phase, open the touched page in the viewer:
+
+  ```sh
+  slint-viewer senders/android/ui/pages/connect_page.slint
+  ```
+
+- [ ] Confirm stub data renders as expected. Try the "alt mocks" if a phase
+  ships variants (e.g. Phase 5-E `mock-status-items-error`, Phase 6-D `mock-empty`).
 
 ---
 
 ## 10-C — Touch target size validation (on device)
 
-Android minimum recommended touch target: **48dp** (Android material guidelines).
+Android minimum recommended touch target: **48dp** (Material guidelines).
 
 - [ ] Connect a physical Android device (API 26+) or start emulator.
 - [ ] Deploy the APK.
 - [ ] Tap every interactive element and confirm it is comfortably tappable:
-  - [ ] Receiver list rows (`Theme.row-height` — currently `44px`; may need bump to `48px`).
-  - [ ] Scan QR button.
-  - [ ] Quick action buttons in `CastControlBar` (`height: 48px` — should be fine).
-  - [ ] Settings rows in `FullSettingsPage`.
+  - [ ] Receiver list rows (Phase 6).
+  - [ ] Quick action buttons in `CastControlBar` (Phase 4).
+  - [ ] Settings rows in `FullSettingsPage` (Phase 7).
   - [ ] Toggle switches in settings.
-  - [ ] "Stop Casting" / "Cancel" / "Start" buttons.
-  - [ ] "Done" close button in settings header.
+  - [ ] "Done" close button in panel headers.
+  - [ ] Any new placeholder rows from Phases 12–27 that have shipped.
 - [ ] If rows feel too small, update `Theme.row-height` to `48px` in `theme.slint`.
-  This change propagates everywhere automatically.
 
 ---
 
@@ -59,120 +61,99 @@ Android minimum recommended touch target: **48dp** (Android material guidelines)
 
 - [ ] Launch app in portrait orientation.
 - [ ] Confirm `CastControlBar` is pinned to bottom and does not overlap content.
-- [ ] Confirm `ConnectView` device list scrolls when there are many receivers (use mock data).
+- [ ] Confirm `ConnectView` device list scrolls when stub `mock-devices` has 20+ entries.
 - [ ] Confirm `FullSettingsPage` `ScrollView` scrolls all sections.
-- [ ] Confirm `StatusOverlay` in casting page does not block "Stop Casting" button.
-- [ ] Confirm `DebugPage` `ScrollView` for test status log scrolls correctly.
+- [ ] Confirm `StatusOverlay` in casting page does not block the Stop Casting button.
 
 ---
 
 ## 10-E — Landscape layout validation
 
 - [ ] Rotate device to landscape.
-- [ ] Confirm `CastControlBar` still pins to screen bottom (not side).
-  > Note: Moblin has a separate landscape bar layout. For FCast, bottom-pinned is
-  > acceptable unless the app is locked to portrait.
+- [ ] Confirm `CastControlBar` still pins to screen bottom.
 - [ ] Confirm no layout overflow or clipped text in landscape.
-- [ ] If landscape is broken, add a `preferred-height` and `preferred-width` guard on
-  `MainWindow` or lock screen orientation in `AndroidManifest.xml`.
+- [ ] If landscape is broken, lock screen orientation in `AndroidManifest.xml` for now.
 
 ---
 
-## 10-F — `ListView` scroll performance
+## 10-F — `ListView` scroll performance (stub-driven)
 
-- [ ] Populate `Bridge.devices` with 20+ mock `ReceiverItem` entries.
+- [ ] Temporarily expand `mock-devices` (Phase 6) to 50+ entries.
 - [ ] Scroll the list rapidly — confirm no janky frame drops.
-- [ ] Confirm `ListView` handles 50+ items smoothly. Slint's `ListView` virtualizes
-  by default — only the rows currently visible (and a small overscan) are
-  instantiated, so scroll cost is roughly constant in the model size.
-  Reference: [`reference/std-widgets/views/listview.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/views/listview.mdx)
+- [ ] Slint's `ListView` virtualizes by default — only visible rows are
+  instantiated. Reference:
+  [`reference/std-widgets/views/listview.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/views/listview.mdx)
   — _"Elements are only instantiated if they are visible"_.
 - [ ] If performance degrades, the bottleneck is per-row cost (image decoding,
-  expensive bindings, deep nesting), not the list itself. Profile the row component
-  and simplify it; do not switch to a non-virtualizing layout.
-- [ ] **Do not wrap `ListView` inside another `ScrollView`.** Doing so disables
-  virtualization and instantiates every row at once.
+  expensive bindings, deep nesting). Profile and simplify the row component.
+- [ ] **Do not wrap `ListView` inside another `ScrollView`.** That disables
+  virtualization.
 
 ---
 
-## 10-G — Spinner animation validation
+## 10-G — Spinner / animation validation
 
-- [ ] Manually set `AppState.Connecting` from debug UI.
-- [ ] Confirm `Spinner` animates smoothly (indeterminate mode).
-- [ ] Repeat for `AppState.WaitingForMedia`.
-- [ ] Confirm spinner stops / disappears when state transitions to `Casting` or `Disconnected`.
-
----
-
-## 10-H — Panel routing validation
-
-- [ ] From `CastControlBar`, tap "Settings" quick action.
-- [ ] Confirm `FullSettingsPage` slides / appears over the current page.
-- [ ] Tap "Done" — confirm settings page disappears and underlying page is restored.
-- [ ] Open "Codec Test" from the settings codec row.
-- [ ] Confirm `CodecTestPage` appears with `DebugPage` embedded.
-- [ ] Tap "Done" on codec test page — confirm routing returns to settings.
-- [ ] Test back-button behavior: Android system back should close panels.
-  - If Slint handles back button, wire it to `Bridge.close-panel()`.
+- [ ] Set `mock-empty: true` in `ConnectView` and confirm spinner animates.
+- [ ] Manually flip `Bridge.app-state = AppState.Connecting` from a debug build
+  and confirm `ConnectingView` spinner animates smoothly.
 
 ---
 
-## 10-I — Casting flow end-to-end (requires codec P0 resolution)
+## 10-H — Panel routing validation (UI-only)
 
-> **Blocked:** This test requires `TODO.codecs.md` P0-1 (H.264 encoder) and P0-3
-> (`fallbacksrc` / `uridecodebin`) to be resolved first.
-
-- [ ] Confirm `TODO.codecs.md` P0-1 is resolved.
-- [ ] Connect to a real FCast receiver on the same network.
-- [ ] Start casting — confirm `AppState` transitions through:
-  `Disconnected → Connecting → SelectingSettings → WaitingForMedia → Casting`.
-- [ ] Confirm `StatusOverlay` shows "Receiver" and "Encoder" pills in `Casting` state.
-- [ ] Stop casting — confirm `AppState` returns to `Disconnected`.
-- [ ] Confirm `StatusOverlay` is hidden after casting stops.
+- [ ] From `CastControlBar`, tap the "Settings" stub action.
+- [ ] Confirm `FullSettingsPage` appears (it's `Bridge.active-panel = Panel.settings`).
+- [ ] Tap "Done" — confirm the panel closes (`Bridge.active-panel = Panel.none`).
+- [ ] Repeat for "Codec Test" panel from inside `FullSettingsPage`.
 
 ---
 
-## 10-J — Slint compiler warning audit
+## 10-I — Per-phase visual regression checklist
 
-- [ ] After all phases are merged, run a full build and capture compiler output.
-- [ ] Resolve any warnings of these types:
-  - `Binding loop detected` — rework the binding chain.
-  - `ERROR: missing layout size` — add explicit `height` or `width` to the affected component.
-  - `Property X is never read` — remove dead properties from Bridge.
-  - `Unused import` — clean up unused `import` statements.
+For each shipped UI placeholder phase, capture a reference screenshot and
+attach it to the PR. Cross-check on subsequent merges that nothing visually
+regresses.
 
----
-
-## 10-K — Memory and lifecycle check
-
-- [ ] Launch app, start casting, stop casting, restart casting — repeat 5 times.
-- [ ] Confirm app does not crash or grow in memory (use Android Studio profiler or `adb logcat`).
-- [ ] Confirm `VecModel` instances in `ui_state.rs` are not accumulating stale entries
-  after repeated cast sessions.
+- [ ] Phase 5: `CastingView` with overlay (info pills) + alt mock with error pill.
+- [ ] Phase 6: `ConnectView` populated + empty state.
+- [ ] Phase 7: `FullSettingsPage` (all four sections).
+- [ ] Each phase from 12–27: at least one screenshot of the new placeholder.
 
 ---
 
-## Recurring test matrix
+## 10-J — Functional smoke (deferred)
 
-Run this matrix at the end of each phase:
+End-to-end functional smoke (start cast, transmit media, stop cast, settings
+persist, etc.) is **not in scope** for the UI-only roadmap. Once Phase 8 is
+reactivated, this section will be rewritten with real device/casting checks.
 
-| Test | Phase 1 | Phase 2 | Phase 3 | Phase 4 | Phase 5 | Phase 6 | Phase 7 | Phase 8 |
-|---|---|---|---|---|---|---|---|---|
-| `cargo build` passes | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
-| `cargo test` passes | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
-| Desktop preview renders | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
-| On-device portrait layout | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
-| No new Slint warnings | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
+---
+
+## Exit criteria (per UI phase)
+
+A UI phase is "validated" when:
+
+1. `cargo build -p android-sender` is clean.
+2. The phase's stub UI renders correctly in `slint-viewer`.
+3. The phase's stub UI renders correctly on a physical Android device in both
+   portrait and landscape.
+4. A reference screenshot is attached to the PR.
+5. No unrelated UI surfaces visually regressed.
+
+---
+
+## What's NOT in this phase
+
+- Functional / casting / discovery / settings persistence tests — all deferred
+  with Phase 8.
+- Automated UI tests (Espresso, screenshot-diff) — out of scope until UI is sealed.
 
 ---
 
 ## Slint best practices applied here
 
-- **`ListView` virtualizes; `for` inside `VerticalLayout` does not.** If a list grows
-  beyond ~30 items, switch from `for ... in ...` to `ListView` for O(viewport) cost.
-- **Hot-reload via `slint-viewer` is the fastest validation loop.** Most layout/theme
-  bugs can be caught from `cargo install slint-viewer && slint-viewer ui/main.slint`
-  without an Android build cycle.
-- **Compiler warnings should be treated as errors.** Slint's reactive-graph diagnostics
-  (`Binding loop detected`, `Property never read`) catch real bugs that are otherwise
-  silent at runtime.
+- **Preview first, deploy second.** `slint-viewer` against a single `.slint`
+  file is orders of magnitude faster than rebuilding the APK for every UI tweak.
+- **Stub data scaling.** Temporarily expanding a `mock-*` array to 50+ entries
+  to stress-test the layout (then reverting before commit) is the standard
+  Slint workflow for catching layout/scroll bugs early.

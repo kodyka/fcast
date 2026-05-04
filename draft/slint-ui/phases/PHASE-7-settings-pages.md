@@ -1,25 +1,34 @@
-# Phase 7 — Settings Navigation and FCast-Specific Pages
+# Phase 7 — Settings Navigation and FCast-Specific Pages (UI-only placeholder)
 
 > Build a real settings root page with FCast-relevant sections, replacing the current
-> inline `SelectingSettingsView`. Inspired by Moblin `View/Settings` (190 files);
-> port only what FCast Android sender actually supports — omit the rest entirely.
-> Reference: `draft/moblin-ui/Moblin/View/Settings/`
+> inline `SelectingSettingsView`. **UI placeholder only — no Rust wiring.**
+> All values come from inline `in-out` stub properties. Inspired by Moblin
+> `View/Settings/` (190 files); port only what FCast Android sender actually
+> supports — omit the rest entirely (see `futures/NOT-APPLICABLE.md`).
 
-**Status:** `[ ] Not started`
-**Depends on:** Phase 1 (modules), Phase 2 (theme), Phase 3 (settings row components), Phase 4 (Panel routing)
-**Unlocks:** Phase 8 (Rust provides `app-version`, `Panel` callbacks), Phase 9 (strings to `@tr`)
+**Status:** `[ ] UI placeholder — no functionality`
+**Depends on:** Phase 1 (modules), Phase 2 (theme), Phase 3 (settings row components), Phase 4 (control bar)
+**Functional integration:** Deferred — `open-panel` / `close-panel` / `app-version` / per-row Rust handlers all parked in `futures/`.
 **Related files:**
-- `senders/android/ui/bridge.slint` — `Panel` enum + routing callbacks added here
+- `senders/android/ui/bridge.slint` — `Panel` enum added here (no setter wiring)
 - `senders/android/ui/pages/settings_page.slint` — rebuilt here
-- `senders/android/ui/main.slint` — `Panel` routing added to `MainWindow`
-- `senders/android/src/lib.rs` — `open_panel` / `close_panel` callbacks wired
+- `senders/android/ui/main.slint` — `Panel` overlay layer added to `MainWindow`
 
-**Moblin settings omitted by design (not stubs, not TODOs — simply excluded):**
-- Chat / Twitch / Kick / YouTube
+**Moblin settings omitted by design** (see `futures/NOT-APPLICABLE.md`):
+- Chat / Twitch / Kick / YouTube / Afreeca / Soop
 - Scenes / widgets / overlays
-- RTMP / SRT / RIST / WHIP server configs
-- GoPro / DJI / Tesla / workout devices
-- watchOS / widget targets
+- RTMP / SRT / RIST / WHIP / SRTLA server configs
+- GoPro / DJI / Tesla / cat printers / workout devices / Wi-Fi cameras
+- watchOS / widget targets / Mac key-press relay
+
+---
+
+## Goal
+
+Stand up the settings root page and panel routing chassis. All controls render
+from inline `in-out` properties on `FullSettingsPage` so a developer (or
+designer) can flip them and see the UI react — but flipping nothing actually
+changes app behaviour. The Rust bridge is untouched.
 
 ---
 
@@ -27,10 +36,13 @@
 
 ### 7-A — Add `Panel` enum to `bridge.slint`
 
+Type definition + a single in-out property for routing. **No callbacks** — the
+panel close button writes the property directly from Slint.
+
 - [ ] Open `senders/android/ui/bridge.slint`.
 - [ ] Add before the `Bridge` global:
 
-  ```
+  ```slint
   export enum Panel {
       none,
       settings,
@@ -41,83 +53,74 @@
 
 - [ ] Add to `Bridge`:
 
-  ```
-      in-out property <Panel>  active-panel: Panel.none;
-      in     property <string> app-version:  "";
-      callback open-panel(Panel);
-      callback close-panel();
+  ```slint
+      in-out property <Panel> active-panel: Panel.none;
   ```
 
-- [ ] **Build check** — `lib.rs` needs `open_panel` / `close_panel` handlers (add stubs now, full
-  wiring in Phase 8).
+- [ ] **Do not** add `open-panel` / `close-panel` callbacks — Slint reads/writes
+  `active-panel` directly. Wiring those callbacks is parked in `futures/`.
+- [ ] **Build check.**
 
 ---
 
-### 7-B — Add `Panel` routing to `main.slint`
+### 7-B — Add `Panel` overlay layer to `main.slint`
 
 - [ ] Import `Panel` from `bridge.slint`.
-- [ ] Add a panel overlay layer in `MainWindow` that sits above the `AppState` page stack:
+- [ ] Add the panel overlay above the `AppState` page stack:
 
+  ```slint
+  if Bridge.active-panel == Panel.settings:   FullSettingsPage { }
+  if Bridge.active-panel == Panel.debug:      DebugPage { }
+  if Bridge.active-panel == Panel.codec-test: CodecTestPage { }
   ```
-  export component MainWindow inherits Window {
-      // AppState page stack (existing):
-      if Bridge.app-state == AppState.Disconnected:      ConnectView { }
-      if Bridge.app-state == AppState.Connecting:        ConnectingView { }
-      if Bridge.app-state == AppState.SelectingSettings: SettingsPageView { }
-      if Bridge.app-state == AppState.WaitingForMedia:   WaitingForMediaView { }
-      if Bridge.app-state == AppState.Casting:           CastingView { }
 
-      // Panel overlay (on top):
-      if Bridge.active-panel == Panel.settings:   FullSettingsPage { }
-      if Bridge.active-panel == Panel.debug:      DebugPage { }
-      if Bridge.active-panel == Panel.codec-test: CodecTestPage { }   // Phase 7-G
+- [ ] **Build check.**
 
-      CastControlBar { y: parent.height - self.height; width: parent.width; }
+---
+
+### 7-C — Add a "Settings" quick action to the existing control-bar stub
+
+- [ ] In whichever `.slint` file declares the bar's quick-action stub model
+  (Phase 4-G's inline `mock-quick-actions`), append:
+
+  ```slint
+  { id: "settings", title: "Settings", enabled: true, active: false },
+  ```
+
+- [ ] In the bar's `clicked` handler for the action, switch on `id` and write the
+  panel directly from Slint (no Rust callback):
+
+  ```slint
+  clicked => {
+      if (action.id == "settings")    { Bridge.active-panel = Panel.settings; }
+      if (action.id == "debug")       { Bridge.active-panel = Panel.debug; }
+      if (action.id == "codec-test")  { Bridge.active-panel = Panel.codec-test; }
   }
   ```
 
-- [ ] `FullSettingsPage` is the new component built in 7-D below.
 - [ ] **Build check.**
 
 ---
 
-### 7-C — Add settings quick action to control bar
-
-- [ ] In Rust `lib.rs`, add a "Settings" quick action to the `quick-actions` model:
-
-  ```rust
-  QuickAction { id: "settings", title: "Settings".into(), enabled: true, active: false }
-  ```
-
-- [ ] In the `invoke-action` handler, add:
-
-  ```rust
-  "settings" => { bridge.set_active_panel(Panel::Settings); }
-  ```
-
-- [ ] **Build check.**
-
----
-
-### 7-D — Build `FullSettingsPage` root
+### 7-D — Build `FullSettingsPage` shell with inline stub state
 
 - [ ] Open `senders/android/ui/pages/settings_page.slint`.
-- [ ] The file currently contains `SettingsPageView` (the old `SelectingSettingsView`). Keep it
-  for now; add `FullSettingsPage` as a second component in the same file.
-- [ ] Import `SettingsSection`, `SettingsValueRow`, `SettingsToggleRow`, `SettingsTextRow` from
-  `../components/settings_rows.slint`.
-- [ ] Import `TextButton` from `../components/buttons.slint` (used for the Done button in the header).
+- [ ] Keep existing `SettingsPageView` for now; add `FullSettingsPage` as a second
+  exported component.
+- [ ] Import `SettingsSection`, `SettingsValueRow`, `SettingsToggleRow`,
+  `SettingsTextRow`, `SettingsSliderRow` from `../components/settings_rows.slint`.
+- [ ] Import `TextButton` from `../components/buttons.slint`.
 - [ ] Import `Theme` from `../theme.slint`, and `Bridge`, `Panel` from `../bridge.slint`.
-- [ ] Implement `export component FullSettingsPage`. Note that `resolution-idx` and
-  `framerate-idx` are declared at the top level of the component (not inside a
-  `SettingsSection { ... }` block) so they are addressable from outside the page if
-  ever needed:
+- [ ] Implement `export component FullSettingsPage`:
 
-  ```
+  ```slint
   export component FullSettingsPage inherits Rectangle {
-      // Persisted across Done/reopen; consumed by the picker bindings in 7-F.
-      in-out property <int> resolution-idx: 2;
-      in-out property <int> framerate-idx:  2;
+      // UI-only stub state — all flips live in this component.
+      in-out property <int>    resolution-idx: 2;
+      in-out property <int>    framerate-idx:  2;
+      in-out property <bool>   mdns-enabled:   true;
+      in-out property <bool>   debug-panel:    false;
+      in-out property <string> mock-app-version: "0.0.1-dev";
 
       background: Theme.surface-primary;
 
@@ -137,27 +140,18 @@
                   }
                   TextButton {
                       label: "Done";
-                      clicked => Bridge.close-panel();
+                      clicked => { Bridge.active-panel = Panel.none; }
                   }
               }
           }
 
+          // Body
           ScrollView {
               VerticalLayout {
+                  spacing: Theme.spacing-section;
                   padding: Theme.padding-screen;
-                  spacing: Theme.spacing-default;
 
-                  // Section: Receiver
-                  SettingsSection { title: "RECEIVER"; /* rows added 7-E */ }
-
-                  // Section: Video Quality
-                  SettingsSection { title: "VIDEO QUALITY"; /* rows added 7-F */ }
-
-                  // Section: Codec / Debug
-                  SettingsSection { title: "CODEC & DEBUG"; /* rows added 7-G */ }
-
-                  // Section: About
-                  SettingsSection { title: "ABOUT"; /* rows added 7-H */ }
+                  // (sections inserted in 7-E … 7-H)
               }
           }
       }
@@ -168,152 +162,138 @@
 
 ---
 
-### 7-E — Receiver / Discovery section rows
+### 7-E — Section: RECEIVER
 
-- [ ] Add inside the "RECEIVER" `SettingsSection`:
+- [ ] Inside the body `VerticalLayout`:
 
-  ```
-  SettingsValueRow {
-      title: "Discovered receivers";
-      value: Bridge.devices.length + " found";
-      show-chevron: false;
+  ```slint
+  SettingsSection {
+      title: "RECEIVER";
+      SettingsValueRow {
+          label: "Discovered receivers";
+          value: "3 found";
+          // UI-only — clicking would open the connect page.
+      }
+      SettingsToggleRow {
+          label: "mDNS discovery";
+          checked: root.mdns-enabled;
+          toggled => { root.mdns-enabled = !root.mdns-enabled; }
+      }
   }
-  SettingsToggleRow {
-      title: "mDNS discovery";
-      checked <=> Bridge.mdns-enabled;    // new Bridge property — add in 7-E step
-      toggled(on) => Bridge.set-mdns(on); // new Bridge callback — add in 7-E step
-  }
   ```
-
-- [ ] Add to `bridge.slint` `Bridge`:
-
-  ```
-      in-out property <bool>   mdns-enabled: true;
-      callback set-mdns(bool);
-  ```
-
-- [ ] Wire `set-mdns` in `lib.rs` stub (full implementation is outside UI scope).
-- [ ] **Build check.**
 
 ---
 
-### 7-F — Video Quality section rows
+### 7-F — Section: VIDEO QUALITY
 
-The existing `SettingsPageView` (old `SelectingSettingsView`) already has resolution and
-framerate pickers from the SDK. Migrate them into `FullSettingsPage`:
+- [ ] Two value-pickers driven by `resolution-idx` / `framerate-idx`:
 
-- [ ] Import `VideoResolutionPicker`, `FrameratePicker`, `Utils` from SDK common.
-- [ ] Add inside "VIDEO QUALITY" `SettingsSection`:
-
+  ```slint
+  SettingsSection {
+      title: "VIDEO QUALITY";
+      SettingsValueRow {
+          label: "Max resolution";
+          value: ["480p", "720p", "1080p", "1440p"][root.resolution-idx];
+          // UI-only — would open a picker panel.
+          clicked => { root.resolution-idx = (root.resolution-idx + 1) mod 4; }
+      }
+      SettingsValueRow {
+          label: "Max framerate";
+          value: ["24 fps", "30 fps", "60 fps"][root.framerate-idx];
+          clicked => { root.framerate-idx = (root.framerate-idx + 1) mod 3; }
+      }
+  }
   ```
-  // Note: resolution-idx / framerate-idx are top-level properties on
-  // FullSettingsPage (declared in 7-D), not local to this section.
-  // Properties declared inside a SettingsSection { ... } block belong to
-  // that anonymous instance and are not addressable from outside.
 
-  SettingsTextRow { title: "Max resolution"; }
-  VideoResolutionPicker { current-index <=> root.resolution-idx; }
-
-  SettingsTextRow { title: "Max framerate"; }
-  FrameratePicker { current-index <=> root.framerate-idx; }
-  ```
-
-- [ ] Wire "Start" button in the existing flow to read values from `resolution-idx` and
-  `framerate-idx` on `FullSettingsPage`. The simplest approach: keep `SettingsPageView`
-  for the pre-cast selection flow; use `FullSettingsPage` only for the in-session settings.
-- [ ] **Build check.**
+  Note: cycling on click is a placeholder UX. Real picker panels land in `futures/`.
 
 ---
 
-### 7-G — Codec / Debug section rows
+### 7-G — Section: CODEC & DEBUG
 
-- [ ] Add inside "CODEC & DEBUG" `SettingsSection`:
+- [ ] Add the codec test launcher and debug toggle:
 
-  ```
-  // Trailing chevron is enough affordance — leave value empty.
-  SettingsValueRow {
-      title: "H.264 encoder test";
-      value: "";
-      show-chevron: true;
-      clicked => Bridge.open-panel(Panel.codec-test);
+  ```slint
+  SettingsSection {
+      title: "CODEC & DEBUG";
+      SettingsValueRow {
+          label: "H.264 encoder test";
+          value: "Open";
+          clicked => { Bridge.active-panel = Panel.codec-test; }
+      }
+      SettingsToggleRow {
+          label: "Show debug panel";
+          checked: root.debug-panel;
+          toggled => { root.debug-panel = !root.debug-panel; }
+      }
   }
-  SettingsToggleRow {
-      title: "Show debug panel";
-      checked <=> Bridge.show-debug;
-  }
   ```
-
-- [ ] Create a stub `export component CodecTestPage` in a new file
-  `senders/android/ui/pages/codec_test_page.slint`:
-  - [ ] Header with "Codec Test" title and "Done" close button.
-  - [ ] `DebugPage` component embedded below (reuse from Phase 1-G).
-  - [ ] This is the page opened by `Bridge.open-panel(Panel.codec-test)`.
-- [ ] **Build check.**
 
 ---
 
-### 7-H — About section rows
+### 7-H — Section: ABOUT
 
-- [ ] Add inside "ABOUT" `SettingsSection`:
+- [ ] Last section with version + protocol info:
 
-  ```
-  SettingsValueRow {
-      title: "App version";
-      value: Bridge.app-version;
-      show-chevron: false;
+  ```slint
+  SettingsSection {
+      title: "ABOUT";
+      SettingsTextRow {
+          label: "App version";
+          value: root.mock-app-version;
+      }
+      SettingsTextRow {
+          label: "FCast protocol";
+          value: "v3";
+      }
   }
-  SettingsValueRow {
-      title: "FCast protocol";
-      value: "v2";
-      show-chevron: false;
-  }
   ```
-
-- [ ] `Bridge.app-version` is populated from Rust in Phase 8-F.
-- [ ] **Build check.**
 
 ---
 
-### 7-I — Transition from `SettingsPageView` to `FullSettingsPage`
+### 7-I — Standalone `CodecTestPage` placeholder
 
-Once `FullSettingsPage` is complete:
-
-- [ ] Decide whether `AppState.SelectingSettings` page should be replaced by a `Panel.settings`
-  open, or kept as a separate cast-start flow.
-  - Recommendation: keep `SettingsPageView` for the pre-cast resolution/framerate selection
-    only; open `FullSettingsPage` via the settings quick action for all other settings.
-- [ ] If `SettingsPageView` is retained, trim it to only contain resolution + framerate + Start/Disconnect.
+- [ ] Create `senders/android/ui/pages/codec_test_page.slint`.
+- [ ] Build a minimal panel: header (title + Done button writing
+  `Bridge.active-panel = Panel.none`), a `PrimaryButton` labelled "Run encoder test",
+  and a multiline `Text` showing a hard-coded mock log.
+- [ ] Register in `main.slint` (already done in 7-B).
 - [ ] **Build check.**
 
 ---
 
 ## Exit criteria
 
-Phase 7 is complete when:
-
-1. `bridge.slint` defines `Panel` enum and `active-panel`, `open-panel`, `close-panel` in `Bridge`.
-2. `MainWindow` routes to `FullSettingsPage`, `DebugPage`, and `CodecTestPage` via `Panel`.
-3. `FullSettingsPage` shows four sections: Receiver, Video Quality, Codec/Debug, About.
-4. "Settings" quick action in `CastControlBar` opens the settings panel.
-5. "Done" button closes the panel by setting `Bridge.active-panel = Panel.none`.
-6. No unsupported Moblin settings are stubbed — they simply do not appear.
+1. `bridge.slint` exposes `Panel` enum + `active-panel` (no callbacks).
+2. `main.slint` shows `FullSettingsPage` / `DebugPage` / `CodecTestPage` based on `active-panel`.
+3. The control bar's "Settings" stub action sets `Bridge.active-panel = Panel.settings`.
+4. `FullSettingsPage` renders the four sections (RECEIVER / VIDEO QUALITY / CODEC & DEBUG / ABOUT)
+   with inline stub state.
+5. Toggle rows flip their stub property when tapped (no Rust round-trip).
+6. Done button closes the panel from Slint.
 7. `cargo build -p android-sender` passes.
+
+---
+
+## What's NOT in this phase (deferred)
+
+- Persisted settings (writing `mdns-enabled` / `resolution-idx` etc. to disk).
+- Real receiver count populated from Rust discovery.
+- Actual app-version string from Cargo / Android metadata.
+- Real H.264 encoder test launcher.
+- Picker panels for resolution/framerate (cycle-on-click is a placeholder).
+- `@tr(...)` wrapping (Phase 9).
+- Per-section sub-pages (audio/camera/bitrate/etc.) — those each get their own
+  UI-only phase later (Phases 13–27).
 
 ---
 
 ## Slint best practices applied here
 
-- **Properties declared on a child element block belong to that child.** Two-way
-  bindings inside `SettingsSection { property <int> x: 0; ... }` resolve to the
-  section instance, not the surrounding component. Hoist anything that needs to be
-  read from outside (or persisted across panel open/close) to the top of the
-  enclosing component. Reference: [`guide/language/coding/properties.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/guide/language/coding/properties.mdx).
-- **Panel routing via `if Bridge.active-panel == ...` overlays is the canonical
-  Slint pattern for sheet-style navigation.** Each panel is a top-level conditional
-  child whose backing page stays mounted underneath. Combined with the
-  `VerticalLayout` chassis from Phase 4-D, panels overlay both the page stack and
-  the control bar.
-- **Slint enums round-trip to Rust as PascalCase.** `Panel { none, settings, debug,
-  codec-test }` becomes `Panel::None`, `Panel::Settings`, `Panel::Debug`,
-  `Panel::CodecTest` on the Rust side. Default-initialized enum values are the
-  first variant — `none` first means a fresh `Bridge.active-panel` is `Panel.none`.
+- **`in-out` properties on the page are ideal for placeholder state.** They let
+  the UI react to taps locally without round-tripping through Rust.
+- **Reading/writing `Bridge.active-panel` directly from Slint** avoids needing
+  callbacks. This is the simplest possible routing chassis — no Rust changes.
+- **Indexed string lookup `["a", "b", "c"][idx]`** is the idiomatic Slint pattern
+  for cycling through a small enum-like value set without defining a separate
+  enum or model.

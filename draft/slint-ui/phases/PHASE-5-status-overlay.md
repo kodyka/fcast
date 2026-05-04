@@ -1,28 +1,28 @@
-# Phase 5 — Status Overlay
+# Phase 5 — Status Overlay (UI-only placeholder)
 
-> Add a transparent heads-up overlay to the casting screen showing live connection
-> and encoder status from Rust. Inspired by Moblin `View/Stream/StreamOverlayView`.
-> Reference: `draft/moblin-ui/Moblin/View/Stream/`
+> Add a transparent heads-up overlay to the casting screen showing connection
+> and encoder status pills. **UI placeholder only — no Rust wiring.** Real data
+> is fed by static stub model declared inline in the `.slint` file.
 
-**Status:** `[ ] Not started`
+**Status:** `[ ] UI placeholder — no functionality`
 **Depends on:** Phase 1 (modules), Phase 2 (theme), Phase 4 (control bar height defined)
-**Unlocks:** Phase 8 (Rust bridge feeds status items)
-**Blocked by:** `TODO.codecs.md` P0-1 (encoder name only available once `amcvidenc` selection works)
+**Functional integration:** Deferred — Rust never touches `status-items` in this phase.
+**Related Moblin sources (reference only):**
+- `Stream/StreamOverlayView.swift` → `StatusOverlay`
+- `Stream/Overlay/LeftOverlayView.swift` → left-side status pills
+- *Not ported:* `Overlay/Right*`, `CameraLevelView`, `DrawOnStreamView` (see `futures/NOT-APPLICABLE.md`)
+
 **Related files:**
 - `senders/android/ui/components/status_overlay.slint` — stub from Phase 1-H
-- `senders/android/ui/bridge.slint` — `StatusItem` struct added here
 - `senders/android/ui/pages/casting_page.slint` — overlay layered here
-- `senders/android/src/lib.rs` — Rust populates `status-items` from cast state
+- `senders/android/ui/bridge.slint` — `StatusItem` struct + enum added here (UI-only — no Rust setter)
 
-**Moblin source analogues (reference only):**
+---
 
-| Moblin file | Slint equivalent |
-|---|---|
-| `StreamOverlayView.swift` | `StatusOverlay` |
-| `Overlay/LeftOverlayView.swift` | left-side status items |
-| `Overlay/RightOverlayView.swift` | right-side status items (defer) |
-| `CameraLevelView.swift` | not applicable — no camera level in FCast sender |
-| `DrawOnStreamView.swift` | not applicable — defer |
+## Goal
+
+Build the visual surface of the status overlay and prove the pill rendering, severity
+coloring, and layout work end-to-end with **inline mock data**. Skip every Rust handler.
 
 ---
 
@@ -30,10 +30,13 @@
 
 ### 5-A — Add `StatusSeverity` enum and `StatusItem` struct to `bridge.slint`
 
+These are *type definitions only* — they don't bind to any Rust setter. The struct is
+consumed by a stub property declared further down (5-D).
+
 - [ ] Open `senders/android/ui/bridge.slint`.
 - [ ] Add before the `Bridge` global:
 
-  ```
+  ```slint
   export enum StatusSeverity { info, warning, error }
 
   export struct StatusItem {
@@ -43,17 +46,8 @@
   }
   ```
 
-  > Slint structs accept enum-typed fields directly. Using a `string` here would be
-  > stringly-typed: a typo like `"warn"` would silently fall through to the info branch,
-  > and Phase 9 explicitly leaves these values un-translated as internal tags.
-  > Reference: [`guide/language/coding/structs-and-enums.mdx`](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/guide/language/coding/structs-and-enums.mdx).
-
-- [ ] Add to `Bridge`:
-
-  ```
-      in property <[StatusItem]> status-items: [];
-  ```
-
+- [ ] **Do not** add `in property <[StatusItem]> status-items` to `Bridge`. The mock
+  data lives at the page level (5-D) so this phase stays UI-only.
 - [ ] **Build check.**
 
 ---
@@ -64,7 +58,7 @@
 - [ ] Add imports: `import { Theme } from "../theme.slint"; import { StatusItem, StatusSeverity } from "../bridge.slint";`.
 - [ ] Implement internal (non-exported) `component StatusPill`:
 
-  ```
+  ```slint
   component StatusPill inherits Rectangle {
       in property <StatusItem> item;
 
@@ -102,12 +96,11 @@
 
 - [ ] Implement `export component StatusOverlay`:
 
-  ```
+  ```slint
   export component StatusOverlay inherits Rectangle {
       in property <[StatusItem]> items;
 
       background: transparent;
-      // Do not show overlay at all when there are no items
       visible: root.items.length > 0;
 
       VerticalLayout {
@@ -124,27 +117,29 @@
 
 ---
 
-### 5-D — Layer `StatusOverlay` into `casting_page.slint`
-
-The casting page needs a `ZStack`-style layering: the status overlay floats above the
-existing content without affecting layout flow.
+### 5-D — Layer `StatusOverlay` into `casting_page.slint` with inline stub data
 
 - [ ] Open `senders/android/ui/pages/casting_page.slint`.
 - [ ] Import `StatusOverlay` from `../components/status_overlay.slint`.
-- [ ] Import `Bridge` from `../bridge.slint`.
-- [ ] Wrap `CastingView` content in a parent `Rectangle` that uses absolute positioning:
+- [ ] Import `StatusItem, StatusSeverity` from `../bridge.slint`.
+- [ ] Declare an inline mock model on the existing `CastingView` component:
 
-  ```
+  ```slint
   export component CastingView inherits Rectangle {
-      // existing content layout:
-      VerticalBox { ... }
+      // UI-only placeholder. Replace with `Bridge.status-items` when Rust wiring lands.
+      in-out property <[StatusItem]> mock-status-items: [
+          { label: "Receiver", value: "Living Room TV",       severity: StatusSeverity.info },
+          { label: "Encoder",  value: "amcvidenc (H.264)",     severity: StatusSeverity.info },
+          { label: "Network",  value: "192.168.1.42",          severity: StatusSeverity.info },
+      ];
 
-      // overlay floats top-left:
+      // existing VerticalBox with "Casting" + Stop Casting button stays unchanged
+
       StatusOverlay {
           x: 0;
           y: 0;
-          width: parent.width * 0.5;   // half-width so it doesn't block controls
-          items: Bridge.status-items;
+          width: parent.width * 0.5;
+          items: root.mock-status-items;
       }
   }
   ```
@@ -154,91 +149,56 @@ existing content without affecting layout flow.
 
 ---
 
-### 5-E — Define initial status item set in Rust
+### 5-E — Add a "warning" + "error" stub variant for visual QA
 
-- [ ] In `lib.rs`, create a helper function `build_status_items(state: &CastState) -> Vec<StatusItem>`:
+- [ ] In the same `casting_page.slint`, add a second mock list demonstrating severities:
 
-  ```rust
-  fn build_status_items(receiver_name: &str, encoder: &str) -> Vec<StatusItem> {
-      vec![
-          StatusItem {
-              label: "Receiver".into(),
-              value: receiver_name.into(),
-              severity: StatusSeverity::Info,
-          },
-          StatusItem {
-              label: "Encoder".into(),
-              value: encoder.into(),
-              severity: StatusSeverity::Info,
-          },
-      ]
-  }
+  ```slint
+  // Toggle between healthy/error stubs by editing this property at design time.
+  in-out property <[StatusItem]> mock-status-items-error: [
+      { label: "Receiver", value: "Living Room TV",  severity: StatusSeverity.info },
+      { label: "Network",  value: "Reconnecting…",   severity: StatusSeverity.warning },
+      { label: "Encoder",  value: "Failed",          severity: StatusSeverity.error },
+  ];
   ```
 
-  > Slint generates `StatusSeverity::Info` / `Warning` / `Error` from the kebab-case
-  > Slint enum variants. Use the typed enum on the Rust side too — no `.into()` needed.
-
-- [ ] Call this when cast state changes and push to `Bridge.status-items`.
-- [ ] Use `slint::VecModel` to push updates: `bridge.set_status_items(model.into())`.
-- [ ] Clear `status-items` (set to empty vec) when app leaves `Casting` state.
-- [ ] **Build check.**
-
----
-
-### 5-F — Add severity escalation for error states
-
-- [ ] When `AppState` transitions to an error condition (connection lost, encoder failed),
-  update the affected `StatusItem` with `severity: StatusSeverity::Error`.
-- [ ] When GStreamer codec blocker P0-1 is resolved, read the actual selected encoder name
-  from the destination node and populate the "Encoder" status item.
-- [ ] Add a "Network" status item sourced from the Rust device info (IP address / hostname).
-- [ ] **Build check.**
-
----
-
-### 5-G — Move debug log scroll area to `debug_page.slint`
-
-The existing `ScrollView` + `status-text` in `debug_page.slint` is the text log for test
-output. Confirm it is distinct from the casting overlay status pills.
-
-- [ ] Verify `debug_page.slint` contains a `ScrollView` that shows `Bridge.test-status`.
-- [ ] Confirm `StatusOverlay` in `casting_page.slint` does NOT read `test-status` (it reads
-  `Bridge.status-items` only).
-- [ ] They are parallel, not the same data source.
+- [ ] (Optional) Hard-flip `items: root.mock-status-items-error;` once and screenshot to
+  verify warning/error coloring.
+- [ ] Revert to the healthy mock before committing.
 
 ---
 
 ## Exit criteria
 
-Phase 5 is complete when:
-
 1. `status_overlay.slint` exports `StatusOverlay`.
-2. `bridge.slint` defines `StatusItem` struct and `status-items` property.
-3. `StatusOverlay` is visible in `CastingView` when `status-items` is non-empty.
-4. Overlay is invisible (not just transparent) when `status-items` is empty.
-5. Severity coloring works: info → `Theme.surface-overlay`, warning → `Theme.warning`,
-   error → `Theme.error`.
-6. Rust populates at least "Receiver" and "Encoder" items on cast start.
-7. `cargo build -p android-sender` passes.
+2. `bridge.slint` defines `StatusItem` + `StatusSeverity` (types only — no setter).
+3. `CastingView` renders three info pills from the inline stub on every build.
+4. Severity coloring works against the alt mock (info → `Theme.surface-overlay`,
+   warning → `Theme.warning`, error → `Theme.error`).
+5. No `Bridge.status-items` reference exists anywhere in this phase.
+6. `cargo build -p android-sender` passes.
 
 ---
 
-## Notes
+## What's NOT in this phase (deferred)
 
-- Do **not** port Moblin chat, navigation, replay, or right-side overlays — those have no
-  FCast sender equivalent.
-- Bitrate overlay item should be added once the Rust side exposes real-time bitrate from
-  the GStreamer pipeline. Leave as a placeholder with empty `value` until then.
-- The overlay width cap (`parent.width * 0.5`) is a starting point. Adjust during Phase 10
-  device testing if items truncate awkwardly.
+- Rust populating real receiver / encoder / network values.
+- Severity escalation on connection-loss events.
+- Real-time bitrate / framerate pill (depends on GStreamer pipeline introspection).
+- `@tr(...)` wrapping (Phase 9).
+- Wiring `mock-status-items` to a real `Bridge.status-items` setter.
+
+These all live in `futures/` and will be promoted into a new phase when Rust ships
+the underlying telemetry.
 
 ---
 
 ## Slint best practices applied here
 
-- **Use enums for closed value sets.** `StatusSeverity` is type-safe, exhaustive in
-  `match` patterns on the Rust side, and survives renames better than magic strings.
+- **Use enums for closed value sets.** `StatusSeverity` is type-safe and survives
+  renames better than magic strings.
 - **`visible: false` skips both rendering and event handling.** Preferred over
-  `opacity: 0` for hiding overlays — hidden elements don't intercept clicks.
-- **Model-driven `for item in root.items: ...` loops are reactive.** When Rust
-  replaces or mutates the underlying `VecModel`, the overlay re-renders automatically.
+  `opacity: 0` for hiding overlays.
+- **Inline `in-out` properties make great stub models.** Slint reactively updates
+  the `for item in ...` loop when the list changes, so swapping mocks for live
+  data later is a one-line change at the call site — no component rewrite needed.
