@@ -75,7 +75,6 @@ export component FullSettingsPage inherits Rectangle {
     in-out property <int>    resolution-idx: 2;
     in-out property <int>    framerate-idx:  2;
     in-out property <bool>   mdns-enabled:   true;
-    in-out property <bool>   debug-panel:    false;
     in-out property <string> mock-app-version: "0.0.1-dev";
 
     // Fill the parent (overlay layer in main.slint passes parent.width/height).
@@ -149,11 +148,21 @@ export component FullSettingsPage inherits Rectangle {
                     }
                 }
 
-                // ── Section: VIDEO QUALITY ────────────────────────────────
+                // ── Section: AUDIO & VIDEO ────────────────────────────────
                 // Cycle-on-click is a placeholder UX. Real picker panels
                 // land in `futures/`.
                 SettingsSection {
-                    title: "VIDEO QUALITY";
+                    title: "AUDIO & VIDEO";
+                    SettingsValueRow {
+                        title: "Audio";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.audio; }
+                    }
+                    SettingsValueRow {
+                        title: "Camera";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.camera; }
+                    }
                     SettingsValueRow {
                         title: "Max resolution";
                         value: ["480p", "720p", "1080p", "1440p"][root.resolution-idx];
@@ -188,10 +197,25 @@ export component FullSettingsPage inherits Rectangle {
                         value: "Open";
                         clicked => { Bridge.active-panel = Panel.codec-test; }
                     }
-                    SettingsToggleRow {
-                        title: "Show debug panel";
-                        checked: root.debug-panel;
-                        toggled(checked) => { root.debug-panel = checked; }
+                    SettingsValueRow {
+                        title: "Debug log";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.debug-log; }
+                    }
+                    SettingsValueRow {
+                        title: "Video pipeline";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.debug-video; }
+                    }
+                }
+
+                // ── Section: ADVANCED ─────────────────────────────────────
+                SettingsSection {
+                    title: "ADVANCED";
+                    SettingsValueRow {
+                        title: "Network";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.network; }
                     }
                 }
 
