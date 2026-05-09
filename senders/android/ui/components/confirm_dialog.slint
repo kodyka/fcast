@@ -1,5 +1,5 @@
 import { Theme } from "../theme.slint";
-import { DestructiveButton, TextButton } from "buttons.slint";
+import { DestructiveButton, PrimaryButton, TextButton } from "buttons.slint";
 
 export component ConfirmDialog inherits Rectangle {
     in property <string> title: "Confirm";
@@ -23,8 +23,6 @@ export component ConfirmDialog inherits Rectangle {
         height: card-layout.preferred-height;
         background: Theme.surface-card;
         border-radius: Theme.radius-card;
-        x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
 
         TouchArea {
             // absorb clicks to not dismiss
@@ -56,7 +54,12 @@ export component ConfirmDialog inherits Rectangle {
                     clicked => { root.dismissed(); }
                 }
 
-                DestructiveButton {
+                if root.destructive: DestructiveButton {
+                    label: root.confirm-label;
+                    clicked => { root.confirmed(); }
+                }
+
+                if !root.destructive: PrimaryButton {
                     label: root.confirm-label;
                     clicked => { root.confirmed(); }
                 }
