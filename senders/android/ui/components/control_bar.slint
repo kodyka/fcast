@@ -28,7 +28,12 @@ export component QuickActionButton inherits Rectangle {
         clicked => { root.invoked(root.action.id); }
     }
     Text {
-        text: root.action.title;
+        // Macro-flagged actions get a ▶ glyph prefix. The quick-action
+        // customisation page (Phase 17) treats id == "macro:<id>" as
+        // shorthand for "this bar entry runs macro <id>".
+        text: root.action.is-macro
+            ? "▶ " + root.action.title
+            : root.action.title;
         color: Theme.text-primary;
         horizontal-alignment: center;
         vertical-alignment: center;
@@ -42,11 +47,11 @@ export component CastControlBar inherits Rectangle {
     // by Rust. The spec calls these out as the canonical Phase-7 set:
     //   settings, debug, codec-test, scan-qr, migrated-server.
     in-out property <[QuickAction]> mock-quick-actions: [
-        { id: "settings",        title: "Settings",       enabled: true, active: false },
-        { id: "debug",           title: "Debug",          enabled: true, active: false },
-        { id: "codec-test",      title: "Codec test",     enabled: true, active: false },
-        { id: "scan-qr",         title: "Scan QR",        enabled: true, active: false },
-        { id: "migrated-server", title: "Migrated srv",   enabled: true, active: false },
+        { id: "settings",        title: "Settings",       enabled: true, active: false, is-macro: false },
+        { id: "debug",           title: "Debug",          enabled: true, active: false, is-macro: false },
+        { id: "codec-test",      title: "Codec test",     enabled: true, active: false, is-macro: false },
+        { id: "scan-qr",         title: "Scan QR",        enabled: true, active: false, is-macro: false },
+        { id: "migrated-server", title: "Migrated srv",   enabled: true, active: false, is-macro: false },
     ];
 
     height: Theme.control-bar-height;

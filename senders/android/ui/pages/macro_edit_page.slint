@@ -1,0 +1,273 @@
+// macro_edit_page.slint — Per-macro editor (UI-only).
+//
+// Reads Bridge.mock-macro-edit-id (set by MacrosPage). Empty string
+// means "new macro" — render blank form. Save returns to Panel.macros
+// (NOT Panel.none) — back-stack invariant from Phase 16. UI-only build:
+// neither Save nor Cancel persists across panel re-entries because
+// mock-macros lives on MacrosPage, not on Bridge. Phase 8 promotes
+// mock-macros to Bridge.macros and the round-trip becomes real.
+//
+// Slint docs ref:
+//   draft/slint-ui/docs/astro/src/content/docs/reference/std-widgets/views/lineedit.mdx
+//   draft/slint-ui/docs/astro/src/content/docs/reference/std-widgets/views/scrollview.mdx
+
+import { ScrollView, LineEdit } from "std-widgets.slint";
+import { Bridge, Panel, Macro, MacroStep } from "../bridge.slint";
+import { Theme } from "../theme.slint";
+import { TextButton, PrimaryButton, DestructiveButton } from "../components/buttons.slint";
+
+export component MacroEditPage inherits Rectangle {
+    // ── UI-only ephemeral edit state (page-local) ────────────────────────
+    in-out property <string> mock-name:    "";
+    in-out property <bool>   mock-enabled: true;
+    in-out property <[MacroStep]> mock-steps: [];
+    in-out property <bool>   show-add-step-picker: false;
+
+    // Predefined catalogue of action ids that can become macro steps.
+    // Hardcoded for UI-only; Phase 8 takes the list from Bridge.quick-actions.
+    property <[{action-id: string, label: string}]> available-actions: [
+        { action-id: "scan-qr",        label: "Scan QR" },
+        { action-id: "audio",          label: "Open Audio" },
+        { action-id: "camera",         label: "Open Camera" },
+        { action-id: "record",         label: "Start Recording" },
+        { action-id: "stop-recording", label: "Stop Recording" },
+        { action-id: "stop-cast",      label: "Stop Cast" },
+    ];
+
+    width: 100%;
+    height: 100%;
+    background: Theme.surface-primary;
+
+    VerticalLayout {
+        Rectangle {
+            height: 56px;
+            background: Theme.surface-card;
+            HorizontalLayout {
+                padding: Theme.padding-screen;
+                spacing: Theme.spacing-default;
+                Text {
+                    text: Bridge.mock-macro-edit-id == ""
+                        ? "New macro"
+                        : "Edit macro";
+                    color: Theme.text-primary;
+                    font-size: Theme.font-size-heading;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+                TextButton {
+                    label: "Cancel";
+                    clicked => { Bridge.active-panel = Panel.macros; }
+                }
+                PrimaryButton {
+                    label: "Save";
+                    // UI-only: no real save. Phase 8 wires
+                    // Bridge.save-macro(mock-name, mock-steps, mock-enabled).
+                    clicked => { Bridge.active-panel = Panel.macros; }
+                }
+            }
+        }
+
+        ScrollView {
+            VerticalLayout {
+                spacing: Theme.spacing-default;
+                padding: Theme.padding-screen;
+
+                // ── Name field ──────────────────────────────────────────
+                Text {
+                    text: "NAME";
+                    color: Theme.text-secondary;
+                    font-size: Theme.font-size-label;
+                }
+                LineEdit {
+                    text <=> root.mock-name;
+                    placeholder-text: "Untitled macro";
+                }
+
+                // ── Enable toggle ───────────────────────────────────────
+                Rectangle {
+                    height: 48px;
+                    border-radius: Theme.radius-card;
+                    background: Theme.surface-card;
+                    HorizontalLayout {
+                        padding-left:  Theme.padding-screen;
+                        padding-right: Theme.padding-screen;
+                        Text {
+                            text: "Enabled";
+                            color: Theme.text-primary;
+                            font-size: Theme.font-size-body;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        Text {
+                            text: root.mock-enabled ? "On" : "Off";
+                            color: root.mock-enabled
+                                ? Theme.accent-active
+                                : Theme.text-secondary;
+                            vertical-alignment: center;
+                            horizontal-alignment: end;
+                            font-size: Theme.font-size-label;
+                        }
+                        TouchArea {
+                            clicked => { root.mock-enabled = !root.mock-enabled; }
+                        }
+                    }
+                }
+
+                // ── Steps ───────────────────────────────────────────────
+                Text {
+                    text: "STEPS";
+                    color: Theme.text-secondary;
+                    font-size: Theme.font-size-label;
+                }
+
+                if root.mock-steps.length == 0: Rectangle {
+                    height: 64px;
+                    background: Theme.surface-card;
+                    border-radius: Theme.radius-card;
+                    Text {
+                        text: "No steps yet. Tap “Add step” below.";
+                        color: Theme.text-secondary;
+                        font-size: Theme.font-size-label;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                for step[i] in root.mock-steps: Rectangle {
+                    height: 56px;
+                    border-radius: Theme.radius-card;
+                    background: Theme.surface-card;
+                    HorizontalLayout {
+                        padding-left:  Theme.padding-screen;
+                        padding-right: Theme.padding-screen;
+                        spacing: Theme.spacing-default;
+                        Text {
+                            text: step.label;
+                            color: Theme.text-primary;
+                            font-size: Theme.font-size-body;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+
+                        // Reorder buttons. Same hardcoded-swap caveat as
+                        // Phase 17. For UI-only build with up to ~5
+                        // steps, document the workaround:
+                        //   - Use a Bridge-side move-step(int, int) callback
+                        //     once Phase 8 lands.
+                        //   - For now, the up/down buttons are visually
+                        //     present but no-op.
+                        Rectangle {
+                            width: 32px; height: 32px;
+                            opacity: i == 0 ? 0.3 : 1.0;
+                            Text { text: "▲"; color: Theme.text-primary;
+                                   horizontal-alignment: center;
+                                   vertical-alignment: center; }
+                            TouchArea { enabled: i > 0; clicked => { } }
+                        }
+                        Rectangle {
+                            width: 32px; height: 32px;
+                            opacity: i == root.mock-steps.length - 1 ? 0.3 : 1.0;
+                            Text { text: "▼"; color: Theme.text-primary;
+                                   horizontal-alignment: center;
+                                   vertical-alignment: center; }
+                            TouchArea {
+                                enabled: i < root.mock-steps.length - 1;
+                                clicked => { }
+                            }
+                        }
+
+                        // Remove button.
+                        Rectangle {
+                            width: 32px; height: 32px;
+                            Text { text: "✕"; color: Theme.text-primary;
+                                   horizontal-alignment: center;
+                                   vertical-alignment: center; }
+                            TouchArea {
+                                clicked => {
+                                    // Removal also requires hardcoded
+                                    // index rebuild in UI-only build.
+                                    // Stub no-op.
+                                }
+                            }
+                        }
+                    }
+                }
+
+                PrimaryButton {
+                    label: "Add step";
+                    clicked => { root.show-add-step-picker = true; }
+                }
+            }
+        }
+    }
+
+    // ── Add-step picker overlay ──────────────────────────────────────────
+    //
+    // Inline picker — reuses the controlled-component pattern from
+    // ConfirmDialog (Phase 19). Tapping an action appends a stub step
+    // (no-op in UI-only build, since the array-rebuild for append is
+    // also hardcoded; document and skip).
+    if root.show-add-step-picker: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #00000080;
+
+        TouchArea {
+            clicked => { root.show-add-step-picker = false; }
+        }
+
+        Rectangle {
+            x: (parent.width  - self.width)  / 2;
+            y: (parent.height - self.height) / 2;
+            width: min(parent.width * 0.85, 360px);
+            height: 320px;
+            background: Theme.surface-card;
+            border-radius: Theme.radius-card;
+
+            TouchArea { }   // absorb clicks
+
+            VerticalLayout {
+                padding: Theme.padding-card;
+                spacing: 8px;
+                Text {
+                    text: "Choose action";
+                    color: Theme.text-primary;
+                    font-size: Theme.font-size-heading;
+                }
+                ScrollView {
+                    VerticalLayout {
+                        spacing: 4px;
+                        for action in root.available-actions: Rectangle {
+                            height: 40px;
+                            border-radius: 8px;
+                            background: action-ta.pressed
+                                ? Theme.surface-card.brighter(20%)
+                                : transparent;
+                            action-ta := TouchArea {
+                                clicked => {
+                                    // UI-only: spec defers append to
+                                    // Phase 8. Just dismiss the picker.
+                                    root.show-add-step-picker = false;
+                                }
+                            }
+                            Text {
+                                text: action.label;
+                                color: Theme.text-primary;
+                                vertical-alignment: center;
+                                horizontal-alignment: start;
+                                x: 12px;
+                            }
+                        }
+                    }
+                }
+                HorizontalLayout {
+                    alignment: end;
+                    TextButton {
+                        label: "Cancel";
+                        clicked => { root.show-add-step-picker = false; }
+                    }
+                }
+            }
+        }
+    }
+}
