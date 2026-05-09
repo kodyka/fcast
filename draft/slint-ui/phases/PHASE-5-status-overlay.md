@@ -4,7 +4,7 @@
 > and encoder status pills. **UI placeholder only — no Rust wiring.** Real data
 > is fed by static stub model declared inline in the `.slint` file.
 
-**Status:** `[ ] UI placeholder — no functionality`
+**Status:** `[x] Complete (UI-only — Rust wiring deferred to Phase 8)` — see [`STATUS.md`](STATUS.md). The `StatusOverlay` component lives in `components/status_overlay.slint`; the `StatusItem` struct + `StatusSeverity` enum are exported from `bridge.slint`; `pages/casting_page.slint` embeds the overlay with a `mock-status-items` stub and a `mock-status-items-error` flip-stub for severity coverage screenshots. Rust wiring of `Bridge.status-items` is intentionally parked under Phase 8.
 **Depends on:** Phase 1 (modules), Phase 2 (theme), Phase 4 (control bar height defined)
 **Functional integration:** Deferred — Rust never touches `status-items` in this phase.
 **Related Moblin sources (reference only):**

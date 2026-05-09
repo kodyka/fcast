@@ -4,7 +4,7 @@
 > Inspired by Moblin `View/ControlBar` (23 files); replaces the hardcoded debug button list.
 > Reference: `draft/moblin-ui/Moblin/View/ControlBar/`
 
-**Status:** `[ ] Not started`
+**Status:** `[x] Complete` — see [`STATUS.md`](STATUS.md) for the live audit. The bar ships from `components/control_bar.slint`, with the `QuickAction` struct + `invoke-action` callback in `bridge.slint`, and is mounted in `main.slint`. Rust population of `quick-actions` is intentionally parked under Phase 8.
 **Depends on:** Phase 1 (modules), Phase 2 (theme), Phase 3 (buttons)
 **Unlocks:** Phase 5 (status overlay sits above the control bar), Phase 8 (Rust populates actions)
 **Related files:**
