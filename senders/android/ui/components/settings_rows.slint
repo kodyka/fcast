@@ -100,6 +100,7 @@ export component SettingsSliderRow inherits Rectangle {
     in property <string> unit: "";
     in property <float>  minimum: 0;
     in property <float>  maximum: 100;
+    in property <bool>   show-fractional: false;
     in-out property <float> value: 50;
     callback changed(float);
 
@@ -117,7 +118,7 @@ export component SettingsSliderRow inherits Rectangle {
                 horizontal-stretch: 1;
             }
             Text {
-                text: "\{Math.round(root.value)}\{root.unit}";
+                text: root.show-fractional ? "\{Math.round(root.value * 10) / 10}\{root.unit}" : "\{Math.round(root.value)}\{root.unit}";
                 color: Theme.text-secondary;
                 vertical-alignment: center;
             }
