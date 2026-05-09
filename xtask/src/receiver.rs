@@ -169,7 +169,6 @@ impl ReceiverArgs {
                         let ndk_root = sh.var("ANDROID_NDK_ROOT").unwrap();
                         cmd!(sh, "make -f {ndk_root}/build/core/build-local.mk").run()?;
                     }
-                    AndroidReceiverCommand::Build { release, target } => {
                     AndroidReceiverCommand::Build {
                         release,
                         target,

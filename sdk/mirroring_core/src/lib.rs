@@ -56,6 +56,7 @@ pub enum VideoSource {
     CgDisplay { id: i32, name: String },
     #[cfg(target_os = "windows")]
     D3d11Monitor { name: String, handle: u64 },
+    #[cfg(target_os = "windows")]
     D3d12Monitor {
         name: String,
         handle: u64,
