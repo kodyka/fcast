@@ -47,11 +47,12 @@ export component CastControlBar inherits Rectangle {
     // by Rust. The spec calls these out as the canonical Phase-7 set:
     //   settings, debug, codec-test, scan-qr, migrated-server.
     in-out property <[QuickAction]> mock-quick-actions: [
-        { id: "settings",        title: "Settings",       enabled: true, active: false, is-macro: false },
-        { id: "debug",           title: "Debug",          enabled: true, active: false, is-macro: false },
-        { id: "codec-test",      title: "Codec test",     enabled: true, active: false, is-macro: false },
-        { id: "scan-qr",         title: "Scan QR",        enabled: true, active: false, is-macro: false },
-        { id: "migrated-server", title: "Migrated srv",   enabled: true, active: false, is-macro: false },
+        { id: "settings",        title: "Settings",       enabled: true, active: false },
+        { id: "debug",           title: "Debug",          enabled: true, active: false },
+        { id: "codec-test",      title: "Codec test",     enabled: true, active: false },
+        { id: "scan-qr",         title: "Scan QR",        enabled: true, active: false },
+        { id: "migrated-server", title: "Migrated srv",   enabled: true, active: false },
+        { id: "bitrate",         title: "Bitrate",        enabled: true, active: false },
     ];
 
     height: Theme.control-bar-height;
@@ -69,6 +70,7 @@ export component CastControlBar inherits Rectangle {
                 if (id == "settings")    { Bridge.active-panel = Panel.settings;   return; }
                 if (id == "debug")       { Bridge.active-panel = Panel.debug;      return; }
                 if (id == "codec-test")  { Bridge.active-panel = Panel.codec-test; return; }
+                if (id == "bitrate")     { Bridge.active-panel = Panel.bitrate-presets; return; }
                 // Non-panel ids still go through the Rust handler.
                 Bridge.invoke-action(id);
             }

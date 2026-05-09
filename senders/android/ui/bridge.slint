@@ -59,6 +59,8 @@ export enum Panel {
     audio,
     camera,
     quick-actions,
+    bitrate-presets,
+    bitrate-preset-edit,
     macros,
     macro-edit,
     debug-log,
@@ -85,6 +87,13 @@ export struct StatusItem {
 export struct ReceiverItem {
     name:    string,
     address: string,
+}
+
+export struct BitratePreset {
+    id:           string,
+    name:         string,
+    bitrate-kbps: int,
+    active:       bool,
 }
 
 export struct NetworkInterface {
