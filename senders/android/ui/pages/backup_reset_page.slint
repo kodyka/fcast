@@ -87,10 +87,10 @@ export component BackupResetPage inherits Rectangle {
              : "";
     }
     pure function dialog-confirm-label(action: string) -> string {
-        return action == "reset-all"        ? "Reset" :
-               action == "clear-history"    ? "Clear" :
-               action == "clear-receivers"  ? "Clear" :
-                                               "OK";
+        return action == "reset-all"        ? @tr("Reset") :
+               action == "clear-history"    ? @tr("Clear") :
+               action == "clear-receivers"  ? @tr("Clear") :
+                                               @tr("OK");
     }
 
     VerticalLayout {
