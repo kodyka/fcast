@@ -145,6 +145,7 @@ export component CameraPage inherits Rectangle {
                         unit: "×";
                         minimum: 0.5;
                         maximum: 5.0;
+                        show-fractional: true;
                         value <=> root.mock-zoom-level;
                         // No unit conversion needed — slider domain matches
                         // storage domain. See gotcha below for when `<=>` is
