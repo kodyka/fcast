@@ -45,6 +45,8 @@ import { CameraPage }                   from "pages/camera_page.slint";
 import { QuickActionsPage }             from "pages/quick_actions_page.slint";
 import { PairingPage }                  from "pages/pairing_page.slint";
 import { ReceiverRenamePage }           from "pages/receiver_rename_page.slint";
+import { DebugLogPage }                 from "pages/debug_log_page.slint";
+import { DebugVideoPage }               from "pages/debug_video_page.slint";
 import { NetworkPage }                  from "pages/network_page.slint";
 import { Theme } from "theme.slint";
 import { StatusBadgesRow } from "components/status_badges.slint";
@@ -94,5 +96,7 @@ export component MainWindow inherits Window {
         }
         cancel => { Bridge.active-panel = Panel.none; }
     }
+    if Bridge.active-panel == Panel.debug-log:     DebugLogPage { }
+    if Bridge.active-panel == Panel.debug-video:   DebugVideoPage { }
     if Bridge.active-panel == Panel.network:       NetworkPage { }
 }
