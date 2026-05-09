@@ -227,6 +227,11 @@ export component FullSettingsPage inherits Rectangle {
                 SettingsSection {
                     title: "ADVANCED";
                     SettingsValueRow {
+                        title: "Recording";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.recording; }
+                    }
+                    SettingsValueRow {
                         title: "Network";
                         value: "Open";
                         clicked => { Bridge.active-panel = Panel.network; }

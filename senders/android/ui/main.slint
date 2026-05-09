@@ -47,6 +47,7 @@ import { CameraPage }                   from "pages/camera_page.slint";
 import { QuickActionsPage }             from "pages/quick_actions_page.slint";
 import { CastHistoryPage }              from "pages/cast_history_page.slint";
 import { CastHistoryDetailPage }        from "pages/cast_history_detail_page.slint";
+import { RecordingPage }                from "pages/recording_page.slint";
 import { PairingPage }                  from "pages/pairing_page.slint";
 import { ReceiverRenamePage }           from "pages/receiver_rename_page.slint";
 import { MacrosPage }                   from "pages/macros_page.slint";
@@ -92,6 +93,7 @@ export component MainWindow inherits Window {
     if Bridge.active-panel == Panel.quick-actions: QuickActionsPage { }
     if Bridge.active-panel == Panel.cast-history:        CastHistoryPage { }
     if Bridge.active-panel == Panel.cast-history-detail: CastHistoryDetailPage { }
+    if Bridge.active-panel == Panel.recording:     RecordingPage { }
 
     if Bridge.active-panel == Panel.pairing: PairingPage {
         close => { Bridge.active-panel = Panel.none; }

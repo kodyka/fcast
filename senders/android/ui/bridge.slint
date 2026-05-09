@@ -15,6 +15,13 @@ export enum LifecycleMode {
     snapshot-countdown,
 }
 
+export enum RecordingState {
+    idle,
+    recording,
+    paused,
+    finalizing,
+}
+
 export enum AppState {
     Disconnected,
     Connecting,
@@ -61,6 +68,7 @@ export enum Panel {
     quick-actions,
     cast-history,
     cast-history-detail,
+    recording,
     pairing,
     receiver-rename,
     bitrate-presets,

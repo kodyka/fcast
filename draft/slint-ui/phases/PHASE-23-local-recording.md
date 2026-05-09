@@ -3,7 +3,7 @@
 > Settings sub-page + quick-action surface for local recording (record the
 > cast to a local file). **UI-only — no real `MediaRecorder` integration.**
 
-**Status:** `[ ] Not started — blocked by Rust recording capability for live data, but UI placeholder is unblocked`
+**Status:** `[x] Complete (UI-only)`
 **Depends on:** Phases 2, 3, 7
 **Functional integration:** Deferred — Android `MediaRecorder` /
 GStreamer file sink requires storage permission + capture pipeline
@@ -21,7 +21,7 @@ muxer changes.
 
 ### 23-A — `RecordingState` enum
 
-- [ ] In `bridge.slint`:
+- [x] In `bridge.slint`:
 
   ```slint
   export enum RecordingState {
@@ -36,7 +36,7 @@ muxer changes.
 
 ### 23-B — `RecordingPage`
 
-- [ ] Inline stub state:
+- [x] Inline stub state:
 
   ```slint
   in-out property <RecordingState> mock-state: RecordingState.idle;
@@ -47,7 +47,7 @@ muxer changes.
   in-out property <int>             mock-disk-free-mb: 12480;
   ```
 
-- [ ] Sections:
+- [x] Sections:
 
   ```
   RECORDING
@@ -62,7 +62,7 @@ muxer changes.
     Disk free     "12.2 GB" (read-only)
   ```
 
-- [ ] Implement the elapsed counter using a Slint `Timer`:
+- [x] Implement the elapsed counter using a Slint `Timer`:
 
   ```slint
   Timer {
@@ -72,7 +72,7 @@ muxer changes.
   }
   ```
 
-- [ ] Record button click cycles state:
+- [x] Record button click cycles state:
   `idle → recording → paused → recording → ... ; long-press while recording → finalizing → idle`.
   In UI-only build, finalize is instant.
 
@@ -80,10 +80,10 @@ muxer changes.
 
 ### 23-C — Bridge + linking
 
-- [ ] Extend `Panel` with `recording`.
-- [ ] Route in `main.slint`.
-- [ ] Link from `FullSettingsPage` "ADVANCED" section.
-- [ ] Add `quick-action` entry id `"record"` in the bar stub model. On click in
+- [x] Extend `Panel` with `recording`.
+- [x] Route in `main.slint`.
+- [x] Link from `FullSettingsPage` "ADVANCED" section.
+- [x] Add `quick-action` entry id `"record"` in the bar stub model. On click in
   Slint: `Bridge.active-panel = Panel.recording;`.
 
 ---
