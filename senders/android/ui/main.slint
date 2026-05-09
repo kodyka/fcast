@@ -41,9 +41,11 @@ import { WaitingForMediaView,
 import { CodecTestPage }                from "pages/codec_test_page.slint";
 import { DebugPage, FullDebugPage }     from "pages/debug_page.slint";
 import { AudioPage }                    from "pages/audio_page.slint";
+import { CameraPage }                   from "pages/camera_page.slint";
 import { QuickActionsPage }             from "pages/quick_actions_page.slint";
 import { CastHistoryPage }              from "pages/cast_history_page.slint";
 import { CastHistoryDetailPage }        from "pages/cast_history_detail_page.slint";
+import { NetworkPage }                  from "pages/network_page.slint";
 import { Theme } from "theme.slint";
 import { StatusBadgesRow } from "components/status_badges.slint";
 import { CastControlBar } from "components/control_bar.slint";
@@ -77,11 +79,10 @@ export component MainWindow inherits Window {
     if Bridge.active-panel == Panel.settings:      FullSettingsPage { }
     if Bridge.active-panel == Panel.debug:         FullDebugPage { }
     if Bridge.active-panel == Panel.codec-test:    CodecTestPage { }
-    if Bridge.active-panel == Panel.audio:          AudioPage { }
-    if Bridge.active-panel == Panel.settings:      FullSettingsPage { }
-    if Bridge.active-panel == Panel.debug:         FullDebugPage { }
-    if Bridge.active-panel == Panel.codec-test:    CodecTestPage { }
+    if Bridge.active-panel == Panel.audio:         AudioPage { }
+    if Bridge.active-panel == Panel.camera:        CameraPage { }
     if Bridge.active-panel == Panel.quick-actions: QuickActionsPage { }
     if Bridge.active-panel == Panel.cast-history:        CastHistoryPage { }
     if Bridge.active-panel == Panel.cast-history-detail: CastHistoryDetailPage { }
+    if Bridge.active-panel == Panel.network:       NetworkPage { }
 }

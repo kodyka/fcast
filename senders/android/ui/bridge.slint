@@ -29,9 +29,11 @@ export enum Panel {
     debug,
     codec-test,
     audio,
+    camera,
     quick-actions,
     cast-history,
     cast-history-detail,
+    network,
 }
 
 export struct QuickAction {
@@ -60,6 +62,12 @@ export struct CastHistoryEntry {
     started-at: string,
     duration-s: int,
     status:     string,
+export struct NetworkInterface {
+    name:        string,
+    kind:        string,    // "wifi" / "ethernet" / "cellular" / "loopback"
+    address-v4:  string,
+    address-v6:  string,
+    enabled:     bool,
 }
 
 export global Bridge {
