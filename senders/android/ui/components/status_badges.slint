@@ -1,0 +1,85 @@
+// status_badges.slint — Compact pill row of network / thermal / battery badges.
+//
+// UI-only stub. Each badge reads from a top-level mock-* property; severity
+// branches on string equality (mock-thermal) or numeric threshold
+// (mock-battery-pct).
+//
+// Phase 8 migration replaces stub properties with Bridge:
+//   mock-battery-pct → Bridge.battery-pct       (BatteryManager.EXTRA_LEVEL)
+//   mock-charging    → Bridge.charging          (BatteryManager.EXTRA_PLUGGED)
+//   mock-thermal     → Bridge.thermal-state     (PowerManager.ThermalEventListener)
+//   mock-network     → Bridge.network-type      (ConnectivityManager.activeNetworkInfo)
+//
+// Slint docs ref:
+//   draft/slint-ui/docs/astro/src/content/docs/reference/elements/rectangle.mdx
+//   draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/positioning-and-layouts.mdx
+//   draft/slint-ui/docs/astro/src/content/docs/reference/colors-and-brushes.mdx
+
+import { Theme } from "../theme.slint";
+
+// Internal sub-component — not exported. Two Text children inside a pill.
+component Badge inherits Rectangle {
+    in property <string> icon-glyph;
+    in property <string> value;
+    in property <color>  fg: Theme.text-secondary;
+
+    height: 22px;
+    border-radius: self.height / 2;
+    background: Theme.surface-overlay;
+
+    HorizontalLayout {
+        padding-left:  8px;
+        padding-right: 8px;
+        spacing: 4px;
+        Text {
+            text: root.icon-glyph;
+            color: root.fg;
+            font-size: Theme.font-size-label;
+            vertical-alignment: center;
+        }
+        Text {
+            text: root.value;
+            color: root.fg;
+            font-size: Theme.font-size-label;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component StatusBadgesRow inherits Rectangle {
+    in-out property <int>    mock-battery-pct: 87;
+    in-out property <bool>   mock-charging:    false;
+    in-out property <string> mock-thermal:     "Nominal";
+    in-out property <string> mock-network:     "Wi-Fi";
+
+    height: 28px;
+    background: transparent;
+
+    HorizontalLayout {
+        alignment: end;
+        spacing: 6px;
+        padding-right: Theme.padding-screen;
+
+        Badge {
+            icon-glyph: "📶";
+            value: root.mock-network;
+        }
+
+        Badge {
+            icon-glyph: root.mock-thermal == "Critical" ? "🔥" : "🌡";
+            value: root.mock-thermal;
+            // Use the `*-fg` severity tokens — `Theme.error` / `Theme.warning`
+            // are dark *background* fills and would be illegible as text on
+            // the dark surface-overlay used by Badge.
+            fg: root.mock-thermal == "Critical" ? Theme.error-fg
+              : root.mock-thermal == "Serious"  ? Theme.warning-fg
+              :                                    Theme.text-secondary;
+        }
+
+        Badge {
+            icon-glyph: root.mock-charging ? "⚡" : "🔋";
+            value: "\{root.mock-battery-pct}%";
+            fg: root.mock-battery-pct < 20 ? Theme.error-fg : Theme.text-secondary;
+        }
+    }
+}
