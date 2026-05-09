@@ -8,6 +8,13 @@
 // Slint docs ref (globals): draft/slint/docs/astro/src/content/docs/guide/language/coding/globals.mdx
 // Slint docs ref (enums):   draft/slint/docs/astro/src/content/docs/guide/language/coding/structs-and-enums.mdx
 
+export enum LifecycleMode {
+    normal,
+    lock-screen,
+    stealth,
+    snapshot-countdown,
+}
+
 export enum AppState {
     Disconnected,
     Connecting,
@@ -50,6 +57,8 @@ export global Bridge {
     ];
     in-out property <AppState> app-state: AppState.Disconnected;
     in-out property <Panel>    active-panel: Panel.none;
+    in-out property <LifecycleMode> lifecycle: LifecycleMode.normal;
+    in-out property <int> mock-snapshot-secs: 5;
     in-out property <bool>     show-debug: false;
     in-out property <string>   test-status: "";
     in property <[QuickAction]> quick-actions: [];

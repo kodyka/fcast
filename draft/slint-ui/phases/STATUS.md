@@ -78,7 +78,7 @@ landed.
 | **15** Camera capture controls | `[ ] Not started — blocked by Rust camera capability for live data, but UI placeholder is unblocked` | `[ ] Not started` | `PHASE-15-reimplement-instructions.md` | No `pages/camera_page.slint`. |
 | **16** Bitrate quality presets | `[ ] Not started` | `[ ] Not started` | `PHASE-16-reimplement-instructions.md` | No `pages/bitrate_presets_page.slint` / `bitrate_preset_edit_page.slint`. |
 | **17** Quick-action customisation | `[ ] Not started` | `[ ] Not started` | `PHASE-17-reimplement-instructions.md` | No `pages/quick_actions_page.slint`. |
-| **18** Privacy / lifecycle modes | `[ ] Not started` | `[ ] Not started` | `PHASE-18-reimplement-instructions.md` | No `LockOverlay` / `StealthOverlay` / `SnapshotCountdown` siblings in `main.slint`. |
+| **18** Privacy / lifecycle modes | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-18-reimplement-instructions.md` | `main.slint` dynamically mounts overlays. |
 | **19** Settings backup / reset | `[ ] Not started` | `[ ] Not started` | `PHASE-19-reimplement-instructions.md` | No `pages/backup_reset_page.slint`, no shared `ConfirmDialog` component. |
 | **20** Cast history | `[ ] Not started` | `[ ] Not started` | `PHASE-20-reimplement-instructions.md` | No `pages/cast_history_page.slint`. |
 | **21** Help & support | `[ ] Not started` | `[ ] Not started` | `PHASE-21-reimplement-instructions.md` | No `pages/about_page.slint` / `version_history_page.slint` / `attributions_page.slint` / `help_page.slint`; the inline `ABOUT` section in `FullSettingsPage` is still the only About surface. |
