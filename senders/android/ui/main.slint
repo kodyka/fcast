@@ -69,10 +69,10 @@ export component MainWindow inherits Window {
     // Sibling to the VerticalLayout; declared AFTER so panels render on top of
     // the page + control bar. Each panel root is a Rectangle that fills the
     // window via `width/height: parent.*`, hiding what's behind.
-    if Bridge.active-panel == Panel.settings:   FullSettingsPage { }
-    if Bridge.active-panel == Panel.debug:      FullDebugPage { }
-    if Bridge.active-panel == Panel.codec-test: CodecTestPage { }
-    if Bridge.active-panel == Panel.audio:      AudioPage { }
+    if Bridge.active-panel == Panel.settings:      FullSettingsPage { }
+    if Bridge.active-panel == Panel.debug:         FullDebugPage { }
+    if Bridge.active-panel == Panel.codec-test:    CodecTestPage { }
+    if Bridge.active-panel == Panel.audio:          AudioPage { }
     if Bridge.active-panel == Panel.settings:      FullSettingsPage { }
     if Bridge.active-panel == Panel.debug:         FullDebugPage { }
     if Bridge.active-panel == Panel.codec-test:    CodecTestPage { }
