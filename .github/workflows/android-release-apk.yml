@@ -10,6 +10,20 @@ permissions:
   contents: write
 
 jobs:
+  # Phase 10 — fast static UI audit (no toolchain). Runs the audit-only mode
+  # of senders/android/ci/ui-validate.sh: touch-target, ListView nesting,
+  # Panel routing, and animate { duration: 0 } checks. The full build gate
+  # is exercised by the build-android-arm64-debug job below; this job exists
+  # to surface obvious issues quickly without waiting for the Android NDK.
+  ui-validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Phase 10 UI audit (audit-only mode)
+        run: senders/android/ci/ui-validate.sh --no-build
+
   build-android-arm64-debug:
     runs-on: ubuntu-24.04
     env:

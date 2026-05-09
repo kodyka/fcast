@@ -15,11 +15,18 @@
 
 ## 10-A — Build gate (run after every phase)
 
-- [ ] `cargo build -p android-sender` — zero errors.
-- [ ] `cargo test  -p android-sender` — all tests pass.
-- [ ] Slint compiler output: zero new warnings compared to Phase 0 baseline.
+- [x] `cargo build -p android-sender` — zero errors. *(automated via
+      `senders/android/ci/ui-validate.sh` and the `build-android-arm64-debug`
+      GitHub Actions job)*
+- [x] `cargo test  -p android-sender` — all tests pass. *(automated via
+      `senders/android/ci/ui-validate.sh`)*
+- [x] Slint compiler output: zero new warnings compared to Phase 0 baseline.
   - Especially watch for: `ERROR: missing layout size` and `Binding loop detected`.
-- [ ] For Android cross-compile (when CI is available): build `aarch64-linux-android` target.
+  *(automated — the script greps the build log for both strings and treats
+  any hit as a hard failure.)*
+- [x] For Android cross-compile (when CI is available): build `aarch64-linux-android` target.
+      *(`build-android-arm64-debug` runs `cargo xtask sender android build --target arm64`
+      on every push.)*
 
 ---
 
@@ -78,6 +85,9 @@ Android minimum recommended touch target: **48dp** (Material guidelines).
 
 ## 10-F — `ListView` scroll performance (stub-driven)
 
+- [x] Static `ListView`-in-`ScrollView` nesting audit — confirms no page
+      wraps a `ListView` inside a `ScrollView` (which would defeat
+      virtualization). *(automated via `senders/android/ci/ui-validate.sh`.)*
 - [ ] Temporarily expand `mock-devices` (Phase 6) to 50+ entries.
 - [ ] Scroll the list rapidly — confirm no janky frame drops.
 - [ ] Slint's `ListView` virtualizes by default — only visible rows are
@@ -101,6 +111,11 @@ Android minimum recommended touch target: **48dp** (Material guidelines).
 
 ## 10-H — Panel routing validation (UI-only)
 
+- [x] Static panel-routing audit — every `Panel.<variant>` routed in
+      `main.slint` has at least one setter, every variant referenced by a
+      page is routed, and every variant declared in `bridge.slint` is
+      either routed or set. *(automated via
+      `senders/android/ci/ui-validate.sh`.)*
 - [ ] From `CastControlBar`, tap the "Settings" stub action.
 - [ ] Confirm `FullSettingsPage` appears (it's `Bridge.active-panel = Panel.settings`).
 - [ ] Tap "Done" — confirm the panel closes (`Bridge.active-panel = Panel.none`).
