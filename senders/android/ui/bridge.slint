@@ -30,14 +30,32 @@ export enum AppState {
     Casting,
 }
 
+export enum LogLevel {
+    trace,
+    debug,
+    info,
+    warning,
+    error,
+}
+
+export struct LogEntry {
+    level:     LogLevel,
+    timestamp: string,
+    target:    string,
+    message:   string,
+}
+
 export enum Panel {
     none,
     settings,
     debug,
     codec-test,
     audio,
+    camera,
     quick-actions,
     recording,
+    debug-log,
+    debug-video,
     network,
 }
 

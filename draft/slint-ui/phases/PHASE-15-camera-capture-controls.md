@@ -4,7 +4,7 @@
 > framerate, mirror, stabilization, zoom). **UI-only — Rust camera capability
 > deferred.** All controls flip inline `in-out` properties.
 
-**Status:** `[ ] Not started — blocked by Rust camera capability for live data, but UI placeholder is unblocked`
+**Status:** `[x] Complete (UI-only)`
 **Depends on:** Phases 2, 3, 7
 **Functional integration:** Deferred — `senders/android/` has no `CameraX` /
 GStreamer camera source today. The placeholder UI is intentionally exhaustive
@@ -30,9 +30,9 @@ so that when Rust capability lands, only the binding source changes.
 
 ### 15-A — `CameraPage` panel
 
-- [ ] Create `senders/android/ui/pages/camera_page.slint` with header + Done
+- [x] Create `senders/android/ui/pages/camera_page.slint` with header + Done
   button + scrolling sections (mirror Phase 14 layout).
-- [ ] Inline stub state:
+- [x] Inline stub state:
 
   ```slint
   in-out property <int>   mock-camera-idx:       1;  // Front / Back / External
@@ -44,7 +44,7 @@ so that when Rust capability lands, only the binding source changes.
   in-out property <float> mock-zoom-level:       1.0; // 0.5 .. 5.0
   ```
 
-- [ ] Sections:
+- [x] Sections:
 
   ```
   SOURCE
@@ -63,13 +63,13 @@ so that when Rust capability lands, only the binding source changes.
                               snap the slider on click
   ```
 
-- [ ] **Build check.**
+- [x] **Build check.**
 
 ---
 
 ### 15-B — Zoom presets row
 
-- [ ] Implement preset chips that set `mock-zoom-level` directly:
+- [x] Implement preset chips that set `mock-zoom-level` directly:
 
   ```slint
   HorizontalLayout {
@@ -90,9 +90,9 @@ so that when Rust capability lands, only the binding source changes.
 
 ### 15-C — Bridge + settings root linking
 
-- [ ] In `bridge.slint`, extend `Panel`: add `camera`.
-- [ ] In `main.slint`, add `if Bridge.active-panel == Panel.camera: CameraPage { }`.
-- [ ] In `FullSettingsPage`, add a row:
+- [x] In `bridge.slint`, extend `Panel`: add `camera`.
+- [x] In `main.slint`, add `if Bridge.active-panel == Panel.camera: CameraPage { }`.
+- [x] In `FullSettingsPage`, add a row:
 
   ```slint
   SettingsValueRow {
