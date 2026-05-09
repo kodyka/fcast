@@ -44,6 +44,8 @@ import { AudioPage }                    from "pages/audio_page.slint";
 import { CameraPage }                   from "pages/camera_page.slint";
 import { QuickActionsPage }             from "pages/quick_actions_page.slint";
 import { RecordingPage }                from "pages/recording_page.slint";
+import { MacrosPage }                   from "pages/macros_page.slint";
+import { MacroEditPage }                from "pages/macro_edit_page.slint";
 import { DebugLogPage }                 from "pages/debug_log_page.slint";
 import { DebugVideoPage }               from "pages/debug_video_page.slint";
 import { NetworkPage }                  from "pages/network_page.slint";
@@ -84,6 +86,8 @@ export component MainWindow inherits Window {
     if Bridge.active-panel == Panel.camera:        CameraPage { }
     if Bridge.active-panel == Panel.quick-actions: QuickActionsPage { }
     if Bridge.active-panel == Panel.recording:     RecordingPage { }
+    if Bridge.active-panel == Panel.macros:        MacrosPage { }
+    if Bridge.active-panel == Panel.macro-edit:    MacroEditPage { }
     if Bridge.active-panel == Panel.debug-log:     DebugLogPage { }
     if Bridge.active-panel == Panel.debug-video:   DebugVideoPage { }
     if Bridge.active-panel == Panel.network:       NetworkPage { }

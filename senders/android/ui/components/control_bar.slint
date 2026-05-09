@@ -28,7 +28,12 @@ export component QuickActionButton inherits Rectangle {
         clicked => { root.invoked(root.action.id); }
     }
     Text {
-        text: root.action.title;
+        // Macro-flagged actions get a ▶ glyph prefix. The quick-action
+        // customisation page (Phase 17) treats id == "macro:<id>" as
+        // shorthand for "this bar entry runs macro <id>".
+        text: root.action.is-macro
+            ? "▶ " + root.action.title
+            : root.action.title;
         color: Theme.text-primary;
         horizontal-alignment: center;
         vertical-alignment: center;

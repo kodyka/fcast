@@ -3,7 +3,7 @@
 > Settings sub-page for defining macros (named action chains). **UI-only.**
 > Macros are stored as inline mock model and run no real commands.
 
-**Status:** `[ ] Not started`
+**Status:** `[x] Complete (UI-only)`
 **Depends on:** Phases 2, 3, 7, 17 (quick-action customization)
 **Functional integration:** Deferred — needs a macro execution engine in Rust.
 **Moblin source analogues:**
@@ -21,7 +21,7 @@
 
 ### 25-A — `Macro` / `MacroStep` structs
 
-- [ ] In `bridge.slint`:
+- [x] In `bridge.slint`:
 
   ```slint
   export struct MacroStep {
@@ -41,7 +41,7 @@
 
 ### 25-B — `MacrosPage` (list)
 
-- [ ] Inline mock model:
+- [x] Inline mock model:
 
   ```slint
   in-out property <[Macro]> mock-macros: [
@@ -63,19 +63,19 @@
   ];
   ```
 
-- [ ] Each row: name + step count badge ("3 steps") + enable toggle. Tap row
+- [x] Each row: name + step count badge ("3 steps") + enable toggle. Tap row
   → opens edit page with selected macro id.
-- [ ] Trailing "Add macro" `PrimaryButton` opens a blank edit page.
+- [x] Trailing "Add macro" `PrimaryButton` opens a blank edit page.
 
 ---
 
 ### 25-C — `MacroEditPage`
 
-- [ ] Top: name `LineEdit`, enable toggle.
-- [ ] Body: vertical list of step rows (label + remove button + ▲▼ reorder).
-- [ ] Bottom: "Add step" `PrimaryButton` opens an inline picker showing all
+- [x] Top: name `LineEdit`, enable toggle.
+- [x] Body: vertical list of step rows (label + remove button + ▲▼ reorder).
+- [x] Bottom: "Add step" `PrimaryButton` opens an inline picker showing all
   available action ids (sourced from a hard-coded list of bar action ids).
-- [ ] Save / Cancel buttons in the header. Save returns to the list page;
+- [x] Save / Cancel buttons in the header. Save returns to the list page;
   in UI-only build, neither persists past the macros list's `in-out`
   property.
 
@@ -83,20 +83,20 @@
 
 ### 25-D — Quick-action shortcut for "Run macro X"
 
-- [ ] In Phase 17's quick-action customization, document that macros can be
+- [x] In Phase 17's quick-action customization, document that macros can be
   surfaced as bar actions with id `"macro:<id>"`. This phase wires the visual
   side: when a bar action's id starts with `macro:`, render its title with a
   small ▶ glyph prefix.
-- [ ] The glyph prefix is purely cosmetic — actual macro execution wiring is
+- [x] The glyph prefix is purely cosmetic — actual macro execution wiring is
   parked in `futures/`.
 
 ---
 
 ### 25-E — Bridge + linking
 
-- [ ] Extend `Panel`: `macros`, `macro-edit`.
-- [ ] Route in `main.slint`.
-- [ ] Link from `FullSettingsPage` "AUTOMATION" section (new section
+- [x] Extend `Panel`: `macros`, `macro-edit`.
+- [x] Route in `main.slint`.
+- [x] Link from `FullSettingsPage` "AUTOMATION" section (new section
   introduced here).
 
 ---

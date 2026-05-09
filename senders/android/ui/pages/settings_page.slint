@@ -224,6 +224,16 @@ export component FullSettingsPage inherits Rectangle {
                     }
                 }
 
+                // ── Section: AUTOMATION ───────────────────────────────────
+                SettingsSection {
+                    title: "AUTOMATION";
+                    SettingsValueRow {
+                        title: "Macros";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.macros; }
+                    }
+                }
+
                 // ── Section: ABOUT ────────────────────────────────────────
                 SettingsSection {
                     title: "ABOUT";

@@ -85,7 +85,7 @@ landed.
 | **22** Network interfaces / Wi-Fi Aware | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-22-reimplement-instructions.md` | `pages/network_page.slint` + `NetworkInterface` struct in `bridge.slint` |
 | **23** Local recording | `[ ] Not started — blocked by Rust recording capability for live data, but UI placeholder is unblocked` | `[ ] Not started` | `PHASE-23-reimplement-instructions.md` | No `pages/recording_page.slint`. |
 | **24** Pairing QR + receiver management | `[ ] Not started` | `[ ] Not started` | `PHASE-24-reimplement-instructions.md` | No `pages/pairing_page.slint` / `receiver_rename_page.slint`; no QR placeholder component. |
-| **25** Macros / action chains | `[ ] Not started` | `[ ] Not started` | `PHASE-25-reimplement-instructions.md` | No `pages/macros_page.slint` / `macro_edit_page.slint`; no `Macro` / `MacroStep` structs in `bridge.slint`. |
+| **25** Macros / action chains | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-25-reimplement-instructions.md` | `pages/macros_page.slint` / `macro_edit_page.slint` exist; `Macro` / `MacroStep` structs in `bridge.slint`. |
 | **26** Debug log viewer | `[ ] Not started` | `[ ] Not started` | `PHASE-26-reimplement-instructions.md` | No `pages/debug_log_page.slint` / `debug_video_page.slint`; the legacy `Show debug panel` toggle in `FullSettingsPage` is still the only debug surface. |
 | **27** Utility components backlog | `[~] Ongoing — pull from this list when a downstream phase needs a util` | `[~] Ongoing` | `PHASE-27-reimplement-instructions.md` | No utilities extracted yet; the guide ships `IconAndText` + `InfoBanner` + `ValueEditChip` as pre-defined extraction targets. |
 

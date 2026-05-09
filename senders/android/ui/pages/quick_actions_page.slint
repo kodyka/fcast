@@ -107,11 +107,11 @@ component QuickActionRow inherits Rectangle {
 export component QuickActionsPage inherits Rectangle {
     // ── UI-only stub state (page-local copy) ────────────────────────────
     in-out property <[QuickAction]> mock-bar-actions: [
-        { id: "scan-qr",    title: "Scan QR",     enabled: true,  active: false },
-        { id: "settings",   title: "Settings",    enabled: true,  active: false },
-        { id: "debug",      title: "Debug",       enabled: false, active: false },
-        { id: "codec-test", title: "Codec Test",  enabled: true,  active: false },
-        { id: "audio",      title: "Audio",       enabled: true,  active: false },
+        { id: "scan-qr",    title: "Scan QR",     enabled: true,  active: false, is-macro: false },
+        { id: "settings",   title: "Settings",    enabled: true,  active: false, is-macro: false },
+        { id: "debug",      title: "Debug",       enabled: false, active: false, is-macro: false },
+        { id: "codec-test", title: "Codec Test",  enabled: true,  active: false, is-macro: false },
+        { id: "audio",      title: "Audio",       enabled: true,  active: false, is-macro: false },
     ];
 
     width: 100%;
@@ -141,19 +141,19 @@ export component QuickActionsPage inherits Rectangle {
         // Same shape — rebuild with the targeted entry's `enabled` flipped.
         root.mock-bar-actions = [
             { id: root.mock-bar-actions[0].id, title: root.mock-bar-actions[0].title,
-              active: root.mock-bar-actions[0].active,
+              active: root.mock-bar-actions[0].active, is-macro: root.mock-bar-actions[0].is-macro,
               enabled: 0 == idx ? value : root.mock-bar-actions[0].enabled },
             { id: root.mock-bar-actions[1].id, title: root.mock-bar-actions[1].title,
-              active: root.mock-bar-actions[1].active,
+              active: root.mock-bar-actions[1].active, is-macro: root.mock-bar-actions[1].is-macro,
               enabled: 1 == idx ? value : root.mock-bar-actions[1].enabled },
             { id: root.mock-bar-actions[2].id, title: root.mock-bar-actions[2].title,
-              active: root.mock-bar-actions[2].active,
+              active: root.mock-bar-actions[2].active, is-macro: root.mock-bar-actions[2].is-macro,
               enabled: 2 == idx ? value : root.mock-bar-actions[2].enabled },
             { id: root.mock-bar-actions[3].id, title: root.mock-bar-actions[3].title,
-              active: root.mock-bar-actions[3].active,
+              active: root.mock-bar-actions[3].active, is-macro: root.mock-bar-actions[3].is-macro,
               enabled: 3 == idx ? value : root.mock-bar-actions[3].enabled },
             { id: root.mock-bar-actions[4].id, title: root.mock-bar-actions[4].title,
-              active: root.mock-bar-actions[4].active,
+              active: root.mock-bar-actions[4].active, is-macro: root.mock-bar-actions[4].is-macro,
               enabled: 4 == idx ? value : root.mock-bar-actions[4].enabled },
         ];
     }
