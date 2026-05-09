@@ -302,16 +302,16 @@ git commit -m "feat(slint-ui): Phase 12 — capture preview placeholder card on 
 
 ## Exit criteria checklist
 
-- [x] `components/capture_preview.slint` exists with `export component CapturePreview`.
-- [x] Component takes `mock-source-label: string` and `mock-active: bool` properties.
-- [x] Background `Rectangle` opacity-tint is declared **before** the centre `VerticalLayout` (label paints on top of tint).
-- [x] `clip: true` is set on the outer Rectangle.
-- [x] `casting_page.slint` imports and instantiates `CapturePreview`.
-- [x] `StatusOverlay` declaration appears **after** `CapturePreview` in the casting page (paints on top).
-- [x] LIVE state shows `● LIVE` in `Theme.error` color; Idle state shows `○ Idle` in `Theme.text-secondary`.
-- [x] `mock-source-label` renders centered below the LIVE/Idle badge.
-- [x] `cargo build -p android-sender` passes.
-- [x] `slint-viewer senders/android/ui/components/capture_preview.slint` opens the component standalone (optional).
+- [ ] `components/capture_preview.slint` exists with `export component CapturePreview`.
+- [ ] Component takes `mock-source-label: string` and `mock-active: bool` properties.
+- [ ] Background `Rectangle` opacity-tint is declared **before** the centre `VerticalLayout` (label paints on top of tint).
+- [ ] `clip: true` is set on the outer Rectangle.
+- [ ] `casting_page.slint` imports and instantiates `CapturePreview`.
+- [ ] `StatusOverlay` declaration appears **after** `CapturePreview` in the casting page (paints on top).
+- [ ] LIVE state shows `● LIVE` in `Theme.error` color; Idle state shows `○ Idle` in `Theme.text-secondary`.
+- [ ] `mock-source-label` renders centered below the LIVE/Idle badge.
+- [ ] `cargo build -p android-sender` passes.
+- [ ] `slint-viewer senders/android/ui/components/capture_preview.slint` opens the component standalone (optional).
 
 ---
 

@@ -5,7 +5,7 @@
 > minimize the running app), and Snapshot countdown (timed cast-start
 > countdown). **UI-only — no real lock / inactivity / snapshot behaviour.**
 
-**Status:** `[x] Complete (UI-only)`
+**Status:** `[ ] Not started`
 **Depends on:** Phases 1, 2, 3
 **Functional integration:** Deferred — no Android `KeyguardManager` /
 `FLAG_SECURE` / `View.SYSTEM_UI_FLAG_*` integration.
@@ -27,7 +27,7 @@
 
 ### 18-A — `LifecycleMode` enum
 
-- [x] In `bridge.slint`:
+- [ ] In `bridge.slint`:
 
   ```slint
   export enum LifecycleMode {
@@ -38,7 +38,7 @@
   }
   ```
 
-- [x] Add to `Bridge`:
+- [ ] Add to `Bridge`:
 
   ```slint
       in-out property <LifecycleMode> lifecycle: LifecycleMode.normal;
@@ -49,36 +49,36 @@
 
 ### 18-B — `LockOverlay` component
 
-- [x] `lock_overlay.slint`: a full-window translucent overlay with a centered
+- [ ] `lock_overlay.slint`: a full-window translucent overlay with a centered
   card showing a lock glyph + "UI Locked" + "Tap and hold for 1.5s to unlock".
-- [x] Implement the long-press unlock by accumulating in a Slint `Timer`
+- [ ] Implement the long-press unlock by accumulating in a Slint `Timer`
   (`property <duration> hold-elapsed`), and on completion set
   `Bridge.lifecycle = LifecycleMode.normal`.
-- [x] Visual unlock-progress ring around the lock glyph (animated `Path` or
+- [ ] Visual unlock-progress ring around the lock glyph (animated `Path` or
   ring of `Rectangle` segments rotating into focus).
 
 ---
 
 ### 18-C — `StealthOverlay` component
 
-- [x] Renders a near-black screen with a tiny "Tap to wake" hint at the
+- [ ] Renders a near-black screen with a tiny "Tap to wake" hint at the
   bottom. Tapping anywhere flips `Bridge.lifecycle = LifecycleMode.normal`.
 
 ---
 
 ### 18-D — `SnapshotCountdown` component
 
-- [x] Big numeric countdown from `Bridge.mock-snapshot-secs` to 0 using a
+- [ ] Big numeric countdown from `Bridge.mock-snapshot-secs` to 0 using a
   Slint `Timer { interval: 1s; running: ...; triggered => { ... } }`.
-- [x] On reaching 0, set `Bridge.lifecycle = LifecycleMode.normal` (UI-only —
+- [ ] On reaching 0, set `Bridge.lifecycle = LifecycleMode.normal` (UI-only —
   doesn't actually start a cast).
-- [x] Cancel button below the countdown returns to `normal`.
+- [ ] Cancel button below the countdown returns to `normal`.
 
 ---
 
 ### 18-E — Layer overlays into `MainWindow`
 
-- [x] In `main.slint`:
+- [ ] In `main.slint`:
 
   ```slint
   if Bridge.lifecycle == LifecycleMode.lock-screen:        LockOverlay { }
@@ -90,7 +90,7 @@
 
 ### 18-F — Settings entries in `FullSettingsPage`
 
-- [x] Add a "PRIVACY" section with three trigger rows:
+- [ ] Add a "PRIVACY" section with three trigger rows:
 
   ```
   Lock UI                  → Bridge.lifecycle = LifecycleMode.lock-screen
@@ -98,7 +98,7 @@
   Cast with countdown      → Bridge.lifecycle = LifecycleMode.snapshot-countdown
   ```
 
-- [x] These rows are the only way to enter each mode in the UI-only build.
+- [ ] These rows are the only way to enter each mode in the UI-only build.
 
 ---
 

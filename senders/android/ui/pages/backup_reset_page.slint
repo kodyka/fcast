@@ -1,0 +1,192 @@
+// backup_reset_page.slint — Settings backup / import / reset (UI-only).
+//
+// Reachable from FullSettingsPage's "Backup & reset" row in DATA.
+// Export/Import buttons trigger pretend-success banners; destructive
+// rows go through a ConfirmDialog. UI-only — no real file I/O, no real
+// persistence reset.
+//
+// Slint docs ref:
+//   draft/slint-ui/docs/astro/src/content/docs/reference/std-widgets/views/scrollview.mdx
+//   draft/slint-ui/docs/astro/src/content/docs/reference/timer.mdx
+
+import { ScrollView } from "std-widgets.slint";
+import { Bridge, Panel } from "../bridge.slint";
+import { Theme } from "../theme.slint";
+import { TextButton } from "../components/buttons.slint";
+import {
+    SettingsSection,
+    SettingsValueRow,
+} from "../components/settings_rows.slint";
+import { ConfirmDialog } from "../components/confirm_dialog.slint";
+
+export component BackupResetPage inherits Rectangle {
+    // ── Banner state (auto-hide via Timer, same pattern as Phase 22) ────
+    property <bool>   banner-visible: false;
+    property <string> banner-message: "";
+    property <int>    banner-ticks: 0;
+
+    // ── Dialog state ────────────────────────────────────────────────────
+    //
+    // pending-action is one of:
+    //   ""               — no dialog
+    //   "reset-all"      — Reset all settings
+    //   "clear-history"  — Clear cast history
+    //   "clear-receivers"— Clear known receivers
+    property <string> pending-action: "";
+
+    width: 100%;
+    height: 100%;
+    background: Theme.surface-primary;
+
+    // Banner auto-hide.
+    Timer {
+        interval: 100ms;
+        running: root.banner-ticks > 0;
+        triggered => {
+            root.banner-ticks -= 1;
+            if (root.banner-ticks == 0) {
+                root.banner-visible = false;
+            }
+        }
+    }
+
+    // Helper: show a banner with the given message.
+    function show-banner(message: string) {
+        root.banner-message = message;
+        root.banner-visible = true;
+        root.banner-ticks = 30; // 3 seconds / 100ms
+    }
+
+    // Helper: confirm-dispatch — dispatched by the dialog's confirmed()
+    // callback based on the pending-action.
+    function on-confirm() {
+        if (root.pending-action == "reset-all") {
+            root.show-banner("Settings reset (placeholder).");
+        } else if (root.pending-action == "clear-history") {
+            root.show-banner("Cast history cleared (placeholder).");
+        } else if (root.pending-action == "clear-receivers") {
+            root.show-banner("Known receivers cleared (placeholder).");
+        }
+        root.pending-action = "";
+    }
+
+    // Helper: pure derivation of the dialog title for the current action.
+    pure function dialog-title(action: string) -> string {
+        return action == "reset-all"        ? "Reset all settings?" :
+               action == "clear-history"    ? "Clear cast history?"  :
+               action == "clear-receivers"  ? "Clear known receivers?" :
+                                               "";
+    }
+    pure function dialog-body(action: string) -> string {
+        return action == "reset-all"
+                 ? "All settings will be restored to defaults. This cannot be undone."
+             : action == "clear-history"
+                 ? "Past cast sessions will be removed from the history list."
+             : action == "clear-receivers"
+                 ? "Known receivers will be forgotten and rediscovered next scan."
+             : "";
+    }
+    pure function dialog-confirm-label(action: string) -> string {
+        return action == "reset-all"        ? "Reset" :
+               action == "clear-history"    ? "Clear" :
+               action == "clear-receivers"  ? "Clear" :
+                                               "OK";
+    }
+
+    VerticalLayout {
+        // ── Header ──────────────────────────────────────────────────────
+        Rectangle {
+            height: 56px;
+            background: Theme.surface-card;
+            HorizontalLayout {
+                padding: Theme.padding-screen;
+                Text {
+                    text: "Backup & reset";
+                    color: Theme.text-primary;
+                    font-size: Theme.font-size-heading;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+                TextButton {
+                    label: "Done";
+                    clicked => { Bridge.active-panel = Panel.none; }
+                }
+            }
+        }
+
+        // ── Banner ──────────────────────────────────────────────────────
+        if root.banner-visible: Rectangle {
+            height: 40px;
+            background: Theme.accent-active.darker(20%);
+            HorizontalLayout {
+                padding: Theme.padding-screen;
+                Text {
+                    text: root.banner-message;
+                    color: Theme.text-primary;
+                    vertical-alignment: center;
+                    font-size: Theme.font-size-label;
+                }
+            }
+        }
+
+        ScrollView {
+            VerticalLayout {
+                spacing: Theme.spacing-default;
+                padding: Theme.padding-screen;
+
+                // ── Section: BACKUP ─────────────────────────────────────
+                SettingsSection {
+                    title: "BACKUP";
+                    SettingsValueRow {
+                        title: "Export settings to file";
+                        value: "";
+                        clicked => {
+                            root.show-banner("Exported to ~/fcast-backup.json (placeholder).");
+                        }
+                    }
+                    SettingsValueRow {
+                        title: "Import settings from file";
+                        value: "";
+                        clicked => {
+                            root.show-banner("Settings imported (placeholder).");
+                        }
+                    }
+                }
+
+                // ── Section: RESET ──────────────────────────────────────
+                SettingsSection {
+                    title: "RESET";
+                    SettingsValueRow {
+                        title: "Reset all settings";
+                        value: "";
+                        clicked => { root.pending-action = "reset-all"; }
+                    }
+                    SettingsValueRow {
+                        title: "Clear cast history";
+                        value: "";
+                        clicked => { root.pending-action = "clear-history"; }
+                    }
+                    SettingsValueRow {
+                        title: "Clear known receivers";
+                        value: "";
+                        clicked => { root.pending-action = "clear-receivers"; }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Dialog overlay (last in the parent so it paints on top) ──────────
+    if root.pending-action != "": ConfirmDialog {
+        title:          root.dialog-title(root.pending-action);
+        body:           root.dialog-body(root.pending-action);
+        confirm-label:  root.dialog-confirm-label(root.pending-action);
+        destructive:    true;     // all three reset actions are destructive
+        confirmed => {
+            root.on-confirm();
+            // pending-action is reset to "" inside on-confirm(), which
+            // collapses the conditional and removes the dialog.
+        }
+        dismissed => { root.pending-action = ""; }
+    }
+}

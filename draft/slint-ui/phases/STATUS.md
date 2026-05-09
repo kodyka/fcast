@@ -79,7 +79,7 @@ landed.
 | **16** Bitrate quality presets | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-16-reimplement-instructions.md` | `pages/bitrate_presets_page.slint` and `pages/bitrate_preset_edit_page.slint` implemented. |
 | **17** Quick-action customisation | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-17-reimplement-instructions.md` | `pages/quick_actions_page.slint` exists and implements `QuickActionsPage`, added variant to `bridge.slint` enum `Panel`. |
 | **18** Privacy / lifecycle modes | `[ ] Not started` | `[ ] Not started` | `PHASE-18-reimplement-instructions.md` | No `LockOverlay` / `StealthOverlay` / `SnapshotCountdown` siblings in `main.slint`. |
-| **19** Settings backup / reset | `[ ] Not started` | `[ ] Not started` | `PHASE-19-reimplement-instructions.md` | No `pages/backup_reset_page.slint`, no shared `ConfirmDialog` component. |
+| **19** Settings backup / reset | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-19-reimplement-instructions.md` | `pages/backup_reset_page.slint`, shared `ConfirmDialog` component. |
 | **20** Cast history | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-20-reimplement-instructions.md` | `pages/cast_history_page.slint` and `pages/cast_history_detail_page.slint` exist. |
 | **21** Help & support | `[ ] Not started` | `[ ] Not started` | `PHASE-21-reimplement-instructions.md` | No `pages/about_page.slint` / `version_history_page.slint` / `attributions_page.slint` / `help_page.slint`; the inline `ABOUT` section in `FullSettingsPage` is still the only About surface. |
 | **22** Network interfaces / Wi-Fi Aware | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-22-reimplement-instructions.md` | `pages/network_page.slint` + `NetworkInterface` struct in `bridge.slint` |
@@ -125,9 +125,11 @@ that have not been settled, so guides for them would be premature.
   Phase 8 reactivates" sections from every UI guide.
 - **Phases 9, 10, 11** are ongoing meta-phases. None of them ships a single
   on/off implementation — they wrap or run alongside other phases.
-- **Phase 12 is complete (UI-only).** Phases 13–27 have step-by-step
-  reimplement guides (PR #1) but **no** code in `senders/android/ui/`. A
-  reader can pick any of these and follow the guide to land the phase.
+- **Phases 13–17, 19, 22, 24, 25** are landed as UI-only (see the table
+  above for the exact files). **Phases 12, 18, 20, 21, 23, 26** still
+  have only their step-by-step reimplement guides (PR #1) and no code in
+  `senders/android/ui/` — a reader can pick any of those remaining phases
+  and follow the guide to land them.
 - **Phases 28–48** ship spec only. Guides for these are deferred until the
   upstream architectural decisions land.
 
@@ -139,8 +141,6 @@ that have not been settled, so guides for them would be premature.
 | `PHASE-5-status-overlay.md` | `[ ] UI placeholder — no functionality` | `[x] Complete (UI-only — Rust wiring deferred to Phase 8)` | Wording aligned with the canonical taxonomy. The substance is unchanged. |
 | `PHASE-6-receiver-list.md` | `[ ] UI placeholder — no functionality` | `[x] Complete (UI-only — Rust wiring deferred to Phase 8)` | Same. |
 | `PHASE-7-settings-pages.md` | `[ ] UI placeholder — no functionality` | `[x] Complete (UI-only — Rust wiring deferred to Phase 8)` | Same. |
-
-| `PHASE-12-capture-preview.md` | `[ ] Not started` | `[x] Complete (UI-only)` | `CapturePreview` component added in `components/capture_preview.slint` and embedded in `casting_page.slint`. |
 
 No other per-phase status lines change in this PR — every other line is
 already accurate.

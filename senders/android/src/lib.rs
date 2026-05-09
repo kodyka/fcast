@@ -986,16 +986,16 @@ fn android_main(app: PlatformApp) {
 
 
     let mut actions = vec![
-        QuickAction { id: "scan-qr".into(), title: "Scan QR".into(), enabled: true, active: false },
+        QuickAction { id: "scan-qr".into(), title: "Scan QR".into(), enabled: true, active: false, is_macro: false },
     ];
     let show_debug = cfg!(debug_assertions);
     ui.global::<Bridge>().set_show_debug(show_debug);
     if show_debug {
         actions.extend([
-            QuickAction { id: "migrated-server".into(), title: "Start Server".into(), enabled: true, active: false },
-            QuickAction { id: "test-getinfo".into(),    title: "GetInfo".into(),      enabled: true, active: false },
-            QuickAction { id: "test-crossfade".into(),  title: "Crossfade".into(),    enabled: true, active: false },
-            QuickAction { id: "test-smoke".into(),      title: "Smoke Graph".into(),  enabled: true, active: false },
+            QuickAction { id: "migrated-server".into(), title: "Start Server".into(), enabled: true, active: false, is_macro: false },
+            QuickAction { id: "test-getinfo".into(),    title: "GetInfo".into(),      enabled: true, active: false, is_macro: false },
+            QuickAction { id: "test-crossfade".into(),  title: "Crossfade".into(),    enabled: true, active: false, is_macro: false },
+            QuickAction { id: "test-smoke".into(),      title: "Smoke Graph".into(),  enabled: true, active: false, is_macro: false },
         ]);
     }
     let model = std::rc::Rc::new(slint::VecModel::from(actions));

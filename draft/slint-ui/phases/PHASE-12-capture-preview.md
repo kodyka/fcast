@@ -4,7 +4,7 @@
 > no real frame data.** The preview shows a static placeholder image / pattern
 > until Rust exposes the captured frame source.
 
-**Status:** `[x] Complete (UI-only)`
+**Status:** `[ ] Not started`
 **Depends on:** Phases 1, 2, 5 (status overlay co-locates here)
 **Functional integration:** Deferred — no MediaProjection / surface texture wiring.
 **Moblin source analogues:** `View/Stream/StreamView.swift`
@@ -25,8 +25,8 @@ screen/audio source. Real GStreamer frame data is parked in `futures/`.
 
 ### 12-A — Component `CapturePreview`
 
-- [x] Create `senders/android/ui/components/capture_preview.slint`.
-- [x] Implement:
+- [ ] Create `senders/android/ui/components/capture_preview.slint`.
+- [ ] Implement:
 
   ```slint
   import { Theme } from "../theme.slint";
@@ -66,13 +66,13 @@ screen/audio source. Real GStreamer frame data is parked in `futures/`.
   }
   ```
 
-- [x] **Build check.**
+- [ ] **Build check.**
 
 ---
 
 ### 12-B — Embed in `CastingView`
 
-- [x] In `casting_page.slint`, add `CapturePreview` between the page padding
+- [ ] In `casting_page.slint`, add `CapturePreview` between the page padding
   and the existing "Casting" title:
 
   ```slint
@@ -84,17 +84,17 @@ screen/audio source. Real GStreamer frame data is parked in `futures/`.
   }
   ```
 
-- [x] Status overlay (Phase 5) should still render on top — verify z-order.
-- [x] **Build check.**
+- [ ] Status overlay (Phase 5) should still render on top — verify z-order.
+- [ ] **Build check.**
 
 ---
 
 ## Exit criteria
 
-- [x] 1. `CapturePreview` renders a card with "● LIVE" + label.
-- [x] 2. Toggling `mock-active: false` shows "○ Idle" with muted background.
-- [x] 3. Status overlay continues to render above the preview.
-- [x] 4. `cargo build -p android-sender` passes.
+1. `CapturePreview` renders a card with "● LIVE" + label.
+2. Toggling `mock-active: false` shows "○ Idle" with muted background.
+3. Status overlay continues to render above the preview.
+4. `cargo build -p android-sender` passes.
 
 ---
 

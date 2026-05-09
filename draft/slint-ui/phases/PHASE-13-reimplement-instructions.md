@@ -147,15 +147,18 @@ export component StatusBadgesRow inherits Rectangle {
         Badge {
             icon-glyph: root.mock-thermal == "Critical" ? "🔥" : "🌡";
             value: root.mock-thermal;
-            fg: root.mock-thermal == "Critical" ? Theme.error
-              : root.mock-thermal == "Serious"  ? Theme.warning
+            // `*-fg` severity tokens — bright variants suitable as text on
+            // surface-overlay; `Theme.error` / `Theme.warning` are
+            // background fills.
+            fg: root.mock-thermal == "Critical" ? Theme.error-fg
+              : root.mock-thermal == "Serious"  ? Theme.warning-fg
               :                                    Theme.text-secondary;
         }
 
         Badge {
             icon-glyph: root.mock-charging ? "⚡" : "🔋";
             value: "\{root.mock-battery-pct}%";
-            fg: root.mock-battery-pct < 20 ? Theme.error : Theme.text-secondary;
+            fg: root.mock-battery-pct < 20 ? Theme.error-fg : Theme.text-secondary;
         }
     }
 }
@@ -225,10 +228,10 @@ Test each severity branch by temporarily editing the embed site, run `slint-view
 
 | Test | Edit | Expected |
 |---|---|---|
-| Low battery | `mock-battery-pct: 8;` | Battery glyph + "8%" rendered in `Theme.error` (red). |
+| Low battery | `mock-battery-pct: 8;` | Battery glyph + "8%" rendered in `Theme.error-fg` (bright red). |
 | Charging | `mock-charging: true;` | Glyph flips from 🔋 to ⚡; colour stays text-secondary. |
-| Critical thermal | `mock-thermal: "Critical";` | Thermal glyph flips to 🔥, fg in `Theme.error`. |
-| Serious thermal | `mock-thermal: "Serious";` | Thermal stays 🌡 but fg in `Theme.warning` (amber). |
+| Critical thermal | `mock-thermal: "Critical";` | Thermal glyph flips to 🔥, fg in `Theme.error-fg` (bright red). |
+| Serious thermal | `mock-thermal: "Serious";` | Thermal stays 🌡 but fg in `Theme.warning-fg` (bright amber). |
 | Cellular | `mock-network: "5G";` | Value renders "5G" instead of "Wi-Fi"; no other change. |
 
 Use `git stash` per Phase 10 § Gotcha 65 so test edits don't accidentally land:
@@ -351,9 +354,9 @@ This single-line theme PR is shared with Phase 20 (cast history pill), Phase 27 
 - [ ] `HorizontalLayout` uses `alignment: end` and `padding-right: Theme.padding-screen`.
 - [ ] All three badges (network, thermal, battery) render in nominal state (Wi-Fi / Nominal / 87%).
 - [ ] Battery glyph flips between 🔋 and ⚡ based on `mock-charging`.
-- [ ] Battery fg goes red (`Theme.error`) when `mock-battery-pct < 20`.
+- [ ] Battery fg goes red (`Theme.error-fg`) when `mock-battery-pct < 20`.
 - [ ] Thermal glyph flips between 🌡 and 🔥 when `mock-thermal == "Critical"`.
-- [ ] Thermal fg is amber (`Theme.warning`) for `"Serious"` and red for `"Critical"`.
+- [ ] Thermal fg is amber (`Theme.warning-fg`) for `"Serious"` and red for `"Critical"`.
 - [ ] `main.slint` imports `StatusBadgesRow` and instantiates it immediately above `CastControlBar`.
 - [ ] No raw hex colours in `status_badges.slint` — all via `Theme.*`.
 - [ ] `cargo build -p android-sender` passes.
