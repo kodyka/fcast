@@ -4,7 +4,7 @@
 > a Wi-Fi Aware (NAN) opt-in toggle. **UI-only — no real interface
 > enumeration, no Wi-Fi Aware permission flow.**
 
-**Status:** `[ ] Not started`
+**Status:** `[x] Complete (UI-only)`
 **Depends on:** Phases 2, 3, 7
 **Functional integration:** Deferred — Wi-Fi Aware (NAN) requires
 `android.permission.ACCESS_FINE_LOCATION` + `WifiAwareManager` API and is
@@ -23,7 +23,7 @@ blocked on Rust capability.
 
 ### 22-A — `NetworkInterface` struct
 
-- [ ] In `bridge.slint`:
+- [x] In `bridge.slint`:
 
   ```slint
   export struct NetworkInterface {
@@ -39,7 +39,7 @@ blocked on Rust capability.
 
 ### 22-B — `NetworkPage`
 
-- [ ] Inline mock model:
+- [x] Inline mock model:
 
   ```slint
   in-out property <[NetworkInterface]> mock-interfaces: [
@@ -50,7 +50,7 @@ blocked on Rust capability.
   in-out property <bool> mock-wifi-aware-enabled: false;
   ```
 
-- [ ] Sections:
+- [x] Sections:
 
   ```
   INTERFACES
@@ -64,22 +64,22 @@ blocked on Rust capability.
      not request the permission in this build (placeholder)."]
   ```
 
-- [ ] **Build check.**
+- [x] **Build check.**
 
 ---
 
 ### 22-C — Wi-Fi Aware permission preview banner
 
-- [ ] When `mock-wifi-aware-enabled` flips to `true`, show a transient banner:
+- [x] When `mock-wifi-aware-enabled` flips to `true`, show a transient banner:
   "Wi-Fi Aware enabled (placeholder — no permission requested)."
 
 ---
 
 ### 22-D — Bridge + linking
 
-- [ ] Extend `Panel` with `network`.
-- [ ] Route in `main.slint`.
-- [ ] Link from `FullSettingsPage` "ADVANCED" section.
+- [x] Extend `Panel` with `network`.
+- [x] Route in `main.slint`.
+- [x] Link from `FullSettingsPage` "ADVANCED" section.
 
 ---
 

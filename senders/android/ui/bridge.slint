@@ -44,9 +44,11 @@ export enum Panel {
     debug,
     codec-test,
     audio,
+    camera,
     quick-actions,
     debug-log,
     debug-video,
+    network,
 }
 
 export struct QuickAction {
@@ -67,6 +69,14 @@ export struct StatusItem {
 export struct ReceiverItem {
     name:    string,
     address: string,
+}
+
+export struct NetworkInterface {
+    name:        string,
+    kind:        string,    // "wifi" / "ethernet" / "cellular" / "loopback"
+    address-v4:  string,
+    address-v6:  string,
+    enabled:     bool,
 }
 
 export global Bridge {
