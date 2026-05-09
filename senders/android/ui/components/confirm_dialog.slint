@@ -1,3 +1,12 @@
+import { Theme } from "../theme.slint";
+import { DestructiveButton, PrimaryButton, TextButton } from "buttons.slint";
+
+export component ConfirmDialog inherits Rectangle {
+    in property <string> title: "Confirm";
+    in property <string> body: "Are you sure?";
+    in property <string> confirm-label: "OK";
+    in property <bool> destructive: false;
+
 // confirm_dialog.slint — Reusable destructive/confirmation overlay.
 //
 // Designed to be instantiated inside a parent's conditional:
@@ -34,6 +43,30 @@ export component ConfirmDialog inherits Rectangle {
 
     width: 100%;
     height: 100%;
+    background: #00000080;
+
+    TouchArea {
+        clicked => { dismissed(); }
+    }
+
+    card-content := Rectangle {
+        width: 320px;
+        height: card-layout.preferred-height;
+        background: Theme.surface-card;
+        border-radius: Theme.radius-card;
+
+        TouchArea {
+            // absorb clicks to not dismiss
+        }
+
+        card-layout := VerticalLayout {
+            padding: Theme.padding-screen;
+            spacing: Theme.spacing-default;
+
+            Text {
+                text: root.title;
+                font-size: Theme.font-size-heading;
+                color: Theme.text-primary;
     background: #00000080;     // 50% opaque scrim — TODO Theme.scrim later
 
     // Outer scrim TouchArea: tapping outside the dialog dismisses.
@@ -68,12 +101,19 @@ export component ConfirmDialog inherits Rectangle {
 
             Text {
                 text: root.body;
+                font-size: Theme.font-size-body;
+                color: Theme.text-secondary;
                 color: Theme.text-secondary;
                 font-size: Theme.font-size-body;
                 wrap: word-wrap;
             }
 
             HorizontalLayout {
+                spacing: 8px;
+                alignment: end;
+
+                TextButton {
+                    label: "Cancel";
                 alignment: end;
                 spacing: 8px;
 
@@ -86,6 +126,7 @@ export component ConfirmDialog inherits Rectangle {
                     label: root.confirm-label;
                     clicked => { root.confirmed(); }
                 }
+
                 if !root.destructive: PrimaryButton {
                     label: root.confirm-label;
                     clicked => { root.confirmed(); }

@@ -1,0 +1,189 @@
+// cast_history_page.slint — Past cast sessions list (UI-only).
+//
+// Reachable from FullSettingsPage's "Cast history" row in DATA.
+// Tap a row → set Bridge.selected-history-id, open Panel.cast-history-detail.
+// "Clear all" → ConfirmDialog (Phase 19) → empty mock-history on confirm.
+//
+// Slint docs ref:
+//   draft/slint-ui/docs/astro/src/content/docs/reference/std-widgets/views/scrollview.mdx
+//   draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/repetition-and-data-models.mdx
+//   draft/slint-ui/docs/astro/src/content/docs/reference/colors-and-brushes.mdx
+
+import { ScrollView } from "std-widgets.slint";
+import { Bridge, Panel, CastHistoryEntry } from "../bridge.slint";
+import { Theme } from "../theme.slint";
+import { TextButton } from "../components/buttons.slint";
+import { ConfirmDialog } from "../components/confirm_dialog.slint";
+
+export component CastHistoryPage inherits Rectangle {
+    in-out property <[CastHistoryEntry]> mock-history: [
+        { id: "h1", receiver: "Living Room TV",
+          started-at: "Today 19:42",     duration-s: 5400, status: "Completed" },
+        { id: "h2", receiver: "Office Display",
+          started-at: "Today 11:15",     duration-s: 600,  status: "Completed" },
+        { id: "h3", receiver: "Kitchen Chromecast",
+          started-at: "Yesterday 22:08", duration-s: 30,   status: "Cancelled" },
+        { id: "h4", receiver: "Living Room TV",
+          started-at: "Yesterday 20:33", duration-s: 7200, status: "Completed" },
+        { id: "h5", receiver: "Office Display",
+          started-at: "Mon 09:50",       duration-s: 0,    status: "Failed"    },
+    ];
+
+    in-out property <bool> show-clear-confirm: false;
+
+    width: 100%;
+    height: 100%;
+    background: Theme.surface-primary;
+
+    // ── Helpers ──────────────────────────────────────────────────────────
+
+    // HH:MM:SS formatter — same shape as Phase 23's elapsed counter helper.
+    pure function format-duration(total-s: int) -> string {
+        return (Math.floor(total-s / 3600) < 10 ? "0\{Math.floor(total-s / 3600)}" : "\{Math.floor(total-s / 3600)}") + ":"
+             + (Math.mod(Math.floor(total-s / 60), 60) < 10
+                 ? "0\{Math.mod(Math.floor(total-s / 60), 60)}"
+                 : "\{Math.mod(Math.floor(total-s / 60), 60)}")
+             + ":"
+             + (Math.mod(total-s, 60) < 10
+                 ? "0\{Math.mod(total-s, 60)}"
+                 : "\{Math.mod(total-s, 60)}");
+    }
+
+    // Status → pill colour. Triple ternary on string equality. The
+    // colour names are illustrative; substitute Theme.* tokens once
+    // the design system has dedicated success/warning/error colours.
+    pure function status-color(status: string) -> color {
+        return status == "Completed" ? #2e7d32  :   // green
+               status == "Cancelled" ? #ed6c02  :   // amber
+               status == "Failed"    ? #c62828  :   // red
+                                        Theme.surface-card.brighter(20%);
+    }
+
+    VerticalLayout {
+        Rectangle {
+            height: 56px;
+            background: Theme.surface-card;
+            HorizontalLayout {
+                padding: Theme.padding-screen;
+                spacing: Theme.spacing-default;
+
+                Text {
+                    text: "Cast history";
+                    color: Theme.text-primary;
+                    font-size: Theme.font-size-heading;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+
+                TextButton {
+                    label: "Clear all";
+                    clicked => { root.show-clear-confirm = true; }
+                }
+
+                TextButton {
+                    label: "Done";
+                    clicked => { Bridge.active-panel = Panel.none; }
+                }
+            }
+        }
+
+        ScrollView {
+            VerticalLayout {
+                spacing: Theme.spacing-default;
+                padding: Theme.padding-screen;
+
+                if root.mock-history.length == 0: Rectangle {
+                    height: 80px;
+                    background: Theme.surface-card;
+                    border-radius: Theme.radius-card;
+                    Text {
+                        text: "No casts yet.";
+                        color: Theme.text-secondary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                for entry in root.mock-history: Rectangle {
+                    height: 72px;
+                    border-radius: Theme.radius-card;
+                    background: row-ta.pressed
+                        ? Theme.surface-card.brighter(20%)
+                        : Theme.surface-card;
+
+                    row-ta := TouchArea {
+                        clicked => {
+                            Bridge.selected-history-id = entry.id;
+                            Bridge.active-panel = Panel.cast-history-detail;
+                        }
+                    }
+
+                    HorizontalLayout {
+                        padding-left:  Theme.padding-screen;
+                        padding-right: Theme.padding-screen;
+                        spacing: Theme.spacing-default;
+
+                        VerticalLayout {
+                            alignment: center;
+                            horizontal-stretch: 1;
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                alignment: start;
+                                Text {
+                                    text: entry.receiver;
+                                    color: Theme.text-primary;
+                                    font-size: Theme.font-size-body;
+                                    vertical-alignment: center;
+                                }
+                                // Status pill — fixed-size rounded rect.
+                                Rectangle {
+                                    width: status-text.preferred-width + 16px;
+                                    height: 20px;
+                                    background: root.status-color(entry.status);
+                                    border-radius: 10px;
+                                    status-text := Text {
+                                        text: entry.status;
+                                        color: white;
+                                        font-size: Theme.font-size-label;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+
+                            Text {
+                                text: entry.started-at + "  •  "
+                                    + root.format-duration(entry.duration-s);
+                                color: Theme.text-secondary;
+                                font-size: Theme.font-size-label;
+                            }
+                        }
+
+                        Text {
+                            text: "›";
+                            color: Theme.text-secondary;
+                            vertical-alignment: center;
+                            font-size: 20px;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Clear-all confirmation ───────────────────────────────────────────
+    if root.show-clear-confirm: ConfirmDialog {
+        title: "Clear all cast history?";
+        body:  "This removes all past cast session entries. Cannot be undone.";
+        confirm-label: "Clear";
+        destructive: true;
+        confirmed => {
+            root.mock-history = [];
+            root.show-clear-confirm = false;
+        }
+        dismissed => {
+            root.show-clear-confirm = false;
+        }
+    }
+}
