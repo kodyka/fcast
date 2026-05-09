@@ -41,6 +41,7 @@ import { WaitingForMediaView,
 import { CodecTestPage }                from "pages/codec_test_page.slint";
 import { DebugPage, FullDebugPage }     from "pages/debug_page.slint";
 import { Theme } from "theme.slint";
+import { StatusBadgesRow } from "components/status_badges.slint";
 import { CastControlBar } from "components/control_bar.slint";
 
 // ── Root window ───────────────────────────────────────────────────────────────
@@ -58,6 +59,7 @@ export component MainWindow inherits Window {
             if Bridge.app-state == AppState.WaitingForMedia:   WaitingForMediaView { }
             if Bridge.app-state == AppState.Casting:           CastingView { }
         }
+        StatusBadgesRow { }
         CastControlBar { }
     }
 

@@ -4,7 +4,7 @@
 > control bar. **UI-only — no real telemetry.** Badges read from inline
 > `in-out` properties.
 
-**Status:** `[ ] Not started`
+**Status:** `[x] Complete (UI-only)`
 **Depends on:** Phases 1, 2, 3, 4 (control bar)
 **Functional integration:** Deferred — Rust telemetry source not in place.
 **Moblin source analogues:**
@@ -28,7 +28,7 @@ Mirrors Moblin's top-of-bar status strip but without any device API access.
 
 ### 13-A — Component `StatusBadgesRow`
 
-- [ ] Create `senders/android/ui/components/status_badges.slint`:
+- [x] Create `senders/android/ui/components/status_badges.slint`:
 
   ```slint
   import { Theme } from "../theme.slint";
@@ -86,13 +86,13 @@ Mirrors Moblin's top-of-bar status strip but without any device API access.
   }
   ```
 
-- [ ] **Build check.**
+- [x] **Build check.**
 
 ---
 
 ### 13-B — Place above `CastControlBar` in `MainWindow`
 
-- [ ] In `main.slint`, add `StatusBadgesRow` immediately above the control bar
+- [x] In `main.slint`, add `StatusBadgesRow` immediately above the control bar
   in the `VerticalLayout` chassis:
 
   ```slint
@@ -100,19 +100,19 @@ Mirrors Moblin's top-of-bar status strip but without any device API access.
   CastControlBar  { }
   ```
 
-- [ ] **Build check.**
+- [x] **Build check.**
 
 ---
 
 ### 13-C — Severity preview matrix
 
-- [ ] Verify each severity renders correctly by temporarily flipping the stub
+- [x] Verify each severity renders correctly by temporarily flipping the stub
   values:
-  - [ ] `mock-battery-pct: 8` → red battery glyph + value.
-  - [ ] `mock-charging: true` → ⚡ glyph.
-  - [ ] `mock-thermal: "Critical"` → red 🔥 + value.
-  - [ ] `mock-thermal: "Serious"` → amber 🌡 + value.
-- [ ] Revert all to nominal before commit.
+  - [x] `mock-battery-pct: 8` → red battery glyph + value.
+  - [x] `mock-charging: true` → ⚡ glyph.
+  - [x] `mock-thermal: "Critical"` → red 🔥 + value.
+  - [x] `mock-thermal: "Serious"` → amber 🌡 + value.
+- [x] Revert all to nominal before commit.
 
 ---
 
