@@ -174,15 +174,20 @@ ROUTED_FILE="$TMPDIR_RUN/panels-routed.txt"
 ENUM_FILE="$TMPDIR_RUN/panels-declared.txt"
 SET_FILE="$TMPDIR_RUN/panels-set.txt"
 
-# Routes: `Panel.<variant>` mentioned in main.slint after `==`.
+# Routes: `Panel.<variant>` mentioned in main.slint after `==`. The `|| true`
+# guard is required: with `set -euo pipefail`, a `grep` that finds zero matches
+# (e.g. during a refactor that temporarily strips Panel routes from main.slint)
+# exits 1, pipefail propagates the failure, and set -e kills the script before
+# the audit can report what happened.
 grep -hoE 'Panel\.[a-z][a-z0-9-]*' "$UI_ROOT/main.slint" \
-    | sort -u > "$ROUTED_FILE"
+    | sort -u > "$ROUTED_FILE" || true
 
 # Setters: `Bridge.active-panel = Panel.<variant>` anywhere except main.slint.
+# Same pipefail guard as ROUTED_FILE above.
 grep -rhoE 'Bridge\.active-panel *= *Panel\.[a-z][a-z0-9-]*' \
     "$UI_ROOT" --include='*.slint' \
     | sed -E 's/.*= *(Panel\.[a-z][a-z0-9-]*)/\1/' \
-    | sort -u > "$SET_FILE"
+    | sort -u > "$SET_FILE" || true
 
 # Enum members declared in bridge.slint inside `export enum Panel { ... }`.
 awk '
@@ -194,7 +199,7 @@ awk '
         gsub(/[[:space:]]/, "")
         if (length($0)) print "Panel." $0
     }
-' "$UI_ROOT/bridge.slint" | sort -u > "$ENUM_FILE"
+' "$UI_ROOT/bridge.slint" | sort -u > "$ENUM_FILE" || true
 
 # Orphan routes = routed in main.slint but never set anywhere.
 ORPHAN_ROUTES=$(comm -23 "$ROUTED_FILE" "$SET_FILE" | grep -v '^Panel\.none$' || true)
@@ -228,10 +233,50 @@ fi
 # ── animate { duration: 0 } audit ────────────────────────────────────────────
 # `animate <prop> { duration: 0; … }` is a silent no-op on every Slint backend
 # and is almost always a copy/paste mistake. Treat as a hard failure.
+#
+# Slint authors normally write multi-line animate blocks:
+#
+#     animate opacity {
+#         duration: 0;
+#         easing: ease;
+#     }
+#
+# A single-line grep cannot match across the newline between `{` and
+# `duration`, so we use awk to track when we are inside an `animate <prop> {`
+# block and flag any `duration: 0` we see before the matching close brace.
+# Slint does not allow nested animate blocks, so a simple in_anim flag is
+# sufficient — no depth tracking required.
 echo "=== animate-with-zero-duration audit ==="
 ZERO_ANIM_FILE="$TMPDIR_RUN/zero-anim.txt"
-grep -REn 'animate +[a-z0-9_-]+ *\{[^}]*duration *: *0( |;|$)' \
-    "$UI_ROOT" --include='*.slint' > "$ZERO_ANIM_FILE" || true
+: > "$ZERO_ANIM_FILE"
+while IFS= read -r path; do
+    [ -z "$path" ] && continue
+    awk -v file="$path" '
+        # Enter an animate block when we see `animate <prop> {` (the brace is
+        # idiomatically on the same line as the animate keyword).
+        /^[[:space:]]*animate[[:space:]]+[A-Za-z_-][A-Za-z0-9_-]*[[:space:]]*\{/ {
+            in_anim = 1
+            anim_start = NR
+            zero_line = 0
+        }
+        # Inside an animate block, flag `duration: 0` (with no further
+        # significant digits — `0`, `0;`, `0ms`, `0s` all count; `0.5s`
+        # and `00.5` do not).
+        in_anim && /duration[[:space:]]*:[[:space:]]*0([^0-9.]|$)/ {
+            zero_line = NR
+        }
+        # Close brace ends the block.
+        in_anim && /\}/ {
+            if (zero_line > 0) {
+                printf("%s:%d: animate block opened at line %d has duration: 0\n",
+                       file, zero_line, anim_start)
+            }
+            in_anim = 0
+            zero_line = 0
+        }
+    ' "$path"
+done < <(grep -RIl --include='*.slint' 'animate' "$UI_ROOT" || true) \
+    >> "$ZERO_ANIM_FILE"
 
 if [ -s "$ZERO_ANIM_FILE" ]; then
     fail "found animate { duration: 0 } block(s):"
