@@ -4,7 +4,7 @@
 > **UI-only.** Buttons trigger an inline confirmation dialog; no real file
 > I/O, no real persistence reset.
 
-**Status:** `[ ] Not started`
+**Status:** `[x] Complete (UI-only)`
 **Depends on:** Phases 2, 3, 7
 **Functional integration:** Deferred — no Rust persistence layer to back up
 or reset.
@@ -25,7 +25,7 @@ or reset.
 
 ### 19-A — Reusable `ConfirmDialog` component
 
-- [ ] Create `senders/android/ui/components/confirm_dialog.slint`:
+- [x] Create `senders/android/ui/components/confirm_dialog.slint`:
 
   ```slint
   import { Theme } from "../theme.slint";
@@ -72,7 +72,7 @@ or reset.
   }
   ```
 
-- [ ] **Build check.** Add `Theme.scrim` color to `theme.slint` later — for now
+- [x] **Build check.** Add `Theme.scrim` color to `theme.slint` later — for now
   the inline `#00000080` is acceptable in the dialog component (mark with a
   TODO comment).
 
@@ -80,8 +80,8 @@ or reset.
 
 ### 19-B — `BackupResetPage`
 
-- [ ] Page header + Done button (panel pattern from Phase 7).
-- [ ] Sections:
+- [x] Page header + Done button (panel pattern from Phase 7).
+- [x] Sections:
 
   ```
   BACKUP
@@ -94,9 +94,9 @@ or reset.
     Clear known receivers         →  destructive ConfirmDialog
   ```
 
-- [ ] Each "pretend-success" sets a transient banner ("Exported to ~/fcast-backup.json")
+- [x] Each "pretend-success" sets a transient banner ("Exported to ~/fcast-backup.json")
   for 3 seconds via a Slint `Timer`.
-- [ ] Each destructive row opens a `ConfirmDialog` overlay with appropriate
+- [x] Each destructive row opens a `ConfirmDialog` overlay with appropriate
   title / body. On confirm, dialog closes and a banner shows "Reset complete"
   (UI-only).
 
@@ -104,9 +104,9 @@ or reset.
 
 ### 19-C — Bridge + linking
 
-- [ ] Extend `Panel` with `backup-reset`.
-- [ ] In `main.slint`, route `Panel.backup-reset` → `BackupResetPage`.
-- [ ] In `FullSettingsPage`, link from a "DATA" section.
+- [x] Extend `Panel` with `backup-reset`.
+- [x] In `main.slint`, route `Panel.backup-reset` → `BackupResetPage`.
+- [x] In `FullSettingsPage`, link from a "DATA" section.
 
 ---
 

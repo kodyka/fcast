@@ -162,6 +162,16 @@ export component FullSettingsPage inherits Rectangle {
                     }
                 }
 
+                // ── Section: DATA ─────────────────────────────────────────
+                SettingsSection {
+                    title: "DATA";
+                    SettingsValueRow {
+                        title: "Backup & reset";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.backup-reset; }
+                    }
+                }
+
                 // ── Section: ABOUT ────────────────────────────────────────
                 SettingsSection {
                     title: "ABOUT";
