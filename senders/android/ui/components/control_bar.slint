@@ -47,6 +47,7 @@ export component CastControlBar inherits Rectangle {
         { id: "codec-test",      title: "Codec test",     enabled: true, active: false },
         { id: "scan-qr",         title: "Scan QR",        enabled: true, active: false },
         { id: "migrated-server", title: "Migrated srv",   enabled: true, active: false },
+        { id: "record",          title: "Record",         enabled: true, active: false },
     ];
 
     height: Theme.control-bar-height;
@@ -64,6 +65,7 @@ export component CastControlBar inherits Rectangle {
                 if (id == "settings")    { Bridge.active-panel = Panel.settings;   return; }
                 if (id == "debug")       { Bridge.active-panel = Panel.debug;      return; }
                 if (id == "codec-test")  { Bridge.active-panel = Panel.codec-test; return; }
+                if (id == "record")      { Bridge.active-panel = Panel.recording;  return; }
                 // Non-panel ids still go through the Rust handler.
                 Bridge.invoke-action(id);
             }

@@ -15,6 +15,13 @@ export enum LifecycleMode {
     snapshot-countdown,
 }
 
+export enum RecordingState {
+    idle,
+    recording,
+    paused,
+    finalizing,
+}
+
 export enum AppState {
     Disconnected,
     Connecting,
@@ -30,6 +37,7 @@ export enum Panel {
     codec-test,
     audio,
     quick-actions,
+    recording,
 }
 
 export struct QuickAction {
