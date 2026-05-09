@@ -1,0 +1,96 @@
+// bitrate_preset_edit_page.slint — Single-preset editor (UI-only).
+//
+// Reachable from BitratePresetsPage's "Add preset" button (and, in a
+// future phase, from per-row edit affordances). Save and Cancel both
+// just return to the list — no persistence in this phase.
+//
+// Slint docs ref:
+//   draft/slint-ui/docs/astro/src/content/docs/reference/std-widgets/views/lineedit.mdx
+//   draft/slint-ui/docs/astro/src/content/docs/reference/std-widgets/basic-widgets/slider.mdx
+
+import { ScrollView, LineEdit } from "std-widgets.slint";
+import { Bridge, Panel } from "../bridge.slint";
+import { Theme } from "../theme.slint";
+import { TextButton } from "../components/buttons.slint";
+import {
+    SettingsSection,
+    SettingsSliderRow,
+} from "../components/settings_rows.slint";
+
+export component BitratePresetEditPage inherits Rectangle {
+    // ── UI-only stub state ──────────────────────────────────────────────
+    in-out property <string> mock-name:         "New preset";
+    in-out property <float>  mock-bitrate-kbps: 4000.0;
+
+    width: 100%;
+    height: 100%;
+    background: Theme.surface-primary;
+
+    VerticalLayout {
+        // ── Header ──────────────────────────────────────────────────────
+        Rectangle {
+            height: 56px;
+            background: Theme.surface-card;
+            HorizontalLayout {
+                padding: Theme.padding-screen;
+                spacing: Theme.spacing-default;
+                TextButton {
+                    label: "Cancel";
+                    // Return to the LIST, not the cast screen.
+                    clicked => { Bridge.active-panel = Panel.bitrate-presets; }
+                }
+                Text {
+                    text: "Edit preset";
+                    color: Theme.text-primary;
+                    font-size: Theme.font-size-heading;
+                    vertical-alignment: center;
+                    horizontal-alignment: center;
+                    horizontal-stretch: 1;
+                }
+                TextButton {
+                    label: "Save";
+                    // UI-only — no persistence to BitratePresetsPage's
+                    // mock-presets. Real persistence requires lifting the
+                    // model to a global / Bridge property; deferred to
+                    // Phase 8.
+                    clicked => { Bridge.active-panel = Panel.bitrate-presets; }
+                }
+            }
+        }
+
+        ScrollView {
+            VerticalLayout {
+                spacing: Theme.spacing-default;
+                padding: Theme.padding-screen;
+
+                SettingsSection {
+                    title: "NAME";
+                    Rectangle {
+                        height: 56px;
+                        HorizontalLayout {
+                            padding-left:  Theme.padding-screen;
+                            padding-right: Theme.padding-screen;
+                            LineEdit {
+                                placeholder-text: "Preset name";
+                                text <=> root.mock-name;
+                                horizontal-stretch: 1;
+                            }
+                        }
+                    }
+                }
+
+                SettingsSection {
+                    title: "BITRATE";
+                    SettingsSliderRow {
+                        title: "Bitrate";
+                        unit: " kbps";
+                        minimum: 500;
+                        maximum: 20000;
+                        value <=> root.mock-bitrate-kbps;
+                        // Domain matches storage; `<=>` is safe.
+                    }
+                }
+            }
+        }
+    }
+}

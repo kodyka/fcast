@@ -16,6 +16,7 @@
 //   draft/slint-ui/docs/astro/src/content/docs/reference/colors-and-brushes.mdx
 
 import { Theme } from "../theme.slint";
+import { IconAndText } from "icon_and_text.slint";
 
 // Internal sub-component — not exported. Two Text children inside a pill.
 component Badge inherits Rectangle {
@@ -30,18 +31,13 @@ component Badge inherits Rectangle {
     HorizontalLayout {
         padding-left:  8px;
         padding-right: 8px;
-        spacing: 4px;
-        Text {
-            text: root.icon-glyph;
-            color: root.fg;
+
+        IconAndText {
+            icon: root.icon-glyph;
+            label: root.value;
+            label-color: root.fg;
             font-size: Theme.font-size-label;
-            vertical-alignment: center;
-        }
-        Text {
-            text: root.value;
-            color: root.fg;
-            font-size: Theme.font-size-label;
-            vertical-alignment: center;
+            spacing: 4px;
         }
     }
 }

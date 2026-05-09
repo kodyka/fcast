@@ -67,6 +67,10 @@ export enum Panel {
     camera,
     quick-actions,
     recording,
+    pairing,
+    receiver-rename,
+    bitrate-presets,
+    bitrate-preset-edit,
     macros,
     macro-edit,
     debug-log,
@@ -91,8 +95,20 @@ export struct StatusItem {
 }
 
 export struct ReceiverItem {
+    id:      string,
     name:    string,
     address: string,
+    ip:      string,
+    port:    int,
+    kind:    string,
+    is-default: bool,
+}
+
+export struct BitratePreset {
+    id:           string,
+    name:         string,
+    bitrate-kbps: int,
+    active:       bool,
 }
 
 export struct NetworkInterface {
@@ -116,6 +132,8 @@ export global Bridge {
     in-out property <bool>     show-debug: false;
     in-out property <string>   test-status: "";
     in property <[QuickAction]> quick-actions: [];
+    in-out property <string> selected-receiver-id;
+    in-out property <string> selected-receiver-name;
 
     // ── Callbacks (Slint → Rust) ─────────────────────────────────────────
     callback connect-receiver(string);

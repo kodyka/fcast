@@ -1,0 +1,157 @@
+import { Theme }          from "../theme.slint";
+import { Bridge }         from "../bridge.slint";
+import { QrPlaceholder }  from "../components/qr_placeholder.slint";
+
+export component PairingPage inherits Rectangle {
+    width: 100%;
+    height: 100%;
+    background: Theme.surface-primary;
+
+    in-out property <string> mock-device-ip: "192.168.1.42";
+    in-out property <int>    mock-device-port: 46899;
+    in-out property <bool>   show-refresh-flash: false;
+
+    callback close;
+
+    VerticalLayout {
+        padding: Theme.padding-screen;
+        spacing: Theme.spacing-default;
+
+        // Header
+        HorizontalLayout {
+            alignment: space-between;
+
+            Text {
+                text: "Pair via QR";
+                color: Theme.text-primary;
+                font-size: Theme.font-size-heading;
+                vertical-alignment: center;
+            }
+
+            Rectangle {
+                width: 60px;
+                height: 36px;
+
+                Text {
+                    text: "Done";
+                    color: Theme.accent;
+                    font-size: Theme.font-size-body;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                TouchArea {
+                    clicked => { root.close(); }
+                }
+            }
+        }
+
+        // Spacer
+        Rectangle { height: 16px; }
+
+        // QR card — centred.
+        HorizontalLayout {
+            alignment: center;
+
+            QrPlaceholder {
+                label: "(QR preview)";
+            }
+        }
+
+        // Spacer
+        Rectangle { height: 16px; }
+
+        // Receiver target info.
+        VerticalLayout {
+            alignment: center;
+            spacing: 4px;
+
+            Text {
+                text: "Point receiver camera at this code";
+                color: Theme.text-secondary;
+                font-size: Theme.font-size-body;
+                horizontal-alignment: center;
+            }
+            Text {
+                text: "\{root.mock-device-ip}:\{root.mock-device-port}";
+                color: Theme.text-primary;
+                font-size: Theme.font-size-body;
+                horizontal-alignment: center;
+            }
+        }
+
+        // Spacer
+        Rectangle { height: 16px; }
+
+        // Action buttons.
+        HorizontalLayout {
+            alignment: center;
+            spacing: 12px;
+
+            // Refresh button.
+            Rectangle {
+                width: 120px;
+                height: 44px;
+                border-radius: Theme.radius-card;
+                background: Theme.surface-card;
+
+                Text {
+                    text: "Refresh";
+                    color: Theme.accent;
+                    font-size: Theme.font-size-body;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                TouchArea {
+                    clicked => {
+                        // UI-only: flash a brief visual confirmation.
+                        root.show-refresh-flash = true;
+                    }
+                }
+            }
+
+            // Copy address button.
+            Rectangle {
+                width: 140px;
+                height: 44px;
+                border-radius: Theme.radius-card;
+                background: Theme.surface-card;
+
+                Text {
+                    text: "Copy address";
+                    color: Theme.accent;
+                    font-size: Theme.font-size-body;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                TouchArea {
+                    clicked => {
+                        // UI-only: no real clipboard API. Flash confirmation.
+                        root.show-refresh-flash = true;
+                    }
+                }
+            }
+        }
+
+        // Brief flash overlay when Refresh or Copy is tapped.
+        if root.show-refresh-flash: Rectangle {
+            height: 28px;
+
+            HorizontalLayout {
+                alignment: center;
+                Text {
+                    text: "✓ Done";
+                    color: Theme.accent;
+                    font-size: Theme.font-size-label;
+                    vertical-alignment: center;
+                }
+            }
+
+            // Auto-dismiss after 1s using Timer.
+            Timer {
+                interval: 1s;
+                running: root.show-refresh-flash;
+                triggered => { root.show-refresh-flash = false; }
+            }
+        }
+    }
+}

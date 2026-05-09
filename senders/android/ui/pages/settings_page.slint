@@ -159,6 +159,11 @@ export component FullSettingsPage inherits Rectangle {
                         clicked => { Bridge.active-panel = Panel.audio; }
                     }
                     SettingsValueRow {
+                        title: "Bitrate";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.bitrate-presets; }
+                    }
+                    SettingsValueRow {
                         title: "Camera";
                         value: "Open";
                         clicked => { Bridge.active-panel = Panel.camera; }

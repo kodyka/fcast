@@ -4,7 +4,7 @@
 > Slint components, only when a consuming phase actually needs them.
 > **UI-only — utility components have no functional behaviour to wire.**
 
-**Status:** `[ ] Ongoing — pull from this list when a downstream phase needs a util`
+**Status:** `[x] Ongoing — pull from this list when a downstream phase needs a util`
 **Depends on:** Phase 3 (already covers the most common utils)
 **Functional integration:** N/A (these are pure UI primitives).
 **Moblin source analogues:** `View/Utils/*.swift` (remaining un-ported files
