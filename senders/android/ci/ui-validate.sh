@@ -43,7 +43,7 @@ for arg in "$@"; do
             RUN_BUILD=0
             ;;
         -h|--help)
-            sed -n '2,32p' "$0"
+            sed -n '2,34p' "$0"
             exit 0
             ;;
         *)
