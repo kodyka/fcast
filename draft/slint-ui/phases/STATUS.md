@@ -72,7 +72,7 @@ landed.
 
 | Phase | Declared | Actual | Reimplement guide | Evidence |
 |---|---|---|---|---|
-| **12** Capture preview | `[ ] Not started` | `[ ] Not started` | `PHASE-12-reimplement-instructions.md` | No `CapturePreview` component, no `mock-source-label` / `mock-active` properties on `pages/casting_page.slint`. |
+| **12** Capture preview | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-12-reimplement-instructions.md` | `CapturePreview` component exists in `components/capture_preview.slint` and is used in `pages/casting_page.slint`. |
 | **13** Status badges row | `[ ] Not started` | `[ ] Not started` | `PHASE-13-reimplement-instructions.md` | No `StatusBadgesRow` / `Badge` component; no battery / thermal / network mock state. |
 | **14** Audio capture controls | `[ ] Not started` | `[ ] Not started` | `PHASE-14-reimplement-instructions.md` | No `pages/audio_page.slint`; `Panel` enum has no `audio` variant. |
 | **15** Camera capture controls | `[ ] Not started — blocked by Rust camera capability for live data, but UI placeholder is unblocked` | `[ ] Not started` | `PHASE-15-reimplement-instructions.md` | No `pages/camera_page.slint`. |
