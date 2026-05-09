@@ -82,7 +82,7 @@ landed.
 | **19** Settings backup / reset | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-19-reimplement-instructions.md` | `pages/backup_reset_page.slint`, shared `ConfirmDialog` component. |
 | **20** Cast history | `[ ] Not started` | `[ ] Not started` | `PHASE-20-reimplement-instructions.md` | No `pages/cast_history_page.slint`. |
 | **21** Help & support | `[ ] Not started` | `[ ] Not started` | `PHASE-21-reimplement-instructions.md` | No `pages/about_page.slint` / `version_history_page.slint` / `attributions_page.slint` / `help_page.slint`; the inline `ABOUT` section in `FullSettingsPage` is still the only About surface. |
-| **22** Network interfaces / Wi-Fi Aware | `[ ] Not started` | `[ ] Not started` | `PHASE-22-reimplement-instructions.md` | No `pages/network_page.slint`. |
+| **22** Network interfaces / Wi-Fi Aware | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-22-reimplement-instructions.md` | `pages/network_page.slint` + `NetworkInterface` struct in `bridge.slint` |
 | **23** Local recording | `[ ] Not started — blocked by Rust recording capability for live data, but UI placeholder is unblocked` | `[ ] Not started` | `PHASE-23-reimplement-instructions.md` | No `pages/recording_page.slint`. |
 | **24** Pairing QR + receiver management | `[ ] Not started` | `[ ] Not started` | `PHASE-24-reimplement-instructions.md` | No `pages/pairing_page.slint` / `receiver_rename_page.slint`; no QR placeholder component. |
 | **25** Macros / action chains | `[ ] Not started` | `[ ] Not started` | `PHASE-25-reimplement-instructions.md` | No `pages/macros_page.slint` / `macro_edit_page.slint`; no `Macro` / `MacroStep` structs in `bridge.slint`. |
