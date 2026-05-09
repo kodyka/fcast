@@ -140,5 +140,7 @@ that have not been settled, so guides for them would be premature.
 | `PHASE-6-receiver-list.md` | `[ ] UI placeholder — no functionality` | `[x] Complete (UI-only — Rust wiring deferred to Phase 8)` | Same. |
 | `PHASE-7-settings-pages.md` | `[ ] UI placeholder — no functionality` | `[x] Complete (UI-only — Rust wiring deferred to Phase 8)` | Same. |
 
+| `PHASE-12-capture-preview.md` | `[ ] Not started` | `[x] Complete (UI-only)` | `CapturePreview` component added in `components/capture_preview.slint` and embedded in `casting_page.slint`. |
+
 No other per-phase status lines change in this PR — every other line is
 already accurate.
