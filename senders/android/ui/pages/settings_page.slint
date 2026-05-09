@@ -214,6 +214,15 @@ export component FullSettingsPage inherits Rectangle {
                     }
                 }
 
+                // ── Section: DATA ─────────────────────────────────────────
+                SettingsSection {
+                    title: "DATA";
+                    SettingsValueRow {
+                        title: "Cast history";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.cast-history; }
+                    }
+                }
                 // ── Section: ADVANCED ─────────────────────────────────────
                 SettingsSection {
                     title: "ADVANCED";

@@ -66,6 +66,8 @@ export enum Panel {
     audio,
     camera,
     quick-actions,
+    cast-history,
+    cast-history-detail,
     recording,
     pairing,
     receiver-rename,
@@ -111,6 +113,14 @@ export struct BitratePreset {
     active:       bool,
 }
 
+export struct CastHistoryEntry {
+    id:         string,
+    receiver:   string,
+    started-at: string,
+    duration-s: int,
+    status:     string,
+}
+
 export struct NetworkInterface {
     name:        string,
     kind:        string,    // "wifi" / "ethernet" / "cellular" / "loopback"
@@ -129,6 +139,7 @@ export global Bridge {
     in-out property <string>   mock-macro-edit-id: "";   // "" means "new macro"
     in-out property <LifecycleMode> lifecycle: LifecycleMode.normal;
     in-out property <int> mock-snapshot-secs: 5;
+    in-out property <string>   selected-history-id: "";
     in-out property <bool>     show-debug: false;
     in-out property <string>   test-status: "";
     in property <[QuickAction]> quick-actions: [];
