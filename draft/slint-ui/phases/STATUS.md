@@ -125,9 +125,9 @@ that have not been settled, so guides for them would be premature.
   Phase 8 reactivates" sections from every UI guide.
 - **Phases 9, 10, 11** are ongoing meta-phases. None of them ships a single
   on/off implementation — they wrap or run alongside other phases.
-- **Phases 12–27** have step-by-step reimplement guides (PR #1) but **no**
-  code in `senders/android/ui/`. A reader can pick any of these and follow
-  the guide to land the phase.
+- **Phase 12 is complete (UI-only).** Phases 13–27 have step-by-step
+  reimplement guides (PR #1) but **no** code in `senders/android/ui/`. A
+  reader can pick any of these and follow the guide to land the phase.
 - **Phases 28–48** ship spec only. Guides for these are deferred until the
   upstream architectural decisions land.
 
