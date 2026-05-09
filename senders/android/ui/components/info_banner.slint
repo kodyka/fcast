@@ -54,7 +54,7 @@ export component InfoBanner inherits Rectangle {
     }
 
     Timer {
-        interval: root.auto-hide-ms;
+        interval: root.auto-hide-delay;
         running: root.shown;
         triggered => { root.shown = false; }
     }
