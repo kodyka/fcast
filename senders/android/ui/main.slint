@@ -29,8 +29,8 @@
 //   components/*          — shared components (stubs, populated Phase 3–5)
 
 // ── Bridge + AppState: import for local use, re-export for the Rust backend ──
-import { Bridge, AppState, Panel } from "bridge.slint";
-export { Bridge, AppState, Panel }
+import { Bridge, AppState, Panel, LifecycleMode } from "bridge.slint";
+export { Bridge, AppState, Panel, LifecycleMode }
 
 // ── Page component imports ────────────────────────────────────────────────────
 import { ConnectView }                   from "pages/connect_page.slint";
@@ -45,6 +45,9 @@ import { QuickActionsPage }             from "pages/quick_actions_page.slint";
 import { Theme } from "theme.slint";
 import { StatusBadgesRow } from "components/status_badges.slint";
 import { CastControlBar } from "components/control_bar.slint";
+import { LockOverlay } from "components/lock_overlay.slint";
+import { StealthOverlay } from "components/stealth_overlay.slint";
+import { SnapshotCountdown } from "components/snapshot_countdown.slint";
 
 // ── Root window ───────────────────────────────────────────────────────────────
 export component MainWindow inherits Window {
