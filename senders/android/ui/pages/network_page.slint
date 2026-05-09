@@ -1,0 +1,255 @@
+// network_page.slint — Network interfaces list + Wi-Fi Aware opt-in (UI-only).
+//
+// Reachable from FullSettingsPage's "Network" row (sets
+// `Bridge.active-panel = Panel.network`). All toggles flip inline state;
+// no real interface enumeration, no Wi-Fi Aware permission flow. Phase 8
+// will swap mock-interfaces for a Bridge-published list and the Wi-Fi
+// Aware toggle for a real WifiAwareManager opt-in.
+//
+// Slint docs ref:
+//   draft/slint-ui/docs/astro/src/content/docs/reference/std-widgets/views/scrollview.mdx
+//   draft/slint-ui/docs/astro/src/content/docs/reference/timer.mdx
+//   draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/repetition-and-data-models.mdx
+
+import { ScrollView } from "std-widgets.slint";
+import { Bridge, Panel, NetworkInterface } from "../bridge.slint";
+import { Theme } from "../theme.slint";
+import { TextButton } from "../components/buttons.slint";
+import {
+    SettingsSection,
+    SettingsToggleRow,
+} from "../components/settings_rows.slint";
+
+// Internal sub-component — needs its own `expanded: bool` so the page can
+// have multiple rows expanded simultaneously. Cannot live as inline
+// markup inside the for-loop body because the loop body has no
+// per-iteration component instance to attach state to.
+component NetworkInterfaceRow inherits Rectangle {
+    in property <NetworkInterface> data;
+    callback toggle-enabled(bool);
+
+    property <bool> expanded: false;
+
+    border-radius: Theme.radius-card;
+    background: Theme.surface-card;
+
+    // Element height grows when expanded — using a `min-height` instead of
+    // `height` allows the inner content to size naturally.
+    min-height: 64px;
+
+    VerticalLayout {
+        // ── Always-visible row (collapsed view) ─────────────────────────
+        Rectangle {
+            height: 64px;
+            ta := TouchArea {
+                clicked => { root.expanded = !root.expanded; }
+            }
+            HorizontalLayout {
+                padding-left:  Theme.padding-screen;
+                padding-right: Theme.padding-screen;
+                spacing: Theme.spacing-default;
+
+                // Kind icon — single-glyph fallback while real assets land later.
+                Rectangle {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 8px;
+                    background: Theme.accent-active.darker(20%);
+                    Text {
+                        text:
+                            root.data.kind == "wifi"     ? "W" :
+                            root.data.kind == "ethernet" ? "E" :
+                            root.data.kind == "cellular" ? "M" :
+                                                           "•";
+                        color: Theme.text-primary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                        font-size: Theme.font-size-body;
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    horizontal-stretch: 1;
+                    Text {
+                        text: root.data.name;
+                        color: Theme.text-primary;
+                        font-size: Theme.font-size-body;
+                    }
+                    Text {
+                        text: root.data.address-v4 == ""
+                            ? "(no IPv4 address)"
+                            : root.data.address-v4;
+                        color: Theme.text-secondary;
+                        font-size: Theme.font-size-label;
+                        // Defend against very long IPv6 strings.
+                        overflow: elide;
+                    }
+                }
+
+                // Enable toggle — uses the same SettingsToggleRow row
+                // pattern but inline (no title, just the toggle).
+                Rectangle {
+                    width: 56px;
+                    Text {
+                        text: root.data.enabled ? "On" : "Off";
+                        color: root.data.enabled
+                            ? Theme.accent-active
+                            : Theme.text-secondary;
+                        horizontal-alignment: end;
+                        vertical-alignment: center;
+                        font-size: Theme.font-size-label;
+                    }
+                    TouchArea {
+                        clicked => { root.toggle-enabled(!root.data.enabled); }
+                    }
+                }
+            }
+        }
+
+        // ── Expanded section ────────────────────────────────────────────
+        if root.expanded: Rectangle {
+            VerticalLayout {
+                padding-left:  Theme.padding-screen;
+                padding-right: Theme.padding-screen;
+                padding-bottom: Theme.padding-screen;
+                spacing: 6px;
+                Text {
+                    text: "IPv6: " + (root.data.address-v6 == "" ? "(none)" : root.data.address-v6);
+                    color: Theme.text-secondary;
+                    font-size: Theme.font-size-label;
+                    overflow: elide;
+                }
+                Text {
+                    text: "Kind: " + root.data.kind;
+                    color: Theme.text-secondary;
+                    font-size: Theme.font-size-label;
+                }
+                // The "Use for cast traffic" toggle is purely visual in
+                // UI-only build — it's not even connected to a stub
+                // property because the spec is explicit that per-interface
+                // routing is deferred. Render the row but do not wire it.
+            }
+        }
+    }
+}
+
+export component NetworkPage inherits Rectangle {
+    // ── UI-only stub state ──────────────────────────────────────────────
+    in-out property <[NetworkInterface]> mock-interfaces: [
+        { name: "wlan0",  kind: "wifi",     address-v4: "192.168.1.42",  address-v6: "fe80::1234", enabled: true  },
+        { name: "rmnet0", kind: "cellular", address-v4: "10.20.30.40",   address-v6: "",           enabled: false },
+        { name: "lo",     kind: "loopback", address-v4: "127.0.0.1",     address-v6: "::1",        enabled: true  },
+    ];
+    in-out property <bool> mock-wifi-aware-enabled: false;
+    property <bool>        banner-visible:          false;
+
+    width: 100%;
+    height: 100%;
+    background: Theme.surface-primary;
+
+    // Auto-hide banner timer. Re-arms whenever banner-visible flips to true.
+    Timer {
+        interval: 3s;
+        running: root.banner-visible;
+        triggered => { root.banner-visible = false; }
+    }
+
+    // Helper: rebuild mock-interfaces with one row's enabled flipped.
+    // Same in-place-mutation caveat as Phase 16's preset selector.
+    function set-enabled(name: string, value: bool) {
+        root.mock-interfaces = [
+            { name: root.mock-interfaces[0].name, kind: root.mock-interfaces[0].kind,
+              address-v4: root.mock-interfaces[0].address-v4,
+              address-v6: root.mock-interfaces[0].address-v6,
+              enabled: root.mock-interfaces[0].name == name ? value : root.mock-interfaces[0].enabled },
+            { name: root.mock-interfaces[1].name, kind: root.mock-interfaces[1].kind,
+              address-v4: root.mock-interfaces[1].address-v4,
+              address-v6: root.mock-interfaces[1].address-v6,
+              enabled: root.mock-interfaces[1].name == name ? value : root.mock-interfaces[1].enabled },
+            { name: root.mock-interfaces[2].name, kind: root.mock-interfaces[2].kind,
+              address-v4: root.mock-interfaces[2].address-v4,
+              address-v6: root.mock-interfaces[2].address-v6,
+              enabled: root.mock-interfaces[2].name == name ? value : root.mock-interfaces[2].enabled },
+        ];
+    }
+
+    VerticalLayout {
+        // ── Header ──────────────────────────────────────────────────────
+        Rectangle {
+            height: 56px;
+            background: Theme.surface-card;
+            HorizontalLayout {
+                padding: Theme.padding-screen;
+                Text {
+                    text: "Network";
+                    color: Theme.text-primary;
+                    font-size: Theme.font-size-heading;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+                TextButton {
+                    label: "Done";
+                    clicked => { Bridge.active-panel = Panel.none; }
+                }
+            }
+        }
+
+        // ── Banner (animated visibility) ────────────────────────────────
+        if root.banner-visible: Rectangle {
+            height: 40px;
+            background: Theme.accent-active.darker(20%);
+            HorizontalLayout {
+                padding: Theme.padding-screen;
+                Text {
+                    text: "Wi-Fi Aware enabled (placeholder — no permission requested).";
+                    color: Theme.text-primary;
+                    vertical-alignment: center;
+                    font-size: Theme.font-size-label;
+                }
+            }
+        }
+
+        // ── Body ────────────────────────────────────────────────────────
+        ScrollView {
+            VerticalLayout {
+                spacing: Theme.spacing-default;
+                padding: Theme.padding-screen;
+
+                Text {
+                    text: "INTERFACES";
+                    color: Theme.text-secondary;
+                    font-size: Theme.font-size-label;
+                }
+                for iface in root.mock-interfaces: NetworkInterfaceRow {
+                    data: iface;
+                    toggle-enabled(value) => { root.set-enabled(iface.name, value); }
+                }
+
+                SettingsSection {
+                    title: "WI-FI AWARE";
+                    SettingsToggleRow {
+                        title: "Enable Wi-Fi Aware discovery";
+                        checked: root.mock-wifi-aware-enabled;
+                        toggled(checked) => {
+                            root.mock-wifi-aware-enabled = checked;
+                            // Show transient banner only on enable transitions.
+                            if (checked) {
+                                root.banner-visible = true;
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    text: "Wi-Fi Aware (NAN) requires location permission. This build "
+                        + "is UI-only — toggling the switch does not request the "
+                        + "permission or open a Wi-Fi Aware session.";
+                    color: Theme.text-secondary;
+                    font-size: Theme.font-size-label;
+                    wrap: word-wrap;
+                }
+            }
+        }
+    }
+}
