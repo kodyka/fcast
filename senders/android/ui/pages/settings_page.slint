@@ -149,6 +149,21 @@ export component FullSettingsPage inherits Rectangle {
                     }
                 }
 
+                // ── Section: AUDIO & VIDEO ────────────────────────────────
+                SettingsSection {
+                    title: "AUDIO & VIDEO";
+                    SettingsValueRow {
+                        title: "Audio";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.audio; }
+                    }
+                    SettingsValueRow {
+                        title: "Bitrate";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.bitrate-presets; }
+                    }
+                }
+
                 // ── Section: VIDEO QUALITY ────────────────────────────────
                 // Cycle-on-click is a placeholder UX. Real picker panels
                 // land in `futures/`.

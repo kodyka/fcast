@@ -30,6 +30,8 @@ export enum Panel {
     codec-test,
     audio,
     quick-actions,
+    bitrate-presets,
+    bitrate-preset-edit,
 }
 
 export struct QuickAction {
@@ -50,6 +52,13 @@ export struct StatusItem {
 export struct ReceiverItem {
     name:    string,
     address: string,
+}
+
+export struct BitratePreset {
+    id:           string,
+    name:         string,
+    bitrate-kbps: int,
+    active:       bool,
 }
 
 export global Bridge {

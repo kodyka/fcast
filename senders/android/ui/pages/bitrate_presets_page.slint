@@ -1,0 +1,125 @@
+// bitrate_presets_page.slint — Bitrate presets list (UI-only placeholder).
+//
+// Reachable from FullSettingsPage's "Bitrate" row (sets
+// `Bridge.active-panel = Panel.bitrate-presets`) or directly from a
+// quick-action shortcut once Phase 17 lands. The active preset is
+// highlighted; tapping a card flips the active flag for that row only.
+// "Add preset" opens BitratePresetEditPage as a sibling panel.
+//
+// Real persistence (writing edited presets back to a global model) is
+// deferred to Phase 8. This page operates on a self-contained
+// `mock-presets` array; the edit page does NOT mutate it.
+//
+// Slint docs ref:
+//   draft/slint-ui/docs/astro/src/content/docs/reference/std-widgets/views/scrollview.mdx
+//   draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/repetition-and-data-models.mdx
+
+import { ScrollView } from "std-widgets.slint";
+import { Bridge, Panel, BitratePreset } from "../bridge.slint";
+import { Theme } from "../theme.slint";
+import { TextButton, PrimaryButton } from "../components/buttons.slint";
+
+export component BitratePresetsPage inherits Rectangle {
+    // ── UI-only stub state ──────────────────────────────────────────────
+    in-out property <[BitratePreset]> mock-presets: [
+        { id: "low",  name: "Low",     bitrate-kbps: 1500,  active: false },
+        { id: "med",  name: "Medium",  bitrate-kbps: 4000,  active: true  },
+        { id: "high", name: "High",    bitrate-kbps: 8000,  active: false },
+        { id: "max",  name: "Maximum", bitrate-kbps: 15000, active: false },
+    ];
+
+    width: 100%;
+    height: 100%;
+    background: Theme.surface-primary;
+
+    // Reassigns the entire array with one row marked active. Mutating an
+    // element field in place is NOT observed by Slint's reactive system —
+    // see "Gotcha 7" below.
+    function select(id: string) {
+        root.mock-presets = [
+            { id: root.mock-presets[0].id, name: root.mock-presets[0].name,
+              bitrate-kbps: root.mock-presets[0].bitrate-kbps,
+              active: root.mock-presets[0].id == id },
+            { id: root.mock-presets[1].id, name: root.mock-presets[1].name,
+              bitrate-kbps: root.mock-presets[1].bitrate-kbps,
+              active: root.mock-presets[1].id == id },
+            { id: root.mock-presets[2].id, name: root.mock-presets[2].name,
+              bitrate-kbps: root.mock-presets[2].bitrate-kbps,
+              active: root.mock-presets[2].id == id },
+            { id: root.mock-presets[3].id, name: root.mock-presets[3].name,
+              bitrate-kbps: root.mock-presets[3].bitrate-kbps,
+              active: root.mock-presets[3].id == id },
+        ];
+    }
+
+    VerticalLayout {
+        // ── Header ──────────────────────────────────────────────────────
+        Rectangle {
+            height: 56px;
+            background: Theme.surface-card;
+            HorizontalLayout {
+                padding: Theme.padding-screen;
+                Text {
+                    text: "Bitrate presets";
+                    color: Theme.text-primary;
+                    font-size: Theme.font-size-heading;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+                TextButton {
+                    label: "Done";
+                    clicked => { Bridge.active-panel = Panel.none; }
+                }
+            }
+        }
+
+        // ── Body ────────────────────────────────────────────────────────
+        ScrollView {
+            VerticalLayout {
+                spacing: Theme.spacing-default;
+                padding: Theme.padding-screen;
+
+                for preset[i] in root.mock-presets: Rectangle {
+                    height: 64px;
+                    border-radius: Theme.radius-card;
+                    background: preset.active
+                        ? Theme.accent-active
+                        : (ta.pressed ? Theme.surface-card.brighter(20%) : Theme.surface-card);
+
+                    ta := TouchArea {
+                        clicked => { root.select(preset.id); }
+                    }
+                    HorizontalLayout {
+                        padding-left:  Theme.padding-screen;
+                        padding-right: Theme.padding-screen;
+                        VerticalLayout {
+                            alignment: center;
+                            horizontal-stretch: 1;
+                            Text {
+                                text: preset.name;
+                                color: Theme.text-primary;
+                                font-size: Theme.font-size-body;
+                            }
+                            Text {
+                                text: "\{preset.bitrate-kbps} kbps";
+                                color: Theme.text-secondary;
+                                font-size: Theme.font-size-label;
+                            }
+                        }
+                        if preset.active: Text {
+                            text: "✓";
+                            color: Theme.text-primary;
+                            font-size: Theme.font-size-heading;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                PrimaryButton {
+                    label: "Add preset";
+                    clicked => { Bridge.active-panel = Panel.bitrate-preset-edit; }
+                }
+            }
+        }
+    }
+}
