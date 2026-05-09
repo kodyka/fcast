@@ -73,14 +73,17 @@ Mirrors Moblin's top-of-bar status strip but without any device API access.
           Badge {
               icon-glyph: root.mock-thermal == "Critical" ? "🔥" : "🌡";
               value: root.mock-thermal;
-              fg: root.mock-thermal == "Critical" ? Theme.error
-                : root.mock-thermal == "Serious"  ? Theme.warning
+              // `*-fg` severity tokens — bright variants suitable as text on
+              // surface-overlay; `Theme.error` / `Theme.warning` are
+              // background fills.
+              fg: root.mock-thermal == "Critical" ? Theme.error-fg
+                : root.mock-thermal == "Serious"  ? Theme.warning-fg
                 :                                   Theme.text-secondary;
           }
           Badge {
               icon-glyph: root.mock-charging ? "⚡" : "🔋";
               value: root.mock-battery-pct + "%";
-              fg: root.mock-battery-pct < 20 ? Theme.error : Theme.text-secondary;
+              fg: root.mock-battery-pct < 20 ? Theme.error-fg : Theme.text-secondary;
           }
       }
   }
