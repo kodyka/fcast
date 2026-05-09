@@ -22,7 +22,7 @@ export component PairingPage inherits Rectangle {
             alignment: space-between;
 
             Text {
-                text: "Pair via QR";
+                text: @tr("Pair via QR");
                 color: Theme.text-primary;
                 font-size: Theme.font-size-heading;
                 vertical-alignment: center;
@@ -33,7 +33,7 @@ export component PairingPage inherits Rectangle {
                 height: 36px;
 
                 Text {
-                    text: "Done";
+                    text: @tr("Done");
                     color: Theme.accent;
                     font-size: Theme.font-size-body;
                     horizontal-alignment: center;
@@ -53,7 +53,7 @@ export component PairingPage inherits Rectangle {
             alignment: center;
 
             QrPlaceholder {
-                label: "(QR preview)";
+                label: @tr("(QR preview)");
             }
         }
 
@@ -66,13 +66,13 @@ export component PairingPage inherits Rectangle {
             spacing: 4px;
 
             Text {
-                text: "Point receiver camera at this code";
+                text: @tr("Point receiver camera at this code");
                 color: Theme.text-secondary;
                 font-size: Theme.font-size-body;
                 horizontal-alignment: center;
             }
             Text {
-                text: "\{root.mock-device-ip}:\{root.mock-device-port}";
+                text: root.mock-device-ip + ":" + root.mock-device-port;
                 color: Theme.text-primary;
                 font-size: Theme.font-size-body;
                 horizontal-alignment: center;
@@ -95,7 +95,7 @@ export component PairingPage inherits Rectangle {
                 background: Theme.surface-card;
 
                 Text {
-                    text: "Refresh";
+                    text: @tr("Refresh");
                     color: Theme.accent;
                     font-size: Theme.font-size-body;
                     horizontal-alignment: center;
@@ -117,7 +117,7 @@ export component PairingPage inherits Rectangle {
                 background: Theme.surface-card;
 
                 Text {
-                    text: "Copy address";
+                    text: @tr("Copy address");
                     color: Theme.accent;
                     font-size: Theme.font-size-body;
                     horizontal-alignment: center;
@@ -139,7 +139,7 @@ export component PairingPage inherits Rectangle {
             HorizontalLayout {
                 alignment: center;
                 Text {
-                    text: "✓ Done";
+                    text: @tr("✓ Done");
                     color: Theme.accent;
                     font-size: Theme.font-size-label;
                     vertical-alignment: center;

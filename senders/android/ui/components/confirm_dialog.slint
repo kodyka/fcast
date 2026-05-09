@@ -3,10 +3,10 @@
 // Designed to be instantiated inside a parent's conditional:
 //
 //     if root.show-dialog: ConfirmDialog {
-//         title: "Delete forever?";
-//         body:  "This cannot be undone.";
+//         title: @tr("Delete forever?");
+//         body: @tr("This cannot be undone.");
 //         destructive: true;
-//         confirm-label: "Delete";
+//         confirm-label: @tr("Delete");
 //         confirmed  => { root.show-dialog = false; root.do-delete(); }
 //         dismissed  => { root.show-dialog = false; }
 //     }
@@ -24,9 +24,9 @@ import { Theme } from "../theme.slint";
 import { DestructiveButton, PrimaryButton, TextButton } from "buttons.slint";
 
 export component ConfirmDialog inherits Rectangle {
-    in property <string> title: "Confirm";
-    in property <string> body: "Are you sure?";
-    in property <string> confirm-label: "OK";
+    in property <string> title: @tr("Confirm");
+    in property <string> body: @tr("Are you sure?");
+    in property <string> confirm-label: @tr("OK");
     in property <bool>   destructive: false;
 
     callback confirmed();
@@ -78,7 +78,7 @@ export component ConfirmDialog inherits Rectangle {
                 alignment: end;
 
                 TextButton {
-                    label: "Cancel";
+                    label: @tr("dismiss-dialog-button" => "Cancel");
                     clicked => { root.dismissed(); }
                 }
 

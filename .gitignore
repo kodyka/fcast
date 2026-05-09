@@ -15,3 +15,5 @@
 /thirdparty
 /test_corpus
 draft/slint-docs/
+senders/android/ui/i18n/*.po
+senders/android/ui/i18n/*.mo

@@ -166,14 +166,14 @@ export component QuickActionsPage inherits Rectangle {
             HorizontalLayout {
                 padding: Theme.padding-screen;
                 Text {
-                    text: "Quick actions";
+                    text: @tr("Quick actions");
                     color: Theme.text-primary;
                     font-size: Theme.font-size-heading;
                     vertical-alignment: center;
                     horizontal-stretch: 1;
                 }
                 TextButton {
-                    label: "Done";
+                    label: @tr("close-panel-button" => "Done");
                     clicked => { Bridge.active-panel = Panel.none; }
                 }
             }
@@ -186,7 +186,7 @@ export component QuickActionsPage inherits Rectangle {
             HorizontalLayout {
                 padding: Theme.padding-screen;
                 Text {
-                    text: "Bar holds up to 6 actions — extras will overflow.";
+                    text: @tr("Bar holds up to 6 actions — extras will overflow.");
                     color: Theme.text-primary;
                     vertical-alignment: center;
                     font-size: Theme.font-size-label;
@@ -207,7 +207,7 @@ export component QuickActionsPage inherits Rectangle {
                     HorizontalLayout {
                         padding: Theme.padding-screen;
                         Text {
-                            text: "No bar actions configured.";
+                            text: @tr("No bar actions configured.");
                             color: Theme.text-secondary;
                             vertical-alignment: center;
                             horizontal-alignment: center;
@@ -217,7 +217,7 @@ export component QuickActionsPage inherits Rectangle {
                 }
 
                 // ── Section header ──────────────────────────────────────
-                SettingsSection { title: "BAR ACTIONS"; }
+                SettingsSection { title: @tr("BAR ACTIONS"); }
 
                 for action[i] in root.mock-bar-actions: QuickActionRow {
                     action: action;

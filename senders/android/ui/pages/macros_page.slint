@@ -22,16 +22,16 @@ export component MacrosPage inherits Rectangle {
         {
             id: "m1", name: "Start morning cast", enabled: true,
             steps: [
-                { action-id: "scan-qr",  label: "Scan QR" },
-                { action-id: "audio",    label: "Open Audio" },
-                { action-id: "record",   label: "Start Recording" },
+                { action-id: "scan-qr",  label: @tr("Scan QR") },
+                { action-id: "audio",    label: @tr("Open Audio") },
+                { action-id: "record",   label: @tr("Start Recording") },
             ],
         },
         {
             id: "m2", name: "Quick stop", enabled: true,
             steps: [
-                { action-id: "stop-recording", label: "Stop Recording" },
-                { action-id: "stop-cast",      label: "Stop Cast" },
+                { action-id: "stop-recording", label: @tr("Stop Recording") },
+                { action-id: "stop-cast",      label: @tr("Stop Cast") },
             ],
         },
     ];
@@ -47,14 +47,14 @@ export component MacrosPage inherits Rectangle {
             HorizontalLayout {
                 padding: Theme.padding-screen;
                 Text {
-                    text: "Macros";
+                    text: @tr("Macros");
                     color: Theme.text-primary;
                     font-size: Theme.font-size-heading;
                     vertical-alignment: center;
                     horizontal-stretch: 1;
                 }
                 TextButton {
-                    label: "Done";
+                    label: @tr("close-panel-button" => "Done");
                     clicked => { Bridge.active-panel = Panel.none; }
                 }
             }
@@ -72,7 +72,7 @@ export component MacrosPage inherits Rectangle {
                     HorizontalLayout {
                         padding: Theme.padding-screen;
                         Text {
-                            text: "No macros yet. Tap “Add macro” below to create one.";
+                            text: @tr("No macros yet. Tap “Add macro” below to create one.");
                             color: Theme.text-secondary;
                             vertical-alignment: center;
                             horizontal-alignment: center;
@@ -111,8 +111,7 @@ export component MacrosPage inherits Rectangle {
                             }
                             Text {
                                 // String interpolation handles int via "\{n}".
-                                text: "\{macro.steps.length} step" +
-                                      (macro.steps.length == 1 ? "" : "s");
+                                text: @tr("{n} step" | "{n} steps" % macro.steps.length);
                                 color: Theme.text-secondary;
                                 font-size: Theme.font-size-label;
                             }
@@ -140,7 +139,7 @@ export component MacrosPage inherits Rectangle {
                 }
 
                 PrimaryButton {
-                    label: "Add macro";
+                    label: @tr("Add macro");
                     clicked => {
                         // Empty id → edit page renders blank form.
                         Bridge.mock-macro-edit-id = "";

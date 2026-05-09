@@ -11,11 +11,11 @@ export component ConnectingView inherits Rectangle {
     VerticalBox {
         alignment: center;
         LoadingView {
-            label: "Connecting";
+            label: @tr("Connecting");
         }
 
         DestructiveButton {
-            label: "Cancel";
+            label: @tr("cancel-cast-button" => "Cancel");
             clicked => { Bridge.stop-casting(); }
         }
     }

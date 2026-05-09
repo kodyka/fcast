@@ -60,14 +60,14 @@ export component BitratePresetsPage inherits Rectangle {
             HorizontalLayout {
                 padding: Theme.padding-screen;
                 Text {
-                    text: "Bitrate presets";
+                    text: @tr("Bitrate presets");
                     color: Theme.text-primary;
                     font-size: Theme.font-size-heading;
                     vertical-alignment: center;
                     horizontal-stretch: 1;
                 }
                 TextButton {
-                    label: "Done";
+                    label: @tr("close-panel-button" => "Done");
                     clicked => { Bridge.active-panel = Panel.none; }
                 }
             }
@@ -101,13 +101,13 @@ export component BitratePresetsPage inherits Rectangle {
                                 font-size: Theme.font-size-body;
                             }
                             Text {
-                                text: "\{preset.bitrate-kbps} kbps";
+                                text: @tr("{} kbps", preset.bitrate-kbps);
                                 color: Theme.text-secondary;
                                 font-size: Theme.font-size-label;
                             }
                         }
                         if preset.active: Text {
-                            text: "✓";
+                            text: @tr("✓");
                             color: Theme.text-primary;
                             font-size: Theme.font-size-heading;
                             vertical-alignment: center;
@@ -116,7 +116,7 @@ export component BitratePresetsPage inherits Rectangle {
                 }
 
                 PrimaryButton {
-                    label: "Add preset";
+                    label: @tr("Add preset");
                     clicked => { Bridge.active-panel = Panel.bitrate-preset-edit; }
                 }
             }

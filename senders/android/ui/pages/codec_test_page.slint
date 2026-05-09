@@ -24,7 +24,7 @@ export component CodecTestPage inherits Rectangle {
         + "Framerate : 30 fps\n"
         + "Bitrate   : 4 Mbps\n"
         + "\n"
-        + "Press \"Run encoder test\" to start.";
+        + @tr("Press \"Run encoder test\" to start.");
 
     width: 100%;
     height: 100%;
@@ -38,14 +38,14 @@ export component CodecTestPage inherits Rectangle {
             HorizontalLayout {
                 padding: Theme.padding-screen;
                 Text {
-                    text: "Codec test";
+                    text: @tr("Codec test");
                     color: Theme.text-primary;
                     font-size: Theme.font-size-heading;
                     vertical-alignment: center;
                     horizontal-stretch: 1;
                 }
                 TextButton {
-                    label: "Done";
+                    label: @tr("close-panel-button" => "Done");
                     clicked => { Bridge.active-panel = Panel.none; }
                 }
             }
@@ -57,7 +57,7 @@ export component CodecTestPage inherits Rectangle {
             spacing: Theme.spacing-default;
 
             PrimaryButton {
-                label: "Run encoder test";
+                label: @tr("Run encoder test");
                 // UI-only — no real test runner in this phase.
                 clicked => { /* placeholder: would launch a Rust MediaCodec smoke test */ }
             }

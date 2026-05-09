@@ -22,7 +22,7 @@ export component ReceiverRenamePage inherits Rectangle {
             alignment: space-between;
 
             Text {
-                text: "Rename receiver";
+                text: @tr("Rename receiver");
                 color: Theme.text-primary;
                 font-size: Theme.font-size-heading;
                 vertical-alignment: center;
@@ -33,7 +33,7 @@ export component ReceiverRenamePage inherits Rectangle {
                 height: 36px;
 
                 Text {
-                    text: "Cancel";
+                    text: @tr("Cancel");
                     color: Theme.accent;
                     font-size: Theme.font-size-body;
                     horizontal-alignment: center;
@@ -50,14 +50,14 @@ export component ReceiverRenamePage inherits Rectangle {
             spacing: 8px;
 
             Text {
-                text: "Display name";
+                text: @tr("Display name");
                 color: Theme.text-secondary;
                 font-size: Theme.font-size-label;
             }
 
             LineEdit {
                 text <=> root.draft-name;
-                placeholder-text: "Enter a name";
+                placeholder-text: @tr("Enter a name");
             }
         }
 
@@ -71,7 +71,7 @@ export component ReceiverRenamePage inherits Rectangle {
             background: Theme.accent;
 
             Text {
-                text: "Save";
+                text: @tr("Save");
                 color: Theme.text-primary;
                 font-size: Theme.font-size-body;
                 horizontal-alignment: center;

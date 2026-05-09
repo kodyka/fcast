@@ -100,7 +100,7 @@ export component CastHistoryDetailPage inherits Rectangle {
                 }
 
                 TextButton {
-                    label: "Done";
+                    label: @tr("close-panel-button" => "Done");
                     clicked => { Bridge.active-panel = Panel.cast-history; }
                 }
             }
@@ -122,7 +122,7 @@ export component CastHistoryDetailPage inherits Rectangle {
                         // Started.
                         HorizontalLayout {
                             Text {
-                                text: "Started";
+                                text: @tr("Started");
                                 color: Theme.text-secondary;
                                 horizontal-stretch: 1;
                             }
@@ -135,7 +135,7 @@ export component CastHistoryDetailPage inherits Rectangle {
                         // Duration.
                         HorizontalLayout {
                             Text {
-                                text: "Duration";
+                                text: @tr("Duration");
                                 color: Theme.text-secondary;
                                 horizontal-stretch: 1;
                             }
@@ -148,7 +148,7 @@ export component CastHistoryDetailPage inherits Rectangle {
                         // Status (text form).
                         HorizontalLayout {
                             Text {
-                                text: "Status";
+                                text: @tr("Status");
                                 color: Theme.text-secondary;
                                 horizontal-stretch: 1;
                             }
@@ -162,7 +162,7 @@ export component CastHistoryDetailPage inherits Rectangle {
                         // additional CastHistoryEntry fields populated by Rust.
                         HorizontalLayout {
                             Text {
-                                text: "Avg bitrate";
+                                text: @tr("Avg bitrate");
                                 color: Theme.text-secondary;
                                 horizontal-stretch: 1;
                             }
@@ -170,7 +170,7 @@ export component CastHistoryDetailPage inherits Rectangle {
                         }
                         HorizontalLayout {
                             Text {
-                                text: "Peak bitrate";
+                                text: @tr("Peak bitrate");
                                 color: Theme.text-secondary;
                                 horizontal-stretch: 1;
                             }
@@ -178,7 +178,7 @@ export component CastHistoryDetailPage inherits Rectangle {
                         }
                         HorizontalLayout {
                             Text {
-                                text: "Dropped frames";
+                                text: @tr("Dropped frames");
                                 color: Theme.text-secondary;
                                 horizontal-stretch: 1;
                             }
@@ -189,7 +189,7 @@ export component CastHistoryDetailPage inherits Rectangle {
 
                 // Footer action.
                 PrimaryButton {
-                    label: "Cast again to " + root.entry.receiver;
+                    label: @tr("Cast again to {}", root.entry.receiver);
                     // UI-only: no real re-cast. Phase 8 wires
                     // Bridge.invoke-action("cast-to:<receiver-id>").
                     clicked => { }

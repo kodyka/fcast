@@ -74,7 +74,7 @@ export component StatusBadgesRow inherits Rectangle {
 
         Badge {
             icon-glyph: root.mock-charging ? "⚡" : "🔋";
-            value: "\{root.mock-battery-pct}%";
+            value: @tr("{}%", root.mock-battery-pct);
             fg: root.mock-battery-pct < 20 ? Theme.error-fg : Theme.text-secondary;
         }
     }
