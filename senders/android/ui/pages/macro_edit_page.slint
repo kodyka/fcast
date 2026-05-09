@@ -59,7 +59,7 @@ export component MacroEditPage inherits Rectangle {
                     clicked => { Bridge.active-panel = Panel.macros; }
                 }
                 PrimaryButton {
-                    label: @tr("save-preset-button" => "Save");
+                    label: @tr("save-button" => "Save");
                     // UI-only: no real save. Phase 8 wires
                     // Bridge.save-macro(mock-name, mock-steps, mock-enabled).
                     clicked => { Bridge.active-panel = Panel.macros; }

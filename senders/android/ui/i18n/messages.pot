@@ -483,7 +483,7 @@ msgstr ""
 
 #: senders/android/ui/pages/bitrate_preset_edit_page.slint:51
 #: senders/android/ui/pages/bitrate_preset_edit_page.slint:51
-msgctxt "save-preset-button"
+msgctxt "save-button"
 msgid "Save"
 msgstr ""
 
