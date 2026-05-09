@@ -179,7 +179,7 @@ SET_FILE="$TMPDIR_RUN/panels-set.txt"
 # (e.g. during a refactor that temporarily strips Panel routes from main.slint)
 # exits 1, pipefail propagates the failure, and set -e kills the script before
 # the audit can report what happened.
-grep -hoE '== *Panel\.[a-z][a-z0-9-]*' "$UI_ROOT/main.slint" 
+grep -hoE '== *Panel\.[a-z][a-z0-9-]*' "$UI_ROOT/main.slint" \
     | sed 's/== *//' | sort -u > "$ROUTED_FILE" || true
 
 # Setters: `Bridge.active-panel = Panel.<variant>` anywhere except main.slint.
