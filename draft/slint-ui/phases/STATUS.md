@@ -76,16 +76,16 @@ landed.
 | **13** Status badges row | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-13-reimplement-instructions.md` | `components/status_badges.slint` exports `StatusBadgesRow` + internal `Badge`; `main.slint` instantiates it above `CastControlBar`. |
 | **14** Audio capture controls | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-14-reimplement-instructions.md` | `pages/audio_page.slint`; `Panel` enum has `audio` variant. |
 | **15** Camera capture controls | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-15-reimplement-instructions.md` | `pages/camera_page.slint` exists, `bridge.slint` has `Panel.camera`. |
-| **16** Bitrate quality presets | `[ ] Not started` | `[ ] Not started` | `PHASE-16-reimplement-instructions.md` | No `pages/bitrate_presets_page.slint` / `bitrate_preset_edit_page.slint`. |
-| **17** Quick-action customisation | `[ ] Not started` | `[ ] Not started` | `PHASE-17-reimplement-instructions.md` | No `pages/quick_actions_page.slint`. |
+| **16** Bitrate quality presets | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-16-reimplement-instructions.md` | `pages/bitrate_presets_page.slint` and `pages/bitrate_preset_edit_page.slint` implemented. |
+| **17** Quick-action customisation | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-17-reimplement-instructions.md` | `pages/quick_actions_page.slint` exists and implements `QuickActionsPage`, added variant to `bridge.slint` enum `Panel`. |
 | **18** Privacy / lifecycle modes | `[ ] Not started` | `[ ] Not started` | `PHASE-18-reimplement-instructions.md` | No `LockOverlay` / `StealthOverlay` / `SnapshotCountdown` siblings in `main.slint`. |
 | **19** Settings backup / reset | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-19-reimplement-instructions.md` | `pages/backup_reset_page.slint`, shared `ConfirmDialog` component. |
 | **20** Cast history | `[ ] Not started` | `[ ] Not started` | `PHASE-20-reimplement-instructions.md` | No `pages/cast_history_page.slint`. |
 | **21** Help & support | `[ ] Not started` | `[ ] Not started` | `PHASE-21-reimplement-instructions.md` | No `pages/about_page.slint` / `version_history_page.slint` / `attributions_page.slint` / `help_page.slint`; the inline `ABOUT` section in `FullSettingsPage` is still the only About surface. |
 | **22** Network interfaces / Wi-Fi Aware | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-22-reimplement-instructions.md` | `pages/network_page.slint` + `NetworkInterface` struct in `bridge.slint` |
 | **23** Local recording | `[ ] Not started — blocked by Rust recording capability for live data, but UI placeholder is unblocked` | `[ ] Not started` | `PHASE-23-reimplement-instructions.md` | No `pages/recording_page.slint`. |
-| **24** Pairing QR + receiver management | `[ ] Not started` | `[ ] Not started` | `PHASE-24-reimplement-instructions.md` | No `pages/pairing_page.slint` / `receiver_rename_page.slint`; no QR placeholder component. |
-| **25** Macros / action chains | `[ ] Not started` | `[ ] Not started` | `PHASE-25-reimplement-instructions.md` | No `pages/macros_page.slint` / `macro_edit_page.slint`; no `Macro` / `MacroStep` structs in `bridge.slint`. |
+| **24** Pairing QR + receiver management | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-24-reimplement-instructions.md` | `pages/pairing_page.slint` and `pages/receiver_rename_page.slint` exist; QR placeholder and context menu components exist. |
+| **25** Macros / action chains | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-25-reimplement-instructions.md` | `pages/macros_page.slint` / `macro_edit_page.slint` exist; `Macro` / `MacroStep` structs in `bridge.slint`. |
 | **26** Debug log viewer | `[ ] Not started` | `[ ] Not started` | `PHASE-26-reimplement-instructions.md` | No `pages/debug_log_page.slint` / `debug_video_page.slint`; the legacy `Show debug panel` toggle in `FullSettingsPage` is still the only debug surface. |
 | **27** Utility components backlog | `[~] Ongoing — pull from this list when a downstream phase needs a util` | `[~] Ongoing` | `PHASE-27-reimplement-instructions.md` | No utilities extracted yet; the guide ships `IconAndText` + `InfoBanner` + `ValueEditChip` as pre-defined extraction targets. |
 
@@ -125,9 +125,11 @@ that have not been settled, so guides for them would be premature.
   Phase 8 reactivates" sections from every UI guide.
 - **Phases 9, 10, 11** are ongoing meta-phases. None of them ships a single
   on/off implementation — they wrap or run alongside other phases.
-- **Phases 12–18, 20–27** have step-by-step reimplement guides (PR #1) but
-  **no** code in `senders/android/ui/`. A reader can pick any of these and
-  follow the guide to land the phase.
+- **Phases 13–17, 19, 22, 24, 25** are landed as UI-only (see the table
+  above for the exact files). **Phases 12, 18, 20, 21, 23, 26** still
+  have only their step-by-step reimplement guides (PR #1) and no code in
+  `senders/android/ui/` — a reader can pick any of those remaining phases
+  and follow the guide to land them.
 - **Phases 28–48** ship spec only. Guides for these are deferred until the
   upstream architectural decisions land.
 

@@ -7,20 +7,31 @@
 // so the SDK common.slint path gains one extra `../` vs. main.slint.
 
 import { VerticalBox, Spinner, LineEdit } from "std-widgets.slint";
-import { Bridge, ReceiverItem } from "../bridge.slint";
+import { Bridge, ReceiverItem, Panel } from "../bridge.slint";
 import { DebugPage } from "debug_page.slint";
 import { Theme } from "../theme.slint";
 import { PrimaryButton } from "../components/buttons.slint";
+import { ReceiverContextMenu } from "../components/receiver_context_menu.slint";
+import { ConfirmDialog }       from "../components/confirm_dialog.slint";
 
 export component ConnectView inherits Rectangle {
     // UI-only placeholder. Live data lives in `futures/` until Rust mDNS maps
     // `DeviceInfo` → `ReceiverItem`.
     in-out property <[ReceiverItem]> mock-devices: [
-        { name: "Living Room TV",     address: "192.168.1.50" },
-        { name: "Office Display",     address: "192.168.1.51" },
-        { name: "Kitchen Chromecast", address: "192.168.1.52:46899" },
+        { id: "dev-1", name: "Living Room TV",     address: "192.168.1.50", ip: "192.168.1.50", port: 46899, kind: "fcast", is-default: false },
+        { id: "dev-2", name: "Office Display",     address: "192.168.1.51", ip: "192.168.1.51", port: 46899, kind: "fcast", is-default: false },
+        { id: "dev-3", name: "Kitchen Chromecast", address: "192.168.1.52:46899", ip: "192.168.1.52", port: 46899, kind: "fcast", is-default: false },
     ];
     in-out property <bool> mock-empty: false;
+
+    // Context menu state.
+    in-out property <bool>   show-context-menu: false;
+    in-out property <string> context-receiver-id;
+    in-out property <string> context-receiver-name;
+    in-out property <length> context-menu-y: 0px;
+
+    // Forget confirmation state.
+    in-out property <bool> show-forget-confirm: false;
 
     VerticalBox {
         alignment: start;
@@ -58,12 +69,35 @@ export component ConnectView inherits Rectangle {
         if !root.mock-empty && root.mock-devices.length > 0: VerticalLayout {
             spacing: Theme.spacing-default;
 
-            for device in root.mock-devices: Rectangle {
+            for device[idx] in root.mock-devices: Rectangle {
                 height: Theme.row-height + 18px;
 
+                property <bool> lp-armed: false;
+
                 ta := TouchArea {
-                    // UI-only — no real connect handler in this phase.
-                    clicked => { /* placeholder: would call connect-receiver(device.address) */ }
+                    changed pressed => {
+                        if self.pressed {
+                            parent.lp-armed = true;
+                        } else {
+                            parent.lp-armed = false;
+                        }
+                    }
+                    clicked => {
+                        /* placeholder: would call connect-receiver(device.address) */
+                    }
+                }
+
+                Timer {
+                    interval: 600ms;
+                    running: parent.lp-armed;
+                    triggered => {
+                        parent.lp-armed = false;
+                        // Long press detected.
+                        root.context-receiver-id = device.id;
+                        root.context-receiver-name = device.name;
+                        root.context-menu-y = (parent.height * idx) + 100px; // Rough y calculation
+                        root.show-context-menu = true;
+                    }
                 }
 
                 Rectangle {
@@ -109,9 +143,88 @@ export component ConnectView inherits Rectangle {
             }
         }
 
+        // "Pair via QR" button — between the receiver list and the bottom.
+        HorizontalLayout {
+            alignment: center;
+            padding: 8px;
+
+            Rectangle {
+                width: 140px;
+                height: 44px;
+                border-radius: Theme.radius-card;
+                background: Theme.surface-card;
+
+                Text {
+                    text: "Pair via QR";
+                    color: Theme.accent;
+                    font-size: Theme.font-size-body;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                TouchArea {
+                    clicked => { Bridge.active-panel = Panel.pairing; }
+                }
+            }
+        }
+
         // ── Debug panel (conditionally visible) ───────────────────────────
         // DebugPage inherits VerticalBox, so it slots into this layout
         // exactly as the original inline VerticalBox did.
         if Bridge.show-debug: DebugPage { }
+    }
+
+    // Overlay layer: context menu scrim + menu.
+    if root.show-context-menu: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #00000040;
+
+        // Scrim tap dismisses.
+        TouchArea {
+            clicked => { root.show-context-menu = false; }
+        }
+
+        // Menu positioned near the long-pressed row.
+        ReceiverContextMenu {
+            x: (root.width - self.width) / 2;
+            y: root.context-menu-y;
+            show-disconnect: false;
+
+            rename-clicked => {
+                root.show-context-menu = false;
+                Bridge.selected-receiver-id = root.context-receiver-id;
+                Bridge.selected-receiver-name = root.context-receiver-name;
+                Bridge.active-panel = Panel.receiver-rename;
+            }
+            set-default-clicked => {
+                root.show-context-menu = false;
+                // UI-only: no-op. Phase 8 wires to persistence.
+            }
+            forget-clicked => {
+                root.show-context-menu = false;
+                root.show-forget-confirm = true;
+            }
+            disconnect-clicked => {
+                root.show-context-menu = false;
+                // UI-only: no-op. Phase 8 wires to Bridge.disconnect-receiver(id).
+            }
+        }
+    }
+
+    // Forget confirmation dialog.
+    if root.show-forget-confirm: ConfirmDialog {
+        title: "Forget receiver?";
+        body:  "This receiver will be removed from your known devices list.";
+        confirm-label: "Forget";
+        destructive: true;
+
+        confirmed => {
+            root.show-forget-confirm = false;
+            // UI-only: remove the entry from mock-devices.
+            // In a real implementation, this is a whole-array rebuild.
+        }
+        dismissed => {
+            root.show-forget-confirm = false;
+        }
     }
 }

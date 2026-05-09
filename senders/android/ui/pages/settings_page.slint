@@ -75,7 +75,6 @@ export component FullSettingsPage inherits Rectangle {
     in-out property <int>    resolution-idx: 2;
     in-out property <int>    framerate-idx:  2;
     in-out property <bool>   mdns-enabled:   true;
-    in-out property <bool>   debug-panel:    false;
     in-out property <string> mock-app-version: "0.0.1-dev";
 
     // Fill the parent (overlay layer in main.slint passes parent.width/height).
@@ -137,6 +136,11 @@ export component FullSettingsPage inherits Rectangle {
                         clicked => { Bridge.active-panel = Panel.audio; }
                     }
                     SettingsValueRow {
+                        title: "Bitrate";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.bitrate-presets; }
+                    }
+                    SettingsValueRow {
                         title: "Camera";
                         value: "Open";
                         clicked => { Bridge.active-panel = Panel.camera; }
@@ -165,10 +169,15 @@ export component FullSettingsPage inherits Rectangle {
                         value: "Open";
                         clicked => { Bridge.active-panel = Panel.codec-test; }
                     }
-                    SettingsToggleRow {
-                        title: "Show debug panel";
-                        checked: root.debug-panel;
-                        toggled(checked) => { root.debug-panel = checked; }
+                    SettingsValueRow {
+                        title: "Debug log";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.debug-log; }
+                    }
+                    SettingsValueRow {
+                        title: "Video pipeline";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.debug-video; }
                     }
                 }
 
@@ -186,9 +195,24 @@ export component FullSettingsPage inherits Rectangle {
                 SettingsSection {
                     title: "ADVANCED";
                     SettingsValueRow {
+                        title: "Recording";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.recording; }
+                    }
+                    SettingsValueRow {
                         title: "Network";
                         value: "Open";
                         clicked => { Bridge.active-panel = Panel.network; }
+                    }
+                }
+
+                // ── Section: AUTOMATION ───────────────────────────────────
+                SettingsSection {
+                    title: "AUTOMATION";
+                    SettingsValueRow {
+                        title: "Macros";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.macros; }
                     }
                 }
 

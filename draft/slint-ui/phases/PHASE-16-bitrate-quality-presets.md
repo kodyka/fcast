@@ -4,7 +4,7 @@
 > **UI-only.** Presets are stored as inline mock model; no Rust encoder
 > reconfiguration.
 
-**Status:** `[ ] Not started`
+**Status:** `[x] Complete (UI-only)`
 **Depends on:** Phases 2, 3, 7
 **Functional integration:** Deferred — encoder bitrate change requires
 GStreamer `videorate` + `videoconvert` + `x264enc` (or `amcvidenc`) bitrate
@@ -25,7 +25,7 @@ property updates.
 
 ### 16-A — `BitratePreset` struct
 
-- [ ] In `bridge.slint`, add the struct (placeholder — not bound to any
+- [x] In `bridge.slint`, add the struct (placeholder — not bound to any
   `Bridge` setter):
 
   ```slint
@@ -41,7 +41,7 @@ property updates.
 
 ### 16-B — `BitratePresetsPage` (list)
 
-- [ ] Page-level inline mock model:
+- [x] Page-level inline mock model:
 
   ```slint
   in-out property <[BitratePreset]> mock-presets: [
@@ -53,28 +53,28 @@ property updates.
   in-out property <int> mock-selected-idx: 1;
   ```
 
-- [ ] Render each preset as a `Rectangle` row showing name + bitrate, with a
+- [x] Render each preset as a `Rectangle` row showing name + bitrate, with a
   trailing chevron. Tapping a row sets `mock-selected-idx` and updates each
   preset's `active` flag (UI-only — the `for` loop re-renders).
-- [ ] Add an "Add preset" `PrimaryButton` that opens
+- [x] Add an "Add preset" `PrimaryButton` that opens
   `Bridge.active-panel = Panel.bitrate-preset-edit;` (with no real persistence).
 
 ---
 
 ### 16-C — `BitratePresetEditPage` (single preset)
 
-- [ ] Form with name `LineEdit` + bitrate `SettingsSliderRow` (range
+- [x] Form with name `LineEdit` + bitrate `SettingsSliderRow` (range
   500..20000 kbps step 500) + Save button.
-- [ ] Save button does `Bridge.active-panel = Panel.bitrate-presets;` (no real
+- [x] Save button does `Bridge.active-panel = Panel.bitrate-presets;` (no real
   mutation of the parent's `mock-presets`).
-- [ ] Note in the doc: real persistence requires lifting the model to a
+- [x] Note in the doc: real persistence requires lifting the model to a
   global / `Bridge`, deferred to `futures/`.
 
 ---
 
 ### 16-D — Quick-action shortcut
 
-- [ ] Add a `quick-action` entry in the control-bar stub model with id
+- [x] Add a `quick-action` entry in the control-bar stub model with id
   `"bitrate"`. On click in Slint, jump to `Panel.bitrate-presets`.
 
 ---

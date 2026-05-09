@@ -23,9 +23,19 @@ export global Theme {
     out property <color> accent-pressed:   #1e40af;
 
     // Severity
-    out property <color> error:            #7f1d1d;
-    out property <color> warning:          #78350f;
-    out property <color> success:          #14532d;
+    //
+    // Each severity has paired tokens: a dark `*` (or `*-bg`) variant for use
+    // as a *background* fill (e.g. DestructiveButton, StatusPill), and a
+    // brighter `*-fg` variant for use as *text* color on dark surfaces (e.g.
+    // Badge text inside StatusBadgesRow over surface-overlay).  The two roles
+    // need different luminance to stay WCAG-AA legible — a single token
+    // cannot serve both because a color readable as a 16px label on
+    // surface-overlay is too bright to host white label text on top of it.
+    out property <color> error:            #c62828;   // bg fill (dark red)
+    out property <color> error-fg:         #ef4444;   // fg/text (bright red)
+    out property <color> warning:          #ed6c02;   // bg fill (dark amber)
+    out property <color> warning-fg:       #ed6c02;   // fg/text (bright orange)
+    out property <color> success:          #2e7d32;   // bg fill (dark green)
 
     // Typography — font sizes are `length`
     out property <length> font-size-heading:  20px;
