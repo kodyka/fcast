@@ -110,6 +110,16 @@ export component FullSettingsPage inherits Rectangle {
                 spacing: Theme.spacing-default;
                 padding: Theme.padding-screen;
 
+                // ── Section: AUDIO & VIDEO ────────────────────────────────
+                SettingsSection {
+                    title: "AUDIO & VIDEO";
+                    SettingsValueRow {
+                        title: "Audio";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.audio; }
+                    }
+                }
+
                 // ── Section: RECEIVER ─────────────────────────────────────
                 SettingsSection {
                     title: "RECEIVER";
