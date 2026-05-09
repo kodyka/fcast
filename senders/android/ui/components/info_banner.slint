@@ -29,7 +29,7 @@ export component InfoBanner inherits Rectangle {
     in property <string>          message;
     in property <BannerSeverity>  severity: BannerSeverity.info;
     in-out property <bool>        shown: false;
-    in property <duration>        auto-hide-ms: 3s;
+    in property <duration>        auto-hide-delay: 3s;
 
     height: root.shown ? 40px : 0px;
     clip: true;
