@@ -73,8 +73,8 @@ landed.
 | Phase | Declared | Actual | Reimplement guide | Evidence |
 |---|---|---|---|---|
 | **12** Capture preview | `[ ] Not started` | `[ ] Not started` | `PHASE-12-reimplement-instructions.md` | No `CapturePreview` component, no `mock-source-label` / `mock-active` properties on `pages/casting_page.slint`. |
-| **13** Status badges row | `[ ] Not started` | `[ ] Not started` | `PHASE-13-reimplement-instructions.md` | No `StatusBadgesRow` / `Badge` component; no battery / thermal / network mock state. |
-| **14** Audio capture controls | `[ ] Not started` | `[ ] Not started` | `PHASE-14-reimplement-instructions.md` | No `pages/audio_page.slint`; `Panel` enum has no `audio` variant. |
+| **13** Status badges row | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-13-reimplement-instructions.md` | `components/status_badges.slint` exports `StatusBadgesRow` + internal `Badge`; `main.slint` instantiates it above `CastControlBar`. |
+| **14** Audio capture controls | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-14-reimplement-instructions.md` | `pages/audio_page.slint`; `Panel` enum has `audio` variant. |
 | **15** Camera capture controls | `[ ] Not started — blocked by Rust camera capability for live data, but UI placeholder is unblocked` | `[ ] Not started` | `PHASE-15-reimplement-instructions.md` | No `pages/camera_page.slint`. |
 | **16** Bitrate quality presets | `[ ] Not started` | `[ ] Not started` | `PHASE-16-reimplement-instructions.md` | No `pages/bitrate_presets_page.slint` / `bitrate_preset_edit_page.slint`. |
 | **17** Quick-action customisation | `[ ] Not started` | `[ ] Not started` | `PHASE-17-reimplement-instructions.md` | No `pages/quick_actions_page.slint`. |
@@ -125,9 +125,9 @@ that have not been settled, so guides for them would be premature.
   Phase 8 reactivates" sections from every UI guide.
 - **Phases 9, 10, 11** are ongoing meta-phases. None of them ships a single
   on/off implementation — they wrap or run alongside other phases.
-- **Phases 12–27** have step-by-step reimplement guides (PR #1) but **no**
-  code in `senders/android/ui/`. A reader can pick any of these and follow
-  the guide to land the phase.
+- **Phase 12 is complete (UI-only).** Phases 13–27 have step-by-step
+  reimplement guides (PR #1) but **no** code in `senders/android/ui/`. A
+  reader can pick any of these and follow the guide to land the phase.
 - **Phases 28–48** ship spec only. Guides for these are deferred until the
   upstream architectural decisions land.
 
@@ -139,6 +139,8 @@ that have not been settled, so guides for them would be premature.
 | `PHASE-5-status-overlay.md` | `[ ] UI placeholder — no functionality` | `[x] Complete (UI-only — Rust wiring deferred to Phase 8)` | Wording aligned with the canonical taxonomy. The substance is unchanged. |
 | `PHASE-6-receiver-list.md` | `[ ] UI placeholder — no functionality` | `[x] Complete (UI-only — Rust wiring deferred to Phase 8)` | Same. |
 | `PHASE-7-settings-pages.md` | `[ ] UI placeholder — no functionality` | `[x] Complete (UI-only — Rust wiring deferred to Phase 8)` | Same. |
+
+| `PHASE-12-capture-preview.md` | `[ ] Not started` | `[x] Complete (UI-only)` | `CapturePreview` component added in `components/capture_preview.slint` and embedded in `casting_page.slint`. |
 
 No other per-phase status lines change in this PR — every other line is
 already accurate.
