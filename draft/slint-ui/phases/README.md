@@ -5,6 +5,14 @@ Start with `PHASE-0` and work forward. See `../TODO.md` for the original
 high-level overview, and `../futures/NOT-APPLICABLE.md` for per-Moblin-file
 applicability triage.
 
+> **Current implementation status — see [`STATUS.md`](STATUS.md).**
+> That file is the canonical, evidence-grounded snapshot of what is actually
+> shipped in `senders/android/ui/` vs. what is still on paper. The
+> per-phase `**Status:**` lines below are the source of truth for each
+> individual phase, but `STATUS.md` consolidates them in one table with
+> file-path evidence and flags any drift between the declared status and
+> the live tree. Update it whenever a phase ships or its status changes.
+
 ## Roadmap shape
 
 The roadmap is split into three bands:
@@ -38,29 +46,29 @@ The roadmap is split into three bands:
 | `PHASE-2-theme-tokens.md` | 2 | Replace all hardcoded colors/sizes with `Theme` tokens | 1 |
 | `PHASE-3-components.md` | 3 | Build `PrimaryButton`, `SettingsValueRow`, etc. | 1, 2 |
 | `PHASE-4-control-bar.md` | 4 | `CastControlBar` + model-driven `QuickAction` buttons | 1, 2, 3 |
-| `PHASE-5-status-overlay.md` | 5 | `StatusOverlay` pills on casting screen (UI-only) | 1, 2, 4 |
-| `PHASE-6-receiver-list.md` | 6 | `ReceiverItem` rows + spinner empty state (UI-only) | 1, 2, 3 |
-| `PHASE-7-settings-pages.md` | 7 | `FullSettingsPage` + `Panel` routing (UI-only) | 1, 2, 3, 4 |
-| `PHASE-8-rust-bridge.md` | 8 | **Deferred** — Rust wiring placeholder, parked in `futures/` | 5, 6, 7 + 12–27 |
-| `PHASE-9-localization.md` | 9 | Wrap all strings with `@tr("...")`, generate `.pot` template | 7, 12–27 |
-| `PHASE-10-testing.md` | 10 | Build gate + visual validation checklist (runs each phase) | each phase |
+| `PHASE-5-status-overlay.md` | 5 | `StatusOverlay` pills on casting screen (UI-only) — **+ `PHASE-5-reimplement-instructions.md`** | 1, 2, 4 |
+| `PHASE-6-receiver-list.md` | 6 | `ReceiverItem` rows + spinner empty state (UI-only) — **+ `PHASE-6-reimplement-instructions.md`** | 1, 2, 3 |
+| `PHASE-7-settings-pages.md` | 7 | `FullSettingsPage` + `Panel` routing (UI-only) — **+ `PHASE-7-reimplement-instructions.md`** | 1, 2, 3, 4 |
+| `PHASE-8-rust-bridge.md` | 8 | **Deferred** — Rust wiring placeholder, parked in `futures/` — **+ `PHASE-8-bridge-migration-plan.md`** | 5, 6, 7 + 12–27 |
+| `PHASE-9-localization.md` | 9 | Wrap all strings with `@tr("...")`, generate `.pot` template — **+ `PHASE-9-reimplement-instructions.md`** | 7, 12–27 |
+| `PHASE-10-testing.md` | 10 | Build gate + visual validation checklist (runs each phase) — **+ `PHASE-10-reimplement-instructions.md`** | each phase |
 | `PHASE-11-source-tracking.md` | 11 | Moblin → Slint group completeness reference table | reference |
-| `PHASE-12-capture-preview.md` | 12 | Capture preview placeholder card on casting screen | 1, 2, 5 |
-| `PHASE-13-status-badges-row.md` | 13 | Battery / thermal / network badge row above control bar | 1, 2, 3, 4 |
-| `PHASE-14-audio-capture-controls.md` | 14 | Audio settings sub-page (source / mute / gain / bitrate) | 2, 3, 7 |
-| `PHASE-15-camera-capture-controls.md` | 15 | Camera settings sub-page (source / res / framerate / mirror / zoom) | 2, 3, 7 |
-| `PHASE-16-bitrate-quality-presets.md` | 16 | Bitrate presets list + per-preset editor | 2, 3, 7 |
-| `PHASE-17-quick-action-customization.md` | 17 | Quick-action reorder / enable / overflow banner | 2, 3, 4, 7 |
-| `PHASE-18-privacy-lifecycle-modes.md` | 18 | Lock / Stealth / Snapshot Countdown overlays | 1, 2, 3 |
-| `PHASE-19-settings-backup-reset.md` | 19 | Backup / import / reset destructive flows + `ConfirmDialog` | 2, 3, 7 |
-| `PHASE-20-cast-history.md` | 20 | Cast session history list + per-session detail | 2, 3, 7, 19 |
-| `PHASE-21-help-and-support.md` | 21 | About / version history / attributions / help | 2, 3, 7 |
-| `PHASE-22-network-interface-wifi-aware.md` | 22 | Network interface list + Wi-Fi Aware opt-in placeholder | 2, 3, 7 |
-| `PHASE-23-local-recording.md` | 23 | Recording controls placeholder (idle / recording / paused) | 2, 3, 7 |
-| `PHASE-24-pairing-qr-receiver-management.md` | 24 | QR pairing page + receiver context menu (rename / forget / default) | 2, 3, 6 |
-| `PHASE-25-macros-action-chains.md` | 25 | Macros list + per-macro step editor | 2, 3, 7, 17 |
-| `PHASE-26-debug-log-viewer.md` | 26 | Debug log viewer + video pipeline state | 2, 3, 7 |
-| `PHASE-27-utils-backlog.md` | 27 | Reusable utility components, built on demand | 3 |
+| `PHASE-12-capture-preview.md` | 12 | Capture preview placeholder card on casting screen — **+ `PHASE-12-reimplement-instructions.md`** | 1, 2, 5 |
+| `PHASE-13-status-badges-row.md` | 13 | Battery / thermal / network badge row above control bar — **+ `PHASE-13-reimplement-instructions.md`** | 1, 2, 3, 4 |
+| `PHASE-14-audio-capture-controls.md` | 14 | Audio settings sub-page (source / mute / gain / bitrate) — **+ `PHASE-14-reimplement-instructions.md`** | 2, 3, 7 |
+| `PHASE-15-camera-capture-controls.md` | 15 | Camera settings sub-page (source / res / framerate / mirror / zoom) — **+ `PHASE-15-reimplement-instructions.md`** | 2, 3, 7 |
+| `PHASE-16-bitrate-quality-presets.md` | 16 | Bitrate presets list + per-preset editor — **+ `PHASE-16-reimplement-instructions.md`** | 2, 3, 7 |
+| `PHASE-17-quick-action-customization.md` | 17 | Quick-action reorder / enable / overflow banner — **+ `PHASE-17-reimplement-instructions.md`** | 2, 3, 4, 7 |
+| `PHASE-18-privacy-lifecycle-modes.md` | 18 | Lock / Stealth / Snapshot Countdown overlays — **+ `PHASE-18-reimplement-instructions.md`** | 1, 2, 3 |
+| `PHASE-19-settings-backup-reset.md` | 19 | Backup / import / reset destructive flows + `ConfirmDialog` — **+ `PHASE-19-reimplement-instructions.md`** | 2, 3, 7 |
+| `PHASE-20-cast-history.md` | 20 | Cast session history list + per-session detail — **+ `PHASE-20-reimplement-instructions.md`** | 2, 3, 7, 19 |
+| `PHASE-21-help-and-support.md` | 21 | About / version history / attributions / help — **+ `PHASE-21-reimplement-instructions.md`** | 2, 3, 7 |
+| `PHASE-22-network-interface-wifi-aware.md` | 22 | Network interface list + Wi-Fi Aware opt-in placeholder — **+ `PHASE-22-reimplement-instructions.md`** | 2, 3, 7 |
+| `PHASE-23-local-recording.md` | 23 | Recording controls placeholder (idle / recording / paused) — **+ `PHASE-23-reimplement-instructions.md`** | 2, 3, 7 |
+| `PHASE-24-pairing-qr-receiver-management.md` | 24 | QR pairing page + receiver context menu (rename / forget / default) — **+ `PHASE-24-reimplement-instructions.md`** | 2, 3, 6 |
+| `PHASE-25-macros-action-chains.md` | 25 | Macros list + per-macro step editor — **+ `PHASE-25-reimplement-instructions.md`** | 2, 3, 7, 17 |
+| `PHASE-26-debug-log-viewer.md` | 26 | Debug log viewer + video pipeline state — **+ `PHASE-26-reimplement-instructions.md`** | 2, 3, 7 |
+| `PHASE-27-utils-backlog.md` | 27 | Reusable utility components, built on demand — **+ `PHASE-27-reimplement-instructions.md`** | 3 |
 | `PHASE-28-chat-overlay.md` | 28 | Chat overlay + bot/filters/nicknames/TTS settings tree | 2, 3, 7 |
 | `PHASE-29-streaming-destinations.md` | 29 | Twitch / Kick / YouTube / Soop / OBS-remote / RealtimeIRL / OSP destinations | 2, 3, 7 |
 | `PHASE-30-streams-configuration-wizards.md` | 30 | Streams root + per-stream editor + new-stream wizard chrome | 2, 3, 7, 29 |

@@ -6,7 +6,7 @@
 > `View/Settings/` (190 files); port only what FCast Android sender actually
 > supports — omit the rest entirely (see `futures/NOT-APPLICABLE.md`).
 
-**Status:** `[ ] UI placeholder — no functionality`
+**Status:** `[x] Complete (UI-only — Rust wiring deferred to Phase 8)` — see [`STATUS.md`](STATUS.md). `pages/settings_page.slint` exports `FullSettingsPage` (header + scrollable body + RECEIVER / VIDEO QUALITY / CODEC & DEBUG / ABOUT sections); the `Panel` enum + `active-panel` property live in `bridge.slint`; `main.slint` mounts the panel layer with `if Bridge.active-panel == Panel.settings: FullSettingsPage { }`. Rust wiring of every page-local `mock-*` property is intentionally parked under Phase 8.
 **Depends on:** Phase 1 (modules), Phase 2 (theme), Phase 3 (settings row components), Phase 4 (control bar)
 **Functional integration:** Deferred — `open-panel` / `close-panel` / `app-version` / per-row Rust handlers all parked in `futures/`.
 **Related files:**

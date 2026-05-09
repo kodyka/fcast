@@ -1,5 +1,13 @@
 # TODO: FCast Android Sender — Slint UI Evolution
 
+> **⚠ This file is superseded.** It captures the original Phases 0–9
+> speculation and is kept for historical reference only. The active
+> roadmap lives in [`phases/`](phases/) with one markdown file per phase
+> (Phases 0–48), per-phase reimplement guides for the UI sub-pages
+> (Phases 5–10, 12–27), and the Rust bridge migration plan
+> (`phases/PHASE-8-bridge-migration-plan.md`). For the current
+> shipped-vs-planned snapshot, see [`phases/STATUS.md`](phases/STATUS.md).
+
 **Goal:** Evolve `senders/android/ui/main.slint` from a functional-but-flat single-file UI into a
 modular, Moblin-inspired component system, using `draft/moblin-ui/` as reference design material only.
 This is a **Slint reimplementation**, not a SwiftUI copy.

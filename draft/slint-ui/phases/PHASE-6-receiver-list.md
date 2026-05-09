@@ -4,7 +4,7 @@
 > and address sub-text, plus an animated empty state. **UI placeholder only — no
 > Rust wiring changes.** The list reads from a stub model declared inline.
 
-**Status:** `[ ] UI placeholder — no functionality`
+**Status:** `[x] Complete (UI-only — Rust wiring deferred to Phase 8)` — see [`STATUS.md`](STATUS.md). `pages/connect_page.slint` ships the receiver list with `mock-devices: [ReceiverItem]` (3 stub entries) and a `mock-empty: bool` flag that toggles the spinner empty-state card vs. the populated list. The `ReceiverItem` struct is exported from `bridge.slint`. Rust wiring of `Bridge.devices` → `[ReceiverItem]` is intentionally parked under Phase 8.
 **Depends on:** Phase 1 (modules), Phase 2 (theme), Phase 3 (components)
 **Functional integration:** Deferred — Rust mDNS discovery still pushes the legacy
 `[string]` list into `Bridge.devices`. The new UI consumes a separate stub property.
