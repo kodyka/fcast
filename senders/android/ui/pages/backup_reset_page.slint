@@ -47,6 +47,7 @@ export component BackupResetPage inherits Rectangle {
     // Helper: show a banner with the given message.
     function show-banner(message: string) {
         root.banner-message = message;
+        root.banner-visible = false;
         root.banner-visible = true;
     }
 
