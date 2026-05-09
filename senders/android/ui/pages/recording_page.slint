@@ -34,7 +34,7 @@ export component RecordingPage inherits Rectangle {
     property <string> elapsed-display: format-elapsed(root.mock-elapsed-s);
     property <string> disk-free-display:
         root.mock-disk-free-mb >= 1024
-            ? "\{Math.round(root.mock-disk-free-mb / 102.4) / 10} GB"
+            ? "\{Math.round(root.mock-disk-free-mb / 102.4) / 10.0} GB"
             : "\{root.mock-disk-free-mb} MB";
 
     width: 100%;
