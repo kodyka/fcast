@@ -32,6 +32,7 @@ export enum Panel {
     quick-actions,
     bitrate-presets,
     bitrate-preset-edit,
+    network,
 }
 
 export struct QuickAction {
@@ -59,6 +60,12 @@ export struct BitratePreset {
     name:         string,
     bitrate-kbps: int,
     active:       bool,
+export struct NetworkInterface {
+    name:        string,
+    kind:        string,    // "wifi" / "ethernet" / "cellular" / "loopback"
+    address-v4:  string,
+    address-v6:  string,
+    enabled:     bool,
 }
 
 export global Bridge {
