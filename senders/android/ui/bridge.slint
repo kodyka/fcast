@@ -23,7 +23,20 @@ export enum AppState {
     Casting,
 }
 
+export struct MacroStep {
+    action-id: string,    // matches QuickAction.id
+    label:     string,    // display label
+}
+
+export struct Macro {
+    id:       string,
+    name:     string,
+    steps:    [MacroStep],
+    enabled:  bool,
+}
+
 export enum LogLevel {
+
     trace,
     debug,
     info,
@@ -46,6 +59,8 @@ export enum Panel {
     audio,
     camera,
     quick-actions,
+    macros,
+    macro-edit,
     debug-log,
     debug-video,
     network,
@@ -56,6 +71,7 @@ export struct QuickAction {
     title:   string,
     enabled: bool,
     active:  bool,
+    is-macro: bool,
 }
 
 export enum StatusSeverity { info, warning, error }
@@ -86,6 +102,7 @@ export global Bridge {
     ];
     in-out property <AppState> app-state: AppState.Disconnected;
     in-out property <Panel>    active-panel: Panel.none;
+    in-out property <string>   mock-macro-edit-id: "";   // "" means "new macro"
     in-out property <LifecycleMode> lifecycle: LifecycleMode.normal;
     in-out property <int> mock-snapshot-secs: 5;
     in-out property <bool>     show-debug: false;
