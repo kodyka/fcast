@@ -3,7 +3,7 @@
 > Settings sub-page listing recent cast sessions (receiver, start time,
 > duration, status). **UI-only.** History entries come from inline mock model.
 
-**Status:** `[ ] Not started`
+**Status:** `[x] Complete (UI-only)`
 **Depends on:** Phases 2, 3, 7
 **Functional integration:** Deferred — no Rust event log to read from.
 **Moblin source analogues:**
@@ -21,7 +21,7 @@
 
 ### 20-A — `CastHistoryEntry` struct
 
-- [ ] In `bridge.slint`:
+- [x] In `bridge.slint`:
 
   ```slint
   export struct CastHistoryEntry {
@@ -37,7 +37,7 @@
 
 ### 20-B — `CastHistoryPage` list
 
-- [ ] Inline mock model (5 entries, varied status):
+- [x] Inline mock model (5 entries, varied status):
 
   ```slint
   in-out property <[CastHistoryEntry]> mock-history: [
@@ -49,33 +49,33 @@
   ];
   ```
 
-- [ ] Each row shows: receiver name + status pill (color-coded by status),
+- [x] Each row shows: receiver name + status pill (color-coded by status),
   started-at + duration. Tap opens
   `Bridge.active-panel = Panel.cast-history-detail` and writes
   `Bridge.selected-history-id = entry.id`.
 
-- [ ] Empty state: "No casts yet."
+- [x] Empty state: "No casts yet."
 
-- [ ] Trailing toolbar button: "Clear all" → triggers `ConfirmDialog` from
+- [x] Trailing toolbar button: "Clear all" → triggers `ConfirmDialog` from
   Phase 19's reusable component.
 
 ---
 
 ### 20-C — `CastHistoryDetailPage`
 
-- [ ] Header with the receiver name + status pill.
-- [ ] Body: list of fields (started-at, duration formatted as `HH:MM:SS`,
+- [x] Header with the receiver name + status pill.
+- [x] Body: list of fields (started-at, duration formatted as `HH:MM:SS`,
   bitrate average, peak bitrate, dropped frames) — all from inline stub data.
-- [ ] Footer: "Cast again to <receiver>" `PrimaryButton` (no-op in UI-only build).
+- [x] Footer: "Cast again to <receiver>" `PrimaryButton` (no-op in UI-only build).
 
 ---
 
 ### 20-D — Bridge + linking
 
-- [ ] Extend `Panel`: `cast-history`, `cast-history-detail`.
-- [ ] Add `in-out property <string> selected-history-id: "";` to `Bridge`.
-- [ ] Route both panels in `main.slint`.
-- [ ] Link from `FullSettingsPage` "DATA" section.
+- [x] Extend `Panel`: `cast-history`, `cast-history-detail`.
+- [x] Add `in-out property <string> selected-history-id: "";` to `Bridge`.
+- [x] Route both panels in `main.slint`.
+- [x] Link from `FullSettingsPage` "DATA" section.
 
 ---
 

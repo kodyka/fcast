@@ -30,6 +30,8 @@ export enum Panel {
     codec-test,
     audio,
     quick-actions,
+    cast-history,
+    cast-history-detail,
 }
 
 export struct QuickAction {
@@ -52,6 +54,14 @@ export struct ReceiverItem {
     address: string,
 }
 
+export struct CastHistoryEntry {
+    id:         string,
+    receiver:   string,
+    started-at: string,
+    duration-s: int,
+    status:     string,
+}
+
 export global Bridge {
     // ── Data properties (Rust → Slint) ──────────────────────────────────
     in property <[string]> devices: [
@@ -61,6 +71,7 @@ export global Bridge {
     in-out property <Panel>    active-panel: Panel.none;
     in-out property <LifecycleMode> lifecycle: LifecycleMode.normal;
     in-out property <int> mock-snapshot-secs: 5;
+    in-out property <string>   selected-history-id: "";
     in-out property <bool>     show-debug: false;
     in-out property <string>   test-status: "";
     in property <[QuickAction]> quick-actions: [];
