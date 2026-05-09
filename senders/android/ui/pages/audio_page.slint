@@ -64,7 +64,7 @@ export component AudioPage inherits Rectangle {
                     title: @tr("ENCODING");
                     SettingsValueRow {
                         title: @tr("Bitrate");
-                        value: ["64 kbps", "128 kbps", "192 kbps", "256 kbps"][root.mock-bitrate-idx];
+                        value: [@tr("64 kbps"), @tr("128 kbps"), @tr("192 kbps"), @tr("256 kbps")][root.mock-bitrate-idx];
                         clicked => { root.mock-bitrate-idx = Math.mod(root.mock-bitrate-idx + 1, 4); }
                     }
                     SettingsValueRow {
