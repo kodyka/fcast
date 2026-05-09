@@ -23,6 +23,34 @@ export enum AppState {
     Casting,
 }
 
+export struct MacroStep {
+    action-id: string,    // matches QuickAction.id
+    label:     string,    // display label
+}
+
+export struct Macro {
+    id:       string,
+    name:     string,
+    steps:    [MacroStep],
+    enabled:  bool,
+}
+
+export enum LogLevel {
+
+    trace,
+    debug,
+    info,
+    warning,
+    error,
+}
+
+export struct LogEntry {
+    level:     LogLevel,
+    timestamp: string,
+    target:    string,
+    message:   string,
+}
+
 export enum Panel {
     none,
     settings,
@@ -33,6 +61,14 @@ export enum Panel {
     quick-actions,
     cast-history,
     cast-history-detail,
+    pairing,
+    receiver-rename,
+    bitrate-presets,
+    bitrate-preset-edit,
+    macros,
+    macro-edit,
+    debug-log,
+    debug-video,
     network,
 }
 
@@ -41,6 +77,7 @@ export struct QuickAction {
     title:   string,
     enabled: bool,
     active:  bool,
+    is-macro: bool,
 }
 
 export enum StatusSeverity { info, warning, error }
@@ -52,8 +89,20 @@ export struct StatusItem {
 }
 
 export struct ReceiverItem {
+    id:      string,
     name:    string,
     address: string,
+    ip:      string,
+    port:    int,
+    kind:    string,
+    is-default: bool,
+}
+
+export struct BitratePreset {
+    id:           string,
+    name:         string,
+    bitrate-kbps: int,
+    active:       bool,
 }
 
 export struct CastHistoryEntry {
@@ -79,12 +128,15 @@ export global Bridge {
     ];
     in-out property <AppState> app-state: AppState.Disconnected;
     in-out property <Panel>    active-panel: Panel.none;
+    in-out property <string>   mock-macro-edit-id: "";   // "" means "new macro"
     in-out property <LifecycleMode> lifecycle: LifecycleMode.normal;
     in-out property <int> mock-snapshot-secs: 5;
     in-out property <string>   selected-history-id: "";
     in-out property <bool>     show-debug: false;
     in-out property <string>   test-status: "";
     in property <[QuickAction]> quick-actions: [];
+    in-out property <string> selected-receiver-id;
+    in-out property <string> selected-receiver-name;
 
     // ── Callbacks (Slint → Rust) ─────────────────────────────────────────
     callback connect-receiver(string);

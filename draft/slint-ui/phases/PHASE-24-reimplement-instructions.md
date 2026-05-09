@@ -971,19 +971,19 @@ For the UI-only build, the "Forget" action just closes the dialog without visual
 
 ## Exit criteria checklist
 
-- [ ] `components/qr_placeholder.slint` exists with three alignment squares + centre label.
-- [ ] `components/receiver_context_menu.slint` exists with Rename / Set-as-default / Forget / (conditional) Disconnect rows.
-- [ ] `pages/pairing_page.slint` renders QR placeholder centred, receiver target IP:port below, Refresh + Copy address buttons.
-- [ ] `pages/receiver_rename_page.slint` renders LineEdit pre-populated with `current-name`, Save/Cancel buttons.
-- [ ] `bridge.slint` has `Panel.pairing`, `Panel.receiver-rename`, `ReceiverItem.is-default`, `Bridge.selected-receiver-id`.
-- [ ] `main.slint` routes both new Panel variants.
-- [ ] `connect_page.slint` has "Pair via QR" button that opens `Panel.pairing`.
-- [ ] Long-press on a receiver row opens the context menu (or documents the fallback if `pointer-event` isn't available).
-- [ ] Context menu "Rename" navigates to `Panel.receiver-rename`.
-- [ ] Context menu "Forget" opens `ConfirmDialog` (Phase 19 reuse).
-- [ ] `ReceiverContextMenu` scrim absorbs clicks and dismisses the menu.
-- [ ] "Forget" confirmation dialog matches Phase 19's controlled-component discipline.
-- [ ] `cargo build -p android-sender` passes.
+- [x] `components/qr_placeholder.slint` exists with three alignment squares + centre label.
+- [x] `components/receiver_context_menu.slint` exists with Rename / Set-as-default / Forget / (conditional) Disconnect rows.
+- [x] `pages/pairing_page.slint` renders QR placeholder centred, receiver target IP:port below, Refresh + Copy address buttons.
+- [x] `pages/receiver_rename_page.slint` renders LineEdit pre-populated with `current-name`, Save/Cancel buttons.
+- [x] `bridge.slint` has `Panel.pairing`, `Panel.receiver-rename`, `ReceiverItem.is-default`, `Bridge.selected-receiver-id`.
+- [x] `main.slint` routes both new Panel variants.
+- [x] `connect_page.slint` has "Pair via QR" button that opens `Panel.pairing`.
+- [x] Long-press on a receiver row opens the context menu (or documents the fallback if `pointer-event` isn't available).
+- [x] Context menu "Rename" navigates to `Panel.receiver-rename`.
+- [x] Context menu "Forget" opens `ConfirmDialog` (Phase 19 reuse).
+- [x] `ReceiverContextMenu` scrim absorbs clicks and dismisses the menu.
+- [x] "Forget" confirmation dialog matches Phase 19's controlled-component discipline.
+- [x] `cargo build -p android-sender` passes.
 
 ---
 

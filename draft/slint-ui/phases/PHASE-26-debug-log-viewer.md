@@ -4,7 +4,7 @@
 > toggle. **UI-only.** Log entries come from inline mock data; no real
 > `tracing` / `logcat` capture.
 
-**Status:** `[ ] Not started`
+**Status:** `[x] Complete (UI-only)`
 **Depends on:** Phases 2, 3, 7
 **Functional integration:** Deferred — would tail Rust `tracing` events
 asynchronously, requires `Bridge.log-events` model + `tracing-subscriber` layer.
@@ -23,7 +23,7 @@ asynchronously, requires `Bridge.log-events` model + `tracing-subscriber` layer.
 
 ### 26-A — `LogEntry` struct
 
-- [ ] In `bridge.slint`:
++ [x] In `bridge.slint`:
 
   ```slint
   export enum LogLevel { trace, debug, info, warning, error }
@@ -40,7 +40,7 @@ asynchronously, requires `Bridge.log-events` model + `tracing-subscriber` layer.
 
 ### 26-B — `DebugLogPage`
 
-- [ ] Inline mock model with a representative spread of levels:
++ [x] Inline mock model with a representative spread of levels:
 
   ```slint
   in-out property <[LogEntry]> mock-log: [
@@ -53,19 +53,19 @@ asynchronously, requires `Bridge.log-events` model + `tracing-subscriber` layer.
   in-out property <int> mock-min-level-idx: 1; // 0=trace .. 4=error
   ```
 
-- [ ] Header: filter chips for each level (Trace / Debug / Info / Warning / Error).
++ [x] Header: filter chips for each level (Trace / Debug / Info / Warning / Error).
   Tapping a chip sets `mock-min-level-idx`. Show only entries whose level
   index ≥ `mock-min-level-idx`.
-- [ ] Body: `ListView` (NOT `ScrollView` — let Slint virtualize). Each row:
++ [x] Body: `ListView` (NOT `ScrollView` — let Slint virtualize). Each row:
   level color stripe (4px wide), timestamp (mono font), target (dimmed),
   message (full width, `wrap: word-wrap`).
-- [ ] Bottom toolbar: "Clear" + "Copy all" (no-op in UI-only build).
++ [x] Bottom toolbar: "Clear" + "Copy all" (no-op in UI-only build).
 
 ---
 
 ### 26-C — `DebugVideoPage`
 
-- [ ] Sections:
++ [x] Sections:
 
   ```
   PIPELINE OVERLAY
@@ -83,15 +83,15 @@ asynchronously, requires `Bridge.log-events` model + `tracing-subscriber` layer.
     udpsink                  PLAYING
   ```
 
-- [ ] **Build check.**
++ [x] **Build check.**
 
 ---
 
 ### 26-D — Bridge + linking
 
-- [ ] Extend `Panel`: `debug-log`, `debug-video`.
-- [ ] Route in `main.slint`.
-- [ ] In `FullSettingsPage` "CODEC & DEBUG" section, replace the existing
++ [x] Extend `Panel`: `debug-log`, `debug-video`.
++ [x] Route in `main.slint`.
++ [x] In `FullSettingsPage` "CODEC & DEBUG" section, replace the existing
   "Show debug panel" toggle with two value rows: "Debug log" → `debug-log`,
   "Video pipeline" → `debug-video`. Keep the old toggle if you want backward
   compatibility — the new pages are additive.

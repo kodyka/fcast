@@ -7,6 +7,37 @@ export component ConfirmDialog inherits Rectangle {
     in property <string> confirm-label: "OK";
     in property <bool> destructive: false;
 
+// confirm_dialog.slint — Reusable destructive/confirmation overlay.
+//
+// Designed to be instantiated inside a parent's conditional:
+//
+//     if root.show-dialog: ConfirmDialog {
+//         title: "Delete forever?";
+//         body:  "This cannot be undone.";
+//         destructive: true;
+//         confirm-label: "Delete";
+//         confirmed  => { root.show-dialog = false; root.do-delete(); }
+//         dismissed  => { root.show-dialog = false; }
+//     }
+//
+// The component does NOT hide itself on confirm/dismiss — the consumer
+// owns the visibility state. Keeps the component side-effect-free and
+// composable across multiple dialog use cases.
+//
+// Slint docs ref:
+//   draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/properties.mdx
+//   draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/functions-and-callbacks.mdx
+//   draft/slint-ui/docs/astro/src/content/docs/reference/colors-and-brushes.mdx
+
+import { Theme } from "../theme.slint";
+import { PrimaryButton, DestructiveButton, TextButton } from "buttons.slint";
+
+export component ConfirmDialog inherits Rectangle {
+    in property <string> title;
+    in property <string> body;
+    in property <string> confirm-label: "Confirm";
+    in property <string> dismiss-label: "Cancel";
+    in property <bool>   destructive: false;
     callback confirmed();
     callback dismissed();
 
@@ -36,12 +67,44 @@ export component ConfirmDialog inherits Rectangle {
                 text: root.title;
                 font-size: Theme.font-size-heading;
                 color: Theme.text-primary;
+    background: #00000080;     // 50% opaque scrim — TODO Theme.scrim later
+
+    // Outer scrim TouchArea: tapping outside the dialog dismisses.
+    TouchArea {
+        clicked => { root.dismissed(); }
+    }
+
+    // ── Centered card ────────────────────────────────────────────────────
+    Rectangle {
+        x: (parent.width  - self.width)  / 2;
+        y: (parent.height - self.height) / 2;
+        width: min(parent.width * 0.85, 480px);
+        height: card-content.preferred-height;
+        background: Theme.surface-card;
+        border-radius: Theme.radius-card;
+
+        // Inner TouchArea swallows clicks so they don't bubble to the
+        // scrim and dismiss the dialog.
+        TouchArea {
+            // No clicked => — just absorbs.
+        }
+
+        card-content := VerticalLayout {
+            padding: Theme.padding-card;
+            spacing: 12px;
+
+            Text {
+                text: root.title;
+                color: Theme.text-primary;
+                font-size: Theme.font-size-heading;
             }
 
             Text {
                 text: root.body;
                 font-size: Theme.font-size-body;
                 color: Theme.text-secondary;
+                color: Theme.text-secondary;
+                font-size: Theme.font-size-body;
                 wrap: word-wrap;
             }
 
@@ -51,6 +114,11 @@ export component ConfirmDialog inherits Rectangle {
 
                 TextButton {
                     label: "Cancel";
+                alignment: end;
+                spacing: 8px;
+
+                TextButton {
+                    label: root.dismiss-label;
                     clicked => { root.dismissed(); }
                 }
 
