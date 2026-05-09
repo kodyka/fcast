@@ -99,6 +99,7 @@ export global Bridge {
     in-out property <string>   test-status: "";
     in property <[QuickAction]> quick-actions: [];
     in-out property <string> selected-receiver-id;
+    in-out property <string> selected-receiver-name;
 
     // ── Callbacks (Slint → Rust) ─────────────────────────────────────────
     callback connect-receiver(string);

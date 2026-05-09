@@ -89,7 +89,7 @@ export component MainWindow inherits Window {
         close => { Bridge.active-panel = Panel.none; }
     }
     if Bridge.active-panel == Panel.receiver-rename: ReceiverRenamePage {
-        current-name: "Stub receiver";
+        current-name: Bridge.selected-receiver-name;
         save(new-name) => {
             // UI-only: no persistence. Just close the panel.
             Bridge.active-panel = Panel.none;

@@ -27,6 +27,7 @@ export component ConnectView inherits Rectangle {
     // Context menu state.
     in-out property <bool>   show-context-menu: false;
     in-out property <string> context-receiver-id;
+    in-out property <string> context-receiver-name;
     in-out property <length> context-menu-y: 0px;
 
     // Forget confirmation state.
@@ -93,6 +94,7 @@ export component ConnectView inherits Rectangle {
                         parent.lp-armed = false;
                         // Long press detected.
                         root.context-receiver-id = device.id;
+                        root.context-receiver-name = device.name;
                         root.context-menu-y = (parent.height * idx) + 100px; // Rough y calculation
                         root.show-context-menu = true;
                     }
@@ -191,6 +193,7 @@ export component ConnectView inherits Rectangle {
             rename-clicked => {
                 root.show-context-menu = false;
                 Bridge.selected-receiver-id = root.context-receiver-id;
+                Bridge.selected-receiver-name = root.context-receiver-name;
                 Bridge.active-panel = Panel.receiver-rename;
             }
             set-default-clicked => {
