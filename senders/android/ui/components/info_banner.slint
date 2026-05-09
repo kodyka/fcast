@@ -5,11 +5,11 @@
 //     InfoBanner {
 //         message: "Exported to ~/fcast-backup.json";
 //         severity: BannerSeverity.info;
-//         visible <=> root.banner-visible;
+//         shown <=> root.banner-visible;
 //     }
 //
-// The component owns the Timer that flips `visible` back to false
-// after `auto-hide-ms`; the consumer just needs to set visible = true
+// The component owns the Timer that flips `shown` back to false
+// after `auto-hide-ms`; the consumer just needs to set shown = true
 // to trigger.
 //
 // Slint docs ref:
@@ -28,10 +28,10 @@ export enum BannerSeverity {
 export component InfoBanner inherits Rectangle {
     in property <string>          message;
     in property <BannerSeverity>  severity: BannerSeverity.info;
-    in-out property <bool>        visible: false;
+    in-out property <bool>        shown: false;
     in property <duration>        auto-hide-ms: 3s;
 
-    height: root.visible ? 40px : 0px;
+    height: root.shown ? 40px : 0px;
     clip: true;
     background: root.severity == BannerSeverity.error
                   ? Theme.error
@@ -55,7 +55,7 @@ export component InfoBanner inherits Rectangle {
 
     Timer {
         interval: root.auto-hide-ms;
-        running: root.visible;
-        triggered => { root.visible = false; }
+        running: root.shown;
+        triggered => { root.shown = false; }
     }
 }
