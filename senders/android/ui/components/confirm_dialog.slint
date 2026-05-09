@@ -23,6 +23,8 @@ export component ConfirmDialog inherits Rectangle {
         height: card-layout.preferred-height;
         background: Theme.surface-card;
         border-radius: Theme.radius-card;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
 
         TouchArea {
             // absorb clicks to not dismiss
