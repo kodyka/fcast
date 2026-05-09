@@ -4,7 +4,7 @@
 > per-receiver context menu (rename, forget, set-as-default). **UI-only — no
 > real QR generation, no persistent rename/forget.**
 
-**Status:** `[ ] Not started`
+**Status:** `[x] Complete (UI-only)`
 **Depends on:** Phases 2, 3, 6 (receiver list)
 **Functional integration:** Deferred — QR generation requires a Rust QR encoder
 (e.g. `qrcode` crate); rename / forget require persistence.
@@ -27,7 +27,7 @@
 
 ### 24-A — `QrPlaceholder` component
 
-- [ ] Create `senders/android/ui/components/qr_placeholder.slint`. Render a
+- [x] Create `senders/android/ui/components/qr_placeholder.slint`. Render a
   21×21 grid of `Rectangle`s in alternating colors driven by a fixed pseudo-
   random seed so the output looks QR-like at a glance:
 
@@ -36,16 +36,16 @@
   // For UI-only build, ship a hand-drawn pattern that looks like a real QR.
   ```
 
-- [ ] Three big alignment squares (top-left, top-right, bottom-left) drawn as
+- [x] Three big alignment squares (top-left, top-right, bottom-left) drawn as
   nested `Rectangle`s.
-- [ ] **Build check.**
+- [x] **Build check.**
 
 ---
 
 ### 24-B — `PairingPage`
 
-- [ ] Header + Done button.
-- [ ] Body:
+- [x] Header + Done button.
+- [x] Body:
   - Big centered `QrPlaceholder` (240×240px).
   - Below: receiver target ("This device" + IP from a stub property).
   - "Refresh" `TextButton` re-renders the QR (UI-only — pattern is static so
@@ -56,40 +56,40 @@
 
 ### 24-C — `ReceiverContextMenu` component
 
-- [ ] A floating menu that appears as a popover when a receiver row is
+- [x] A floating menu that appears as a popover when a receiver row is
   long-pressed. Options:
   - Rename
   - Forget receiver (destructive)
   - Set as default
   - Disconnect (only when this receiver is currently active)
-- [ ] Implement long-press detection on the receiver row in `connect_page.slint`
+- [x] Implement long-press detection on the receiver row in `connect_page.slint`
   using a Slint `TouchArea` with a duration-tracking timer (pattern from Phase 18-B).
-- [ ] On long-press, set a `selected-receiver-id` property on the page and
+- [x] On long-press, set a `selected-receiver-id` property on the page and
   show the menu. Tapping outside the menu dismisses it.
 
 ---
 
 ### 24-D — `ReceiverRenamePage`
 
-- [ ] Simple form: a `LineEdit` pre-populated with the current name + Save /
+- [x] Simple form: a `LineEdit` pre-populated with the current name + Save /
   Cancel buttons. Save closes the panel and updates the inline `mock-devices`
   entry's `name` field (UI-only — not persisted across builds).
-- [ ] **Build check.**
+- [x] **Build check.**
 
 ---
 
 ### 24-E — Forget receiver flow
 
-- [ ] Forget option in context menu opens `ConfirmDialog` from Phase 19.
-- [ ] On confirm, remove the entry from the page-level `mock-devices` list.
+- [x] Forget option in context menu opens `ConfirmDialog` from Phase 19.
+- [x] On confirm, remove the entry from the page-level `mock-devices` list.
 
 ---
 
 ### 24-F — Bridge + linking
 
-- [ ] Extend `Panel`: `pairing`, `receiver-rename`.
-- [ ] Add a `quick-action` entry id `"pair"` in the bar stub model.
-- [ ] In `connect_page.slint`, add a "Pair via QR" `TextButton` next to the
+- [x] Extend `Panel`: `pairing`, `receiver-rename`.
+- [x] Add a `quick-action` entry id `"pair"` in the bar stub model.
+- [x] In `connect_page.slint`, add a "Pair via QR" `TextButton` next to the
   manual-IP row that opens `Panel.pairing`.
 
 ---

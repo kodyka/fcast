@@ -1,0 +1,77 @@
+// receiver_context_menu.slint — Floating context menu for a receiver row.
+//
+// Positioned by the consumer at the long-pressed row's coordinates.
+// Dismissed by tapping outside (consumer wraps in a full-screen TouchArea).
+//
+// Slint docs ref:
+//   draft/slint-ui/docs/astro/src/content/docs/reference/gestures/toucharea.mdx
+//   draft/slint-ui/docs/astro/src/content/docs/reference/elements/rectangle.mdx
+//   draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/functions-and-callbacks.mdx
+
+import { Theme } from "../theme.slint";
+
+component MenuRow inherits Rectangle {
+    in property <string> label;
+    in property <color>  label-color: Theme.text-primary;
+
+    callback clicked;
+
+    height: 44px;
+    background: transparent;
+
+    HorizontalLayout {
+        padding-left:  16px;
+        padding-right: 16px;
+        alignment: start;
+
+        Text {
+            text: root.label;
+            color: root.label-color;
+            font-size: Theme.font-size-body;
+            vertical-alignment: center;
+        }
+    }
+
+    TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+export component ReceiverContextMenu inherits Rectangle {
+    in property <bool> show-disconnect: false;
+
+    callback rename-clicked;
+    callback forget-clicked;
+    callback set-default-clicked;
+    callback disconnect-clicked;
+    callback dismissed;
+
+    width: 220px;
+    background: Theme.surface-card;
+    border-radius: Theme.radius-card;
+    drop-shadow-blur: 8px;
+    drop-shadow-color: #00000040;
+
+    VerticalLayout {
+        padding-top: 4px;
+        padding-bottom: 4px;
+
+        MenuRow {
+            label: "Rename";
+            clicked => { root.rename-clicked(); }
+        }
+        MenuRow {
+            label: "Set as default";
+            clicked => { root.set-default-clicked(); }
+        }
+        if root.show-disconnect: MenuRow {
+            label: "Disconnect";
+            clicked => { root.disconnect-clicked(); }
+        }
+        MenuRow {
+            label: "Forget receiver";
+            label-color: Theme.error;
+            clicked => { root.forget-clicked(); }
+        }
+    }
+}

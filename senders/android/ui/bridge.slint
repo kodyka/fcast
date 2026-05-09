@@ -30,6 +30,8 @@ export enum Panel {
     codec-test,
     audio,
     quick-actions,
+    pairing,
+    receiver-rename,
 }
 
 export struct QuickAction {
@@ -48,8 +50,13 @@ export struct StatusItem {
 }
 
 export struct ReceiverItem {
+    id:      string,
     name:    string,
     address: string,
+    ip:      string,
+    port:    int,
+    kind:    string,
+    is-default: bool,
 }
 
 export global Bridge {
@@ -64,6 +71,7 @@ export global Bridge {
     in-out property <bool>     show-debug: false;
     in-out property <string>   test-status: "";
     in property <[QuickAction]> quick-actions: [];
+    in-out property <string> selected-receiver-id;
 
     // ── Callbacks (Slint → Rust) ─────────────────────────────────────────
     callback connect-receiver(string);
