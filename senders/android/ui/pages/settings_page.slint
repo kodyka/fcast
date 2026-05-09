@@ -147,16 +147,6 @@ export component FullSettingsPage inherits Rectangle {
                     }
                 }
 
-                // ── Section: DISPLAY ──────────────────────────────────────
-                SettingsSection {
-                    title: "DISPLAY";
-                    SettingsValueRow {
-                        title: "Quick actions";
-                        value: "Open";
-                        clicked => { Bridge.active-panel = Panel.quick-actions; }
-                    }
-                }
-
                 // ── Section: CODEC & DEBUG ────────────────────────────────
                 SettingsSection {
                     title: "CODEC & DEBUG";

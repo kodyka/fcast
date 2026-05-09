@@ -4,7 +4,7 @@
 > control bar. **UI-only.** Drag-reorder is faked with up/down arrow buttons;
 > changes mutate the inline mock list.
 
-**Status:** `[x] Complete (UI-only)`
+**Status:** `[ ] Not started`
 **Depends on:** Phases 2, 3, 4, 7
 **Functional integration:** Deferred — the control bar's mock model is
 replaced wholesale on each "save"; no persistence.
@@ -22,7 +22,7 @@ replaced wholesale on each "save"; no persistence.
 
 ### 17-A — `QuickActionsPage` list
 
-- [x] Stub model:
+- [ ] Stub model:
 
   ```slint
   in-out property <[QuickAction]> mock-bar-actions: [
@@ -34,9 +34,9 @@ replaced wholesale on each "save"; no persistence.
   ];
   ```
 
-- [x] Render each entry as a row with: title, an enable toggle, and a pair of
+- [ ] Render each entry as a row with: title, an enable toggle, and a pair of
   up/down arrows to reorder.
-- [x] Reorder logic in Slint: when the user clicks ▲, swap the entry with the
+- [ ] Reorder logic in Slint: when the user clicks ▲, swap the entry with the
   preceding one in `mock-bar-actions` by writing a new array literal. Slint
   does not have an in-place `splice`; the idiomatic pattern is to rebuild the
   list:
@@ -56,18 +56,18 @@ replaced wholesale on each "save"; no persistence.
 
 ### 17-B — Empty / over-full handling
 
-- [x] If `mock-bar-actions.length == 0`, show an empty-state card: "Tap an
+- [ ] If `mock-bar-actions.length == 0`, show an empty-state card: "Tap an
   action below to add it to the bar."
-- [x] If `mock-bar-actions.length > 6`, show an info banner: "Bar holds up to
+- [ ] If `mock-bar-actions.length > 6`, show an info banner: "Bar holds up to
   6 actions — extras will overflow."
 
 ---
 
 ### 17-C — Bridge + linking
 
-- [x] Extend `Panel` enum with `quick-actions`.
-- [x] In `FullSettingsPage`, link to it from a "DISPLAY" section row.
-- [x] In `main.slint`, route `Panel.quick-actions` → `QuickActionsPage`.
+- [ ] Extend `Panel` enum with `quick-actions`.
+- [ ] In `FullSettingsPage`, link to it from a "DISPLAY" section row.
+- [ ] In `main.slint`, route `Panel.quick-actions` → `QuickActionsPage`.
 
 ---
 

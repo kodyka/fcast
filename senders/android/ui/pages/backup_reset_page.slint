@@ -23,6 +23,7 @@ export component BackupResetPage inherits Rectangle {
     // ── Banner state (auto-hide via Timer, same pattern as Phase 22) ────
     property <bool>   banner-visible: false;
     property <string> banner-message: "";
+    property <int>    banner-ticks: 0;
 
     // ── Dialog state ────────────────────────────────────────────────────
     //
@@ -39,16 +40,21 @@ export component BackupResetPage inherits Rectangle {
 
     // Banner auto-hide.
     Timer {
-        interval: 3s;
-        running: root.banner-visible;
-        triggered => { root.banner-visible = false; }
+        interval: 100ms;
+        running: root.banner-ticks > 0;
+        triggered => {
+            root.banner-ticks -= 1;
+            if (root.banner-ticks == 0) {
+                root.banner-visible = false;
+            }
+        }
     }
 
     // Helper: show a banner with the given message.
     function show-banner(message: string) {
         root.banner-message = message;
-        root.banner-visible = false;
         root.banner-visible = true;
+        root.banner-ticks = 30; // 3 seconds / 100ms
     }
 
     // Helper: confirm-dispatch — dispatched by the dialog's confirmed()
