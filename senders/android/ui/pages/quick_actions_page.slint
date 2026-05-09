@@ -1,0 +1,233 @@
+// quick_actions_page.slint — Reorder / enable / disable bar actions.
+//
+// Reachable from FullSettingsPage's "Quick actions" row in DISPLAY.
+// Holds its own copy of the bar list — changes here do not affect the
+// live CastControlBar in this UI-only build. Phase 8 will push the saved
+// list back to Bridge.quick-actions.
+//
+// Slint docs ref:
+//   draft/slint-ui/docs/astro/src/content/docs/reference/std-widgets/views/scrollview.mdx
+//   draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/repetition-and-data-models.mdx
+
+import { ScrollView } from "std-widgets.slint";
+import { Bridge, Panel, QuickAction } from "../bridge.slint";
+import { Theme } from "../theme.slint";
+import { TextButton } from "../components/buttons.slint";
+import {
+    SettingsSection,
+} from "../components/settings_rows.slint";
+
+// Internal row sub-component. Same rationale as Phase 22's
+// NetworkInterfaceRow — local state (none here) + clean up/down/toggle
+// callback boundaries. Even without local state, separating the row
+// keeps the page's main layout readable.
+component QuickActionRow inherits Rectangle {
+    in property <QuickAction> action;
+    in property <bool>        is-first;
+    in property <bool>        is-last;
+    callback move-up();
+    callback move-down();
+    callback toggle-enabled(bool);
+
+    height: 56px;
+    border-radius: Theme.radius-card;
+    background: Theme.surface-card;
+    opacity: root.action.enabled ? 1.0 : 0.55;
+
+    HorizontalLayout {
+        padding-left:  Theme.padding-screen;
+        padding-right: Theme.padding-screen;
+        spacing: Theme.spacing-default;
+
+        Text {
+            text: root.action.title;
+            color: Theme.text-primary;
+            font-size: Theme.font-size-body;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+
+        // ▲ button — disabled when at top.
+        Rectangle {
+            width: 40px;
+            height: 40px;
+            background: ta-up.pressed ? Theme.surface-card.brighter(20%) : transparent;
+            opacity: root.is-first ? 0.3 : 1.0;
+            border-radius: 8px;
+            ta-up := TouchArea {
+                enabled: !root.is-first;
+                clicked => { root.move-up(); }
+            }
+            Text {
+                text: "▲";
+                color: Theme.text-primary;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        // ▼ button — disabled when at bottom.
+        Rectangle {
+            width: 40px;
+            height: 40px;
+            background: ta-down.pressed ? Theme.surface-card.brighter(20%) : transparent;
+            opacity: root.is-last ? 0.3 : 1.0;
+            border-radius: 8px;
+            ta-down := TouchArea {
+                enabled: !root.is-last;
+                clicked => { root.move-down(); }
+            }
+            Text {
+                text: "▼";
+                color: Theme.text-primary;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        // Enable toggle — inline (Off/On text, same as Phase 22 inline pattern).
+        Rectangle {
+            width: 56px;
+            Text {
+                text: root.action.enabled ? "On" : "Off";
+                color: root.action.enabled
+                    ? Theme.accent-active
+                    : Theme.text-secondary;
+                horizontal-alignment: end;
+                vertical-alignment: center;
+                font-size: Theme.font-size-label;
+            }
+            TouchArea {
+                clicked => { root.toggle-enabled(!root.action.enabled); }
+            }
+        }
+    }
+}
+
+export component QuickActionsPage inherits Rectangle {
+    // ── UI-only stub state (page-local copy) ────────────────────────────
+    in-out property <[QuickAction]> mock-bar-actions: [
+        { id: "scan-qr",    title: "Scan QR",     enabled: true,  active: false },
+        { id: "settings",   title: "Settings",    enabled: true,  active: false },
+        { id: "debug",      title: "Debug",       enabled: false, active: false },
+        { id: "codec-test", title: "Codec Test",  enabled: true,  active: false },
+        { id: "audio",      title: "Audio",       enabled: true,  active: false },
+    ];
+
+    width: 100%;
+    height: 100%;
+    background: Theme.surface-primary;
+
+    // ── Array-rebuild helpers ────────────────────────────────────────────
+    //
+    // Slint has no `splice` / `swap` primitive on arrays. For a small
+    // fixed-shape model (≤ 5 entries) we hardcode the swap by index;
+    // each branch reconstructs the list with two adjacent entries
+    // exchanged. Yes, this is verbose. The right long-term home for this
+    // logic is Rust (Phase 8); the hardcoded form is only acceptable
+    // because the model is a 5-row stub and the page is UI-only.
+    function swap(i: int, j: int) {
+        // Build a fresh array entry-by-entry, swapping i and j.
+        root.mock-bar-actions = [
+            root.mock-bar-actions[0 == i ? j : (0 == j ? i : 0)],
+            root.mock-bar-actions[1 == i ? j : (1 == j ? i : 1)],
+            root.mock-bar-actions[2 == i ? j : (2 == j ? i : 2)],
+            root.mock-bar-actions[3 == i ? j : (3 == j ? i : 3)],
+            root.mock-bar-actions[4 == i ? j : (4 == j ? i : 4)],
+        ];
+    }
+
+    function set-enabled(idx: int, value: bool) {
+        // Same shape — rebuild with the targeted entry's `enabled` flipped.
+        root.mock-bar-actions = [
+            { id: root.mock-bar-actions[0].id, title: root.mock-bar-actions[0].title,
+              active: root.mock-bar-actions[0].active,
+              enabled: 0 == idx ? value : root.mock-bar-actions[0].enabled },
+            { id: root.mock-bar-actions[1].id, title: root.mock-bar-actions[1].title,
+              active: root.mock-bar-actions[1].active,
+              enabled: 1 == idx ? value : root.mock-bar-actions[1].enabled },
+            { id: root.mock-bar-actions[2].id, title: root.mock-bar-actions[2].title,
+              active: root.mock-bar-actions[2].active,
+              enabled: 2 == idx ? value : root.mock-bar-actions[2].enabled },
+            { id: root.mock-bar-actions[3].id, title: root.mock-bar-actions[3].title,
+              active: root.mock-bar-actions[3].active,
+              enabled: 3 == idx ? value : root.mock-bar-actions[3].enabled },
+            { id: root.mock-bar-actions[4].id, title: root.mock-bar-actions[4].title,
+              active: root.mock-bar-actions[4].active,
+              enabled: 4 == idx ? value : root.mock-bar-actions[4].enabled },
+        ];
+    }
+
+    VerticalLayout {
+        // ── Header ──────────────────────────────────────────────────────
+        Rectangle {
+            height: 56px;
+            background: Theme.surface-card;
+            HorizontalLayout {
+                padding: Theme.padding-screen;
+                Text {
+                    text: "Quick actions";
+                    color: Theme.text-primary;
+                    font-size: Theme.font-size-heading;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+                TextButton {
+                    label: "Done";
+                    clicked => { Bridge.active-panel = Panel.none; }
+                }
+            }
+        }
+
+        // ── Overflow banner ─────────────────────────────────────────────
+        if root.mock-bar-actions.length > 6: Rectangle {
+            height: 40px;
+            background: Theme.accent-active.darker(30%);
+            HorizontalLayout {
+                padding: Theme.padding-screen;
+                Text {
+                    text: "Bar holds up to 6 actions — extras will overflow.";
+                    color: Theme.text-primary;
+                    vertical-alignment: center;
+                    font-size: Theme.font-size-label;
+                }
+            }
+        }
+
+        ScrollView {
+            VerticalLayout {
+                spacing: Theme.spacing-default;
+                padding: Theme.padding-screen;
+
+                // ── Empty state ─────────────────────────────────────────
+                if root.mock-bar-actions.length == 0: Rectangle {
+                    height: 80px;
+                    background: Theme.surface-card;
+                    border-radius: Theme.radius-card;
+                    HorizontalLayout {
+                        padding: Theme.padding-screen;
+                        Text {
+                            text: "No bar actions configured.";
+                            color: Theme.text-secondary;
+                            vertical-alignment: center;
+                            horizontal-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                    }
+                }
+
+                // ── Section header ──────────────────────────────────────
+                SettingsSection { title: "BAR ACTIONS"; }
+
+                for action[i] in root.mock-bar-actions: QuickActionRow {
+                    action: action;
+                    is-first: i == 0;
+                    is-last:  i == root.mock-bar-actions.length - 1;
+                    move-up()           => { root.swap(i, i - 1); }
+                    move-down()         => { root.swap(i, i + 1); }
+                    toggle-enabled(v)   => { root.set-enabled(i, v); }
+                }
+            }
+        }
+    }
+}

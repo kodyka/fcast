@@ -3,7 +3,7 @@
 > Settings sub-page + quick-action surface for audio capture (mic source,
 > output gain, mute). **UI-only.** All controls flip inline `in-out` properties.
 
-**Status:** `[ ] Not started`
+**Status:** `[x] Complete (UI-only)`
 **Depends on:** Phases 2, 3, 7 (settings root)
 **Functional integration:** Deferred — Android `AudioRecord` / GStreamer audio source not wired.
 **Moblin source analogues:**
@@ -20,7 +20,7 @@
 
 ### 14-A — `AudioPage` panel
 
-- [ ] Create `senders/android/ui/pages/audio_page.slint`:
+- [x] Create `senders/android/ui/pages/audio_page.slint`:
 
   ```slint
   import { Theme } from "../theme.slint";
@@ -100,21 +100,21 @@
   }
   ```
 
-- [ ] **Build check.**
+- [x] **Build check.**
 
 ---
 
 ### 14-B — Add `Panel.audio` enum variant + main.slint route
 
-- [ ] In `bridge.slint`, extend `Panel`: `none, settings, debug, codec-test, audio`.
-- [ ] In `main.slint`, add `if Bridge.active-panel == Panel.audio: AudioPage { }`.
-- [ ] **Build check.**
+- [x] In `bridge.slint`, extend `Panel`: `none, settings, debug, codec-test, audio`.
+- [x] In `main.slint`, add `if Bridge.active-panel == Panel.audio: AudioPage { }`.
+- [x] **Build check.**
 
 ---
 
 ### 14-C — Link from `FullSettingsPage`
 
-- [ ] In `settings_page.slint` `FullSettingsPage`, add a row in a new
+- [x] In `settings_page.slint` `FullSettingsPage`, add a row in a new
   "AUDIO & VIDEO" section:
 
   ```slint
