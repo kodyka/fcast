@@ -45,6 +45,8 @@ import { BitratePresetsPage }           from "pages/bitrate_presets_page.slint";
 import { BitratePresetEditPage }        from "pages/bitrate_preset_edit_page.slint";
 import { CameraPage }                   from "pages/camera_page.slint";
 import { QuickActionsPage }             from "pages/quick_actions_page.slint";
+import { PairingPage }                  from "pages/pairing_page.slint";
+import { ReceiverRenamePage }           from "pages/receiver_rename_page.slint";
 import { MacrosPage }                   from "pages/macros_page.slint";
 import { MacroEditPage }                from "pages/macro_edit_page.slint";
 import { DebugLogPage }                 from "pages/debug_log_page.slint";
@@ -86,6 +88,18 @@ export component MainWindow inherits Window {
     if Bridge.active-panel == Panel.audio:         AudioPage { }
     if Bridge.active-panel == Panel.camera:        CameraPage { }
     if Bridge.active-panel == Panel.quick-actions: QuickActionsPage { }
+
+    if Bridge.active-panel == Panel.pairing: PairingPage {
+        close => { Bridge.active-panel = Panel.none; }
+    }
+    if Bridge.active-panel == Panel.receiver-rename: ReceiverRenamePage {
+        current-name: Bridge.selected-receiver-name;
+        save(new-name) => {
+            // UI-only: no persistence. Just close the panel.
+            Bridge.active-panel = Panel.none;
+        }
+        cancel => { Bridge.active-panel = Panel.none; }
+    }
     if Bridge.active-panel == Panel.bitrate-presets:     BitratePresetsPage { }
     if Bridge.active-panel == Panel.bitrate-preset-edit: BitratePresetEditPage { }
     if Bridge.active-panel == Panel.macros:        MacrosPage { }
