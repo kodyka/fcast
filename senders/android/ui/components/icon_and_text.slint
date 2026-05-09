@@ -1,0 +1,33 @@
+// icon_and_text.slint — Icon + label row primitive.
+//
+// Used wherever a row's content is "small leading visual + descriptive
+// text". Replaces the 6+ inline HorizontalLayout { Image | Text { glyph };
+// Text { label } } sites scattered across pages.
+//
+// Slint docs ref:
+//   draft/slint-ui/docs/astro/src/content/docs/reference/elements/image.mdx
+//   draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/positioning-and-layouts.mdx
+
+import { Theme } from "../theme.slint";
+
+export component IconAndText inherits HorizontalLayout {
+    in property <string> icon;       // Unicode glyph or empty
+    in property <string> label;
+    in property <color>  label-color: Theme.text-primary;
+    in property <length> font-size:   Theme.font-size-body;
+    spacing: 6px;
+
+    if root.icon != "": Text {
+        text: root.icon;
+        color: root.label-color;
+        font-size: root.font-size;
+        vertical-alignment: center;
+    }
+
+    Text {
+        text: root.label;
+        color: root.label-color;
+        font-size: root.font-size;
+        vertical-alignment: center;
+    }
+}
