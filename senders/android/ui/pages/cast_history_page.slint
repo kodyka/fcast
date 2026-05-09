@@ -39,7 +39,7 @@ export component CastHistoryPage inherits Rectangle {
 
     // HH:MM:SS formatter — same shape as Phase 23's elapsed counter helper.
     pure function format-duration(total-s: int) -> string {
-        return "\{Math.floor(total-s / 3600)}:"
+        return (Math.floor(total-s / 3600) < 10 ? "0\{Math.floor(total-s / 3600)}" : "\{Math.floor(total-s / 3600)}") + ":"
              + (Math.mod(Math.floor(total-s / 60), 60) < 10
                  ? "0\{Math.mod(Math.floor(total-s / 60), 60)}"
                  : "\{Math.mod(Math.floor(total-s / 60), 60)}")
