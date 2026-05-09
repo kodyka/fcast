@@ -205,6 +205,16 @@ export component FullSettingsPage inherits Rectangle {
                     }
                 }
 
+                // ── Section: ADVANCED ─────────────────────────────────────
+                SettingsSection {
+                    title: "ADVANCED";
+                    SettingsValueRow {
+                        title: "Network";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.network; }
+                    }
+                }
+
                 // ── Section: ABOUT ────────────────────────────────────────
                 SettingsSection {
                     title: "ABOUT";
