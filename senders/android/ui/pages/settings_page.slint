@@ -19,7 +19,7 @@
 
 import { VerticalBox, ScrollView } from "std-widgets.slint";
 import { Utils, VideoResolutionPicker, FrameratePicker } from "../../../../sdk/mirroring_core/ui/common.slint";
-import { Bridge, Panel, LifecycleMode } from "../bridge.slint";
+import { Bridge, Panel } from "../bridge.slint";
 import { Theme } from "../theme.slint";
 import { PrimaryButton, DestructiveButton, TextButton } from "../components/buttons.slint";
 import {
@@ -109,29 +109,6 @@ export component FullSettingsPage inherits Rectangle {
             VerticalLayout {
                 spacing: Theme.spacing-default;
                 padding: Theme.padding-screen;
-
-                // ── Section: PRIVACY ──────────────────────────────────────
-                SettingsSection {
-                    title: "PRIVACY";
-                    SettingsValueRow {
-                        title: "Lock UI";
-                        value: "Enter";
-                        clicked => { Bridge.lifecycle = LifecycleMode.lock-screen; }
-                    }
-                    SettingsValueRow {
-                        title: "Stealth mode";
-                        value: "Enter";
-                        clicked => { Bridge.lifecycle = LifecycleMode.stealth; }
-                    }
-                    SettingsValueRow {
-                        title: "Cast with countdown";
-                        value: "Start";
-                        clicked => {
-                            Bridge.mock-snapshot-secs = 5;
-                            Bridge.lifecycle = LifecycleMode.snapshot-countdown;
-                        }
-                    }
-                }
 
                 // ── Section: RECEIVER ─────────────────────────────────────
                 SettingsSection {

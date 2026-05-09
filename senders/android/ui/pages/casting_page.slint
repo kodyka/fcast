@@ -11,7 +11,6 @@ import { VerticalBox } from "std-widgets.slint";
 import { Bridge, AppState } from "../bridge.slint";
 import { StatusItem, StatusSeverity } from "../bridge.slint";
 import { LoadingView, DestructiveButton } from "../components/buttons.slint";
-import { CapturePreview } from "../components/capture_preview.slint";
 import { StatusOverlay } from "../components/status_overlay.slint";
 
 export component CastButton inherits Rectangle {
@@ -64,12 +63,6 @@ export component CastingView inherits Rectangle {
         Text {
             horizontal-alignment: center;
             text: "Casting";
-        }
-
-        CapturePreview {
-            height: 200px;
-            mock-source-label: "Screen capture (1920×1080)";
-            mock-active: true;
         }
 
         CastButton {}
