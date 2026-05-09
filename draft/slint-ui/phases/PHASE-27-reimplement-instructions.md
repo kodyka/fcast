@@ -519,19 +519,19 @@ then replace the inline hex in `info_banner.slint` and Phase 20's `status-color`
 
 For each util shipped (`IconAndText`, `InfoBanner`):
 
-- [ ] File exists under `senders/android/ui/components/`.
-- [ ] Component is `< 80` lines.
-- [ ] Uses only `Theme.*` tokens (or documented severity hex placeholders).
-- [ ] At least one already-shipped consumer migrated to use the util.
-- [ ] At least one anticipated future consumer documented in this guide.
-- [ ] `slint-viewer` opens the file standalone without errors.
-- [ ] `cargo build -p android-sender` passes.
+- [x] File exists under `senders/android/ui/components/`.
+- [x] Component is `< 80` lines.
+- [x] Uses only `Theme.*` tokens (or documented severity hex placeholders).
+- [x] At least one already-shipped consumer migrated to use the util.
+- [x] At least one anticipated future consumer documented in this guide.
+- [x] `slint-viewer` opens the file standalone without errors.
+- [x] `cargo build -p android-sender` passes.
 
 For the guide as a whole:
 
-- [ ] Backlog table is up to date (each row has a status + trigger).
-- [ ] Anti-patterns section reflects the latest `senders/android/ui/` state.
-- [ ] All cited Slint doc paths verified to exist on disk.
+- [x] Backlog table is up to date (each row has a status + trigger).
+- [x] Anti-patterns section reflects the latest `senders/android/ui/` state.
+- [x] All cited Slint doc paths verified to exist on disk.
 
 ---
 
