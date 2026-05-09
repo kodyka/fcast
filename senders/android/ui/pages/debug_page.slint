@@ -13,11 +13,11 @@
 //   draft/slint/docs/astro/src/content/docs/guide/language/coding/file.mdx
 
 import { VerticalBox, ScrollView } from "std-widgets.slint";
-import { Bridge } from "../bridge.slint";
+import { Bridge, Panel } from "../bridge.slint";
 import { Theme } from "../theme.slint";
 import { PrimaryButton, TextButton } from "../components/buttons.slint";
 
-export component DebugPage inherits VerticalBox {
+component DebugPageInner inherits VerticalBox {
     alignment: start;
     Text {
         horizontal-alignment: center;
@@ -62,3 +62,39 @@ export component DebugPage inherits VerticalBox {
         }
     }
 }
+
+export component FullDebugPage inherits Rectangle {
+    width: 100%;
+    height: 100%;
+    background: Theme.surface-primary;
+
+    VerticalLayout {
+        // ── Header ────────────────────────────────────────────────────────
+        Rectangle {
+            height: 56px;
+            background: Theme.surface-card;
+            HorizontalLayout {
+                padding: Theme.padding-screen;
+                Text {
+                    text: "Debug panel";
+                    color: Theme.text-primary;
+                    font-size: Theme.font-size-heading;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+                TextButton {
+                    label: "Done";
+                    clicked => { Bridge.active-panel = Panel.none; }
+                }
+            }
+        }
+
+        // ── Body ──────────────────────────────────────────────────────────
+        VerticalLayout {
+            padding: Theme.padding-screen;
+            DebugPageInner {}
+        }
+    }
+}
+
+export component DebugPage inherits DebugPageInner {}
