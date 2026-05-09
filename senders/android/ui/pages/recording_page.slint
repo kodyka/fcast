@@ -55,7 +55,7 @@ export component RecordingPage inherits Rectangle {
     // Pure helper. Slint global functions are one-line expressions; for
     // multi-line logic, wrap in a `function` declaration like this one.
     pure function format-elapsed(total-s: int) -> string {
-        return "\{Math.floor(total-s / 3600)}:"
+        return root.pad2(Math.floor(total-s / 3600)) + ":"
              + root.pad2(Math.mod(Math.floor(total-s / 60), 60))
              + ":"
              + root.pad2(Math.mod(total-s, 60));
