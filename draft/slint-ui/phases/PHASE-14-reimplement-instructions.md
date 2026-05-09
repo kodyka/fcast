@@ -578,21 +578,21 @@ If you skip the `changed` handler and write only `value: root.mock-input-gain * 
 
 ## Exit criteria checklist (mirrors `PHASE-14-audio-capture-controls.md`)
 
-- [ ] `bridge.slint` exposes `Panel.audio` in addition to `none, settings, debug, codec-test`.
-- [ ] `main.slint` shows `AudioPage` based on `Bridge.active-panel == Panel.audio`.
-- [ ] `AudioPage` renders the two sections (`INPUT` / `ENCODING`) with inline stub state.
-- [ ] All four interactive controls flip stub state on tap:
-  - [ ] `Source` cycles through `Microphone → System audio → Both`.
-  - [ ] `Mute` toggle flips `mock-muted` (and binds the argument, not `!root.mock-muted`).
-  - [ ] `Input gain` slider drags update `mock-input-gain` continuously and the percentage label live.
-  - [ ] `Bitrate` cycles through `64 / 128 / 192 / 256 kbps`.
-- [ ] `Codec` row reads `AAC-LC` and is non-interactive (`show-chevron: false`).
-- [ ] Done button closes the panel from Slint (`Bridge.active-panel = Panel.none`).
-- [ ] `FullSettingsPage` has a new `AUDIO & VIDEO` section with an `Audio` row that opens `Panel.audio`.
-- [ ] `cargo build -p android-sender` passes.
-- [ ] All cycle-on-click handlers use `Math.mod(...)` (post-PR-#8 canonical form).
-- [ ] All toggle handlers bind their argument (`toggled(checked) => { ... = checked }`).
-- [ ] `AudioPage` root has `width: 100%; height: 100%; background: Theme.surface-primary;`.
+- [x] `bridge.slint` exposes `Panel.audio` in addition to `none, settings, debug, codec-test`.
+- [x] `main.slint` shows `AudioPage` based on `Bridge.active-panel == Panel.audio`.
+- [x] `AudioPage` renders the two sections (`INPUT` / `ENCODING`) with inline stub state.
+- [x] All four interactive controls flip stub state on tap:
+  - [x] `Source` cycles through `Microphone → System audio → Both`.
+  - [x] `Mute` toggle flips `mock-muted` (and binds the argument, not `!root.mock-muted`).
+  - [x] `Input gain` slider drags update `mock-input-gain` continuously and the percentage label live.
+  - [x] `Bitrate` cycles through `64 / 128 / 192 / 256 kbps`.
+- [x] `Codec` row reads `AAC-LC` and is non-interactive (`show-chevron: false`).
+- [x] Done button closes the panel from Slint (`Bridge.active-panel = Panel.none`).
+- [x] `FullSettingsPage` has a new `AUDIO & VIDEO` section with an `Audio` row that opens `Panel.audio`.
+- [x] `cargo build -p android-sender` passes.
+- [x] All cycle-on-click handlers use `Math.mod(...)` (post-PR-#8 canonical form).
+- [x] All toggle handlers bind their argument (`toggled(checked) => { ... = checked }`).
+- [x] `AudioPage` root has `width: 100%; height: 100%; background: Theme.surface-primary;`.
 
 ---
 
