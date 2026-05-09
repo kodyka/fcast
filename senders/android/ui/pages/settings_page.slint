@@ -126,11 +126,21 @@ export component FullSettingsPage inherits Rectangle {
                     }
                 }
 
-                // ── Section: VIDEO QUALITY ────────────────────────────────
+                // ── Section: AUDIO & VIDEO ────────────────────────────────
                 // Cycle-on-click is a placeholder UX. Real picker panels
                 // land in `futures/`.
                 SettingsSection {
-                    title: "VIDEO QUALITY";
+                    title: "AUDIO & VIDEO";
+                    SettingsValueRow {
+                        title: "Audio";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.audio; }
+                    }
+                    SettingsValueRow {
+                        title: "Camera";
+                        value: "Open";
+                        clicked => { Bridge.active-panel = Panel.camera; }
+                    }
                     SettingsValueRow {
                         title: "Max resolution";
                         value: ["480p", "720p", "1080p", "1440p"][root.resolution-idx];

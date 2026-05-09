@@ -73,9 +73,9 @@ landed.
 | Phase | Declared | Actual | Reimplement guide | Evidence |
 |---|---|---|---|---|
 | **12** Capture preview | `[ ] Not started` | `[ ] Not started` | `PHASE-12-reimplement-instructions.md` | No `CapturePreview` component, no `mock-source-label` / `mock-active` properties on `pages/casting_page.slint`. |
-| **13** Status badges row | `[ ] Not started` | `[ ] Not started` | `PHASE-13-reimplement-instructions.md` | No `StatusBadgesRow` / `Badge` component; no battery / thermal / network mock state. |
-| **14** Audio capture controls | `[ ] Not started` | `[ ] Not started` | `PHASE-14-reimplement-instructions.md` | No `pages/audio_page.slint`; `Panel` enum has no `audio` variant. |
-| **15** Camera capture controls | `[ ] Not started — blocked by Rust camera capability for live data, but UI placeholder is unblocked` | `[ ] Not started` | `PHASE-15-reimplement-instructions.md` | No `pages/camera_page.slint`. |
+| **13** Status badges row | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-13-reimplement-instructions.md` | `components/status_badges.slint` exports `StatusBadgesRow` + internal `Badge`; `main.slint` instantiates it above `CastControlBar`. |
+| **14** Audio capture controls | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-14-reimplement-instructions.md` | `pages/audio_page.slint`; `Panel` enum has `audio` variant. |
+| **15** Camera capture controls | `[x] Complete (UI-only)` | `[x] Complete (UI-only)` | `PHASE-15-reimplement-instructions.md` | `pages/camera_page.slint` exists, `bridge.slint` has `Panel.camera`. |
 | **16** Bitrate quality presets | `[ ] Not started` | `[ ] Not started` | `PHASE-16-reimplement-instructions.md` | No `pages/bitrate_presets_page.slint` / `bitrate_preset_edit_page.slint`. |
 | **17** Quick-action customisation | `[ ] Not started` | `[ ] Not started` | `PHASE-17-reimplement-instructions.md` | No `pages/quick_actions_page.slint`. |
 | **18** Privacy / lifecycle modes | `[ ] Not started` | `[ ] Not started` | `PHASE-18-reimplement-instructions.md` | No `LockOverlay` / `StealthOverlay` / `SnapshotCountdown` siblings in `main.slint`. |
