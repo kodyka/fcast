@@ -96,7 +96,7 @@ export component CameraPage inherits Rectangle {
                     title: @tr("SOURCE");
                     SettingsValueRow {
                         title: @tr("Camera");
-                        value: ["Front", "Back", "External"][root.mock-camera-idx];
+                        value: [@tr("Front"), @tr("Back"), @tr("External")][root.mock-camera-idx];
                         clicked => {
                             root.mock-camera-idx = Math.mod(root.mock-camera-idx + 1, 3);
                         }
