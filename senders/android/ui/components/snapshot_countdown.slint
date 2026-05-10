@@ -36,7 +36,7 @@ export component SnapshotCountdown inherits Rectangle {
             padding: Theme.padding-screen * 2;
 
             Text {
-                text: "Casting in";
+                text: @tr("Casting in");
                 color: Theme.text-secondary;
                 font-size: Theme.font-size-heading;
                 horizontal-alignment: center;
@@ -51,7 +51,7 @@ export component SnapshotCountdown inherits Rectangle {
             }
 
             DestructiveButton {
-                label: "Cancel";
+                label: @tr("cancel-cast-button" => "Cancel");
                 clicked => {
                     Bridge.lifecycle = LifecycleMode.normal;
                 }

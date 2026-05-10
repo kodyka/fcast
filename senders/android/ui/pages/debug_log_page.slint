@@ -95,14 +95,14 @@ export component DebugLogPage inherits Rectangle {
             HorizontalLayout {
                 padding: Theme.padding-screen;
                 Text {
-                    text: "Debug log";
+                    text: @tr("Debug log");
                     color: Theme.text-primary;
                     font-size: Theme.font-size-heading;
                     vertical-alignment: center;
                     horizontal-stretch: 1;
                 }
                 TextButton {
-                    label: "Done";
+                    label: @tr("close-panel-button" => "Done");
                     clicked => { Bridge.active-panel = Panel.none; }
                 }
             }
@@ -199,13 +199,13 @@ export component DebugLogPage inherits Rectangle {
                 spacing: Theme.spacing-default;
                 alignment: end;
                 TextButton {
-                    label: "Clear";
+                    label: @tr("Clear");
                     // No-op in UI-only build — Phase 8 will clear the
                     // Rust-side ring buffer.
                     clicked => { root.mock-log = []; }
                 }
                 TextButton {
-                    label: "Copy all";
+                    label: @tr("Copy all");
                     clicked => { }   // no-op — Phase 8 wires Bridge.copy-log()
                 }
             }

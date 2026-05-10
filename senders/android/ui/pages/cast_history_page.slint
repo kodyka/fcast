@@ -68,7 +68,7 @@ export component CastHistoryPage inherits Rectangle {
                 spacing: Theme.spacing-default;
 
                 Text {
-                    text: "Cast history";
+                    text: @tr("Cast history");
                     color: Theme.text-primary;
                     font-size: Theme.font-size-heading;
                     vertical-alignment: center;
@@ -76,12 +76,12 @@ export component CastHistoryPage inherits Rectangle {
                 }
 
                 TextButton {
-                    label: "Clear all";
+                    label: @tr("Clear all");
                     clicked => { root.show-clear-confirm = true; }
                 }
 
                 TextButton {
-                    label: "Done";
+                    label: @tr("close-panel-button" => "Done");
                     clicked => { Bridge.active-panel = Panel.none; }
                 }
             }
@@ -97,7 +97,7 @@ export component CastHistoryPage inherits Rectangle {
                     background: Theme.surface-card;
                     border-radius: Theme.radius-card;
                     Text {
-                        text: "No casts yet.";
+                        text: @tr("No casts yet.");
                         color: Theme.text-secondary;
                         horizontal-alignment: center;
                         vertical-alignment: center;
@@ -174,9 +174,9 @@ export component CastHistoryPage inherits Rectangle {
 
     // ── Clear-all confirmation ───────────────────────────────────────────
     if root.show-clear-confirm: ConfirmDialog {
-        title: "Clear all cast history?";
-        body:  "This removes all past cast session entries. Cannot be undone.";
-        confirm-label: "Clear";
+        title: @tr("Clear all cast history?");
+        body: @tr("This removes all past cast session entries. Cannot be undone.");
+        confirm-label: @tr("Clear");
         destructive: true;
         confirmed => {
             root.mock-history = [];

@@ -115,13 +115,13 @@ component NetworkInterfaceRow inherits Rectangle {
                 padding-bottom: Theme.padding-screen;
                 spacing: 6px;
                 Text {
-                    text: "IPv6: " + (root.data.address-v6 == "" ? "(none)" : root.data.address-v6);
+                    text: @tr("IPv6: {}", root.data.address-v6 == "" ? @tr("(none)") : root.data.address-v6);
                     color: Theme.text-secondary;
                     font-size: Theme.font-size-label;
                     overflow: elide;
                 }
                 Text {
-                    text: "Kind: " + root.data.kind;
+                    text: @tr("Kind: {}", root.data.kind);
                     color: Theme.text-secondary;
                     font-size: Theme.font-size-label;
                 }
@@ -182,14 +182,14 @@ export component NetworkPage inherits Rectangle {
             HorizontalLayout {
                 padding: Theme.padding-screen;
                 Text {
-                    text: "Network";
+                    text: @tr("Network");
                     color: Theme.text-primary;
                     font-size: Theme.font-size-heading;
                     vertical-alignment: center;
                     horizontal-stretch: 1;
                 }
                 TextButton {
-                    label: "Done";
+                    label: @tr("close-panel-button" => "Done");
                     clicked => { Bridge.active-panel = Panel.none; }
                 }
             }
@@ -202,7 +202,7 @@ export component NetworkPage inherits Rectangle {
             HorizontalLayout {
                 padding: Theme.padding-screen;
                 Text {
-                    text: "Wi-Fi Aware enabled (placeholder — no permission requested).";
+                    text: @tr("Wi-Fi Aware enabled (placeholder — no permission requested).");
                     color: Theme.text-primary;
                     vertical-alignment: center;
                     font-size: Theme.font-size-label;
@@ -217,7 +217,7 @@ export component NetworkPage inherits Rectangle {
                 padding: Theme.padding-screen;
 
                 Text {
-                    text: "INTERFACES";
+                    text: @tr("INTERFACES");
                     color: Theme.text-secondary;
                     font-size: Theme.font-size-label;
                 }
@@ -227,9 +227,9 @@ export component NetworkPage inherits Rectangle {
                 }
 
                 SettingsSection {
-                    title: "WI-FI AWARE";
+                    title: @tr("WI-FI AWARE");
                     SettingsToggleRow {
-                        title: "Enable Wi-Fi Aware discovery";
+                        title: @tr("Enable Wi-Fi Aware discovery");
                         checked: root.mock-wifi-aware-enabled;
                         toggled(checked) => {
                             root.mock-wifi-aware-enabled = checked;
@@ -242,9 +242,7 @@ export component NetworkPage inherits Rectangle {
                 }
 
                 Text {
-                    text: "Wi-Fi Aware (NAN) requires location permission. This build "
-                        + "is UI-only — toggling the switch does not request the "
-                        + "permission or open a Wi-Fi Aware session.";
+                    text: @tr("Wi-Fi Aware (NAN) requires location permission. This build is UI-only — toggling the switch does not request the permission or open a Wi-Fi Aware session.");
                     color: Theme.text-secondary;
                     font-size: Theme.font-size-label;
                     wrap: word-wrap;

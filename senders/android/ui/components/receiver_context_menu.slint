@@ -61,19 +61,19 @@ export component ReceiverContextMenu inherits Rectangle {
         padding-bottom: 4px;
 
         MenuRow {
-            label: "Rename";
+            label: @tr("Rename");
             clicked => { root.rename-clicked(); }
         }
         MenuRow {
-            label: "Set as default";
+            label: @tr("Set as default");
             clicked => { root.set-default-clicked(); }
         }
         if root.show-disconnect: MenuRow {
-            label: "Disconnect";
+            label: @tr("Disconnect");
             clicked => { root.disconnect-clicked(); }
         }
         MenuRow {
-            label: "Forget receiver";
+            label: @tr("Forget receiver");
             label-color: Theme.error;
             clicked => { root.forget-clicked(); }
         }

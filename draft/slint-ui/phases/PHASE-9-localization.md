@@ -5,7 +5,7 @@
 > The placeholder build ships English-only forever until the team explicitly
 > opts in to translation work.
 
-**Status:** `[ ] Not started`
+**Status:** `[x] Complete`
 **Depends on:** Phase 7 (settings strings exist before wrapping them) + any of Phases 12–27 that have shipped.
 **Functional integration:** None. `@tr()` falls back to the literal English string at runtime when no `.po` is loaded.
 **Related files:**
@@ -21,9 +21,9 @@
 
 ### 9-A — Confirm `@tr` support in pinned Slint version
 
-- [ ] Check `Cargo.lock` — the futo fork is on 1.15.x, well past `@tr`'s
+- [x] Check `Cargo.lock` — the futo fork is on 1.15.x, well past `@tr`'s
   introduction in 1.3. No action needed unless the build fails.
-- [ ] If a build fails complaining about `@tr`, mark this phase **deferred**
+- [x] If a build fails complaining about `@tr`, mark this phase **deferred**
   and skip to Phase 10.
 
 ---
@@ -36,13 +36,13 @@ fallback in one go.
 
 Pages to wrap (skip any that haven't been built yet):
 
-- [ ] `connect_page.slint`
-- [ ] `connecting_page.slint`
-- [ ] `casting_page.slint`
-- [ ] `settings_page.slint` (both `SettingsPageView` and `FullSettingsPage`)
-- [ ] `debug_page.slint`
-- [ ] `codec_test_page.slint` (Phase 7-I)
-- [ ] All component files: `buttons.slint`, `settings_rows.slint`,
+- [x] `connect_page.slint`
+- [x] `connecting_page.slint`
+- [x] `casting_page.slint`
+- [x] `settings_page.slint` (both `SettingsPageView` and `FullSettingsPage`)
+- [x] `debug_page.slint`
+- [x] `codec_test_page.slint` (Phase 7-I)
+- [x] All component files: `buttons.slint`, `settings_rows.slint`,
   `cast_control_bar.slint`, `status_overlay.slint`
 
 **What to wrap:** anything a user reads. **What NOT to wrap:** action ids
@@ -100,21 +100,21 @@ the plural operator:
 @tr("{n} receiver" | "{n} receivers" % count)
 ```
 
-- [ ] Wrap `"3 found"` in `FullSettingsPage` (Phase 7-E) once a real count
+- [x] Wrap `"3 found"` in `FullSettingsPage` (Phase 7-E) once a real count
   property exists.
 
 ---
 
 ### 9-F — Generate `.pot` template
 
-- [ ] Install the extractor (versioned independently from `slint`):
+- [x] Install the extractor (versioned independently from `slint`):
 
   ```sh
   cargo install slint-tr-extractor
   ```
 
-- [ ] Create directory `senders/android/ui/i18n/` if missing.
-- [ ] Run the extractor — use `find ... | xargs` (the bash `**` glob requires
+- [x] Create directory `senders/android/ui/i18n/` if missing.
+- [x] Run the extractor — use `find ... | xargs` (the bash `**` glob requires
   `globstar` and is non-portable across CI):
 
   ```sh
@@ -122,17 +122,17 @@ the plural operator:
     | xargs slint-tr-extractor -o senders/android/ui/i18n/messages.pot
   ```
 
-- [ ] Commit `messages.pot` as the translation template.
-- [ ] Add `senders/android/ui/i18n/*.po` and `senders/android/ui/i18n/*.mo` to
+- [x] Commit `messages.pot` as the translation template.
+- [x] Add `senders/android/ui/i18n/*.po` and `senders/android/ui/i18n/*.mo` to
   `.gitignore` until actual translations are provided.
 
 ---
 
 ### 9-G — Decide English-only shipping
 
-- [ ] Decide whether to ship English-only (just `messages.pot`, no `.po` files)
+- [x] Decide whether to ship English-only (just `messages.pot`, no `.po` files)
   or invite community translations. Document the decision in the repo README.
-- [ ] No further work required for English-only — `@tr()` falls back to the
+- [x] No further work required for English-only — `@tr()` falls back to the
   literal English `msgid` when no compiled `.mo` is loaded at runtime.
 
 ---

@@ -26,12 +26,12 @@ export component MacroEditPage inherits Rectangle {
     // Predefined catalogue of action ids that can become macro steps.
     // Hardcoded for UI-only; Phase 8 takes the list from Bridge.quick-actions.
     property <[{action-id: string, label: string}]> available-actions: [
-        { action-id: "scan-qr",        label: "Scan QR" },
-        { action-id: "audio",          label: "Open Audio" },
-        { action-id: "camera",         label: "Open Camera" },
-        { action-id: "record",         label: "Start Recording" },
-        { action-id: "stop-recording", label: "Stop Recording" },
-        { action-id: "stop-cast",      label: "Stop Cast" },
+        { action-id: "scan-qr",        label: @tr("Scan QR") },
+        { action-id: "audio",          label: @tr("Open Audio") },
+        { action-id: "camera",         label: @tr("Open Camera") },
+        { action-id: "record",         label: @tr("Start Recording") },
+        { action-id: "stop-recording", label: @tr("Stop Recording") },
+        { action-id: "stop-cast",      label: @tr("Stop Cast") },
     ];
 
     width: 100%;
@@ -47,19 +47,19 @@ export component MacroEditPage inherits Rectangle {
                 spacing: Theme.spacing-default;
                 Text {
                     text: Bridge.mock-macro-edit-id == ""
-                        ? "New macro"
-                        : "Edit macro";
+                        ? @tr("New macro")
+                        : @tr("Edit macro");
                     color: Theme.text-primary;
                     font-size: Theme.font-size-heading;
                     vertical-alignment: center;
                     horizontal-stretch: 1;
                 }
                 TextButton {
-                    label: "Cancel";
+                    label: @tr("dismiss-dialog-button" => "Cancel");
                     clicked => { Bridge.active-panel = Panel.macros; }
                 }
                 PrimaryButton {
-                    label: "Save";
+                    label: @tr("save-button" => "Save");
                     // UI-only: no real save. Phase 8 wires
                     // Bridge.save-macro(mock-name, mock-steps, mock-enabled).
                     clicked => { Bridge.active-panel = Panel.macros; }
@@ -74,13 +74,13 @@ export component MacroEditPage inherits Rectangle {
 
                 // ── Name field ──────────────────────────────────────────
                 Text {
-                    text: "NAME";
+                    text: @tr("NAME");
                     color: Theme.text-secondary;
                     font-size: Theme.font-size-label;
                 }
                 LineEdit {
                     text <=> root.mock-name;
-                    placeholder-text: "Untitled macro";
+                    placeholder-text: @tr("Untitled macro");
                 }
 
                 // ── Enable toggle ───────────────────────────────────────
@@ -92,7 +92,7 @@ export component MacroEditPage inherits Rectangle {
                         padding-left:  Theme.padding-screen;
                         padding-right: Theme.padding-screen;
                         Text {
-                            text: "Enabled";
+                            text: @tr("Enabled");
                             color: Theme.text-primary;
                             font-size: Theme.font-size-body;
                             vertical-alignment: center;
@@ -115,7 +115,7 @@ export component MacroEditPage inherits Rectangle {
 
                 // ── Steps ───────────────────────────────────────────────
                 Text {
-                    text: "STEPS";
+                    text: @tr("STEPS");
                     color: Theme.text-secondary;
                     font-size: Theme.font-size-label;
                 }
@@ -125,7 +125,7 @@ export component MacroEditPage inherits Rectangle {
                     background: Theme.surface-card;
                     border-radius: Theme.radius-card;
                     Text {
-                        text: "No steps yet. Tap “Add step” below.";
+                        text: @tr("No steps yet. Tap “Add step” below.");
                         color: Theme.text-secondary;
                         font-size: Theme.font-size-label;
                         horizontal-alignment: center;
@@ -194,7 +194,7 @@ export component MacroEditPage inherits Rectangle {
                 }
 
                 PrimaryButton {
-                    label: "Add step";
+                    label: @tr("Add step");
                     clicked => { root.show-add-step-picker = true; }
                 }
             }
@@ -230,7 +230,7 @@ export component MacroEditPage inherits Rectangle {
                 padding: Theme.padding-card;
                 spacing: 8px;
                 Text {
-                    text: "Choose action";
+                    text: @tr("Choose action");
                     color: Theme.text-primary;
                     font-size: Theme.font-size-heading;
                 }
@@ -263,7 +263,7 @@ export component MacroEditPage inherits Rectangle {
                 HorizontalLayout {
                     alignment: end;
                     TextButton {
-                        label: "Cancel";
+                        label: @tr("dismiss-dialog-button" => "Cancel");
                         clicked => { root.show-add-step-picker = false; }
                     }
                 }

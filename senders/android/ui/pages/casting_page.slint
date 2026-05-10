@@ -18,12 +18,12 @@ export component CastButton inherits Rectangle {
     // It should only be visible/instantiated in WaitingForMedia and Casting states.
 
     if Bridge.app-state == AppState.WaitingForMedia: DestructiveButton {
-        label: "Cancel";
+        label: @tr("cancel-cast-button" => "Cancel");
         clicked => { Bridge.stop-casting(); }
     }
 
     if Bridge.app-state == AppState.Casting: DestructiveButton {
-        label: "Stop Casting";
+        label: @tr("Stop Casting");
         clicked => { Bridge.stop-casting(); }
     }
 }
@@ -34,7 +34,7 @@ export component WaitingForMediaView inherits Rectangle {
     VerticalBox {
         alignment: center;
         LoadingView {
-            label: "Waiting for media";
+            label: @tr("Waiting for media");
         }
 
         CastButton {}
@@ -47,22 +47,22 @@ export component CastingView inherits Rectangle {
     // UI-only placeholder (Phase 5). Replace with `Bridge.status-items` when
     // Phase 8 (Rust wiring) lands — see PHASE-8-rust-bridge.md.
     in-out property <[StatusItem]> mock-status-items: [
-        { label: "Receiver", value: "Living Room TV",       severity: StatusSeverity.info },
-        { label: "Encoder",  value: "amcvidenc (H.264)",    severity: StatusSeverity.info },
-        { label: "Network",  value: "192.168.1.42",         severity: StatusSeverity.info },
+        { label: @tr("Receiver"), value: "Living Room TV",       severity: StatusSeverity.info },
+        { label: @tr("Encoder"),  value: "amcvidenc (H.264)",    severity: StatusSeverity.info },
+        { label: @tr("Network"),  value: "192.168.1.42",         severity: StatusSeverity.info },
     ];
     // Severity-coverage stub. Flip `items: root.mock-status-items-error;` once,
     // screenshot to verify warning/error coloring, then revert before commit.
     in-out property <[StatusItem]> mock-status-items-error: [
-        { label: "Receiver", value: "Living Room TV", severity: StatusSeverity.info },
-        { label: "Network",  value: "Reconnecting…",  severity: StatusSeverity.warning },
-        { label: "Encoder",  value: "Failed",         severity: StatusSeverity.error },
+        { label: @tr("Receiver"), value: "Living Room TV", severity: StatusSeverity.info },
+        { label: @tr("Network"),  value: @tr("Reconnecting…"),  severity: StatusSeverity.warning },
+        { label: @tr("Encoder"),  value: @tr("Failed"),         severity: StatusSeverity.error },
     ];
     VerticalBox {
         alignment: center;
         Text {
             horizontal-alignment: center;
-            text: "Casting";
+            text: @tr("Casting");
         }
 
         CastButton {}

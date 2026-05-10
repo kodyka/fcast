@@ -93,14 +93,14 @@ export component RecordingPage inherits Rectangle {
             HorizontalLayout {
                 padding: Theme.padding-screen;
                 Text {
-                    text: "Recording";
+                    text: @tr("Recording");
                     color: Theme.text-primary;
                     font-size: Theme.font-size-heading;
                     vertical-alignment: center;
                     horizontal-stretch: 1;
                 }
                 TextButton {
-                    label: "Done";
+                    label: @tr("close-panel-button" => "Done");
                     clicked => { Bridge.active-panel = Panel.none; }
                 }
             }
@@ -112,7 +112,7 @@ export component RecordingPage inherits Rectangle {
                 padding: Theme.padding-screen;
 
                 // ── Section: RECORDING ──────────────────────────────────
-                SettingsSection { title: "RECORDING"; }
+                SettingsSection { title: @tr("RECORDING"); }
                 Rectangle {
                     height: 200px;
                     background: Theme.surface-card;
@@ -160,7 +160,7 @@ export component RecordingPage inherits Rectangle {
                             alignment: center;
                             spacing: Theme.spacing-default;
                             DestructiveButton {
-                                label: "Stop";
+                                label: @tr("Stop");
                                 enabled: root.mock-state == RecordingState.recording
                                     || root.mock-state == RecordingState.paused;
                                 clicked => { root.on-stop-clicked(); }
@@ -171,28 +171,28 @@ export component RecordingPage inherits Rectangle {
 
                 // ── Section: OUTPUT ─────────────────────────────────────
                 SettingsSection {
-                    title: "OUTPUT";
+                    title: @tr("OUTPUT");
                     SettingsValueRow {
-                        title: "Format";
+                        title: @tr("Format");
                         value: ["MP4", "MKV", "WebM"][root.mock-format-idx];
                         clicked => {
                             root.mock-format-idx = Math.mod(root.mock-format-idx + 1, 3);
                         }
                     }
                     SettingsValueRow {
-                        title: "Folder";
+                        title: @tr("Folder");
                         value: ["App", "Movies", "Custom"][root.mock-folder-idx];
                         clicked => {
                             root.mock-folder-idx = Math.mod(root.mock-folder-idx + 1, 3);
                         }
                     }
                     SettingsToggleRow {
-                        title: "Record audio";
+                        title: @tr("Record audio");
                         checked: root.mock-record-audio;
                         toggled(checked) => { root.mock-record-audio = checked; }
                     }
                     SettingsValueRow {
-                        title: "Disk free";
+                        title: @tr("Disk free");
                         value: root.disk-free-display;
                         show-chevron: false;
                     }

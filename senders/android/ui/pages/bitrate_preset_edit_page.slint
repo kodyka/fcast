@@ -35,12 +35,12 @@ export component BitratePresetEditPage inherits Rectangle {
                 padding: Theme.padding-screen;
                 spacing: Theme.spacing-default;
                 TextButton {
-                    label: "Cancel";
+                    label: @tr("dismiss-dialog-button" => "Cancel");
                     // Return to the LIST, not the cast screen.
                     clicked => { Bridge.active-panel = Panel.bitrate-presets; }
                 }
                 Text {
-                    text: "Edit preset";
+                    text: @tr("Edit preset");
                     color: Theme.text-primary;
                     font-size: Theme.font-size-heading;
                     vertical-alignment: center;
@@ -48,7 +48,7 @@ export component BitratePresetEditPage inherits Rectangle {
                     horizontal-stretch: 1;
                 }
                 TextButton {
-                    label: "Save";
+                    label: @tr("save-button" => "Save");
                     // UI-only — no persistence to BitratePresetsPage's
                     // mock-presets. Real persistence requires lifting the
                     // model to a global / Bridge property; deferred to
@@ -64,14 +64,14 @@ export component BitratePresetEditPage inherits Rectangle {
                 padding: Theme.padding-screen;
 
                 SettingsSection {
-                    title: "NAME";
+                    title: @tr("NAME");
                     Rectangle {
                         height: 56px;
                         HorizontalLayout {
                             padding-left:  Theme.padding-screen;
                             padding-right: Theme.padding-screen;
                             LineEdit {
-                                placeholder-text: "Preset name";
+                                placeholder-text: @tr("Preset name");
                                 text <=> root.mock-name;
                                 horizontal-stretch: 1;
                             }
@@ -80,9 +80,9 @@ export component BitratePresetEditPage inherits Rectangle {
                 }
 
                 SettingsSection {
-                    title: "BITRATE";
+                    title: @tr("BITRATE");
                     SettingsSliderRow {
-                        title: "Bitrate";
+                        title: @tr("Bitrate");
                         unit: " kbps";
                         minimum: 500;
                         maximum: 20000;

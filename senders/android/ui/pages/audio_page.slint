@@ -25,13 +25,13 @@ export component AudioPage inherits Rectangle {
             HorizontalLayout {
                 padding: Theme.padding-screen;
                 Text {
-                    text: "Audio";
+                    text: @tr("Audio");
                     color: Theme.text-primary;
                     font-size: Theme.font-size-heading;
                     vertical-alignment: center;
                     horizontal-stretch: 1;
                 }
-                TextButton { label: "Done"; clicked => { Bridge.active-panel = Panel.none; } }
+                TextButton { label: @tr("close-panel-button" => "Done"); clicked => { Bridge.active-panel = Panel.none; } }
             }
         }
 
@@ -41,19 +41,19 @@ export component AudioPage inherits Rectangle {
                 padding: Theme.padding-screen;
 
                 SettingsSection {
-                    title: "INPUT";
+                    title: @tr("INPUT");
                     SettingsValueRow {
-                        title: "Source";
-                        value: ["Microphone", "System audio", "Both"][root.mock-source-idx];
+                        title: @tr("Source");
+                        value: [@tr("Microphone"), @tr("System audio"), @tr("Both")][root.mock-source-idx];
                         clicked => { root.mock-source-idx = Math.mod(root.mock-source-idx + 1, 3); }
                     }
                     SettingsToggleRow {
-                        title: "Mute";
+                        title: @tr("Mute");
                         checked: root.mock-muted;
                         toggled(checked) => { root.mock-muted = checked; }
                     }
                     SettingsSliderRow {
-                        title: "Input gain";
+                        title: @tr("Input gain");
                         value: root.mock-input-gain * 100;
                         minimum: 0; maximum: 100; unit: "%";
                         changed(v) => { root.mock-input-gain = v / 100; }
@@ -61,15 +61,15 @@ export component AudioPage inherits Rectangle {
                 }
 
                 SettingsSection {
-                    title: "ENCODING";
+                    title: @tr("ENCODING");
                     SettingsValueRow {
-                        title: "Bitrate";
-                        value: ["64 kbps", "128 kbps", "192 kbps", "256 kbps"][root.mock-bitrate-idx];
+                        title: @tr("Bitrate");
+                        value: [@tr("64 kbps"), @tr("128 kbps"), @tr("192 kbps"), @tr("256 kbps")][root.mock-bitrate-idx];
                         clicked => { root.mock-bitrate-idx = Math.mod(root.mock-bitrate-idx + 1, 4); }
                     }
                     SettingsValueRow {
-                        title: "Codec";
-                        value: "AAC-LC";
+                        title: @tr("Codec");
+                        value: @tr("AAC-LC");
                         show-chevron: false;
                     }
                 }

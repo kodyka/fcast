@@ -61,36 +61,36 @@ export component BackupResetPage inherits Rectangle {
     // callback based on the pending-action.
     function on-confirm() {
         if (root.pending-action == "reset-all") {
-            root.show-banner("Settings reset (placeholder).");
+            root.show-banner(@tr("Settings reset (placeholder)."));
         } else if (root.pending-action == "clear-history") {
-            root.show-banner("Cast history cleared (placeholder).");
+            root.show-banner(@tr("Cast history cleared (placeholder)."));
         } else if (root.pending-action == "clear-receivers") {
-            root.show-banner("Known receivers cleared (placeholder).");
+            root.show-banner(@tr("Known receivers cleared (placeholder)."));
         }
         root.pending-action = "";
     }
 
     // Helper: pure derivation of the dialog title for the current action.
     pure function dialog-title(action: string) -> string {
-        return action == "reset-all"        ? "Reset all settings?" :
-               action == "clear-history"    ? "Clear cast history?"  :
-               action == "clear-receivers"  ? "Clear known receivers?" :
+        return action == "reset-all"        ? @tr("Reset all settings?") :
+               action == "clear-history"    ? @tr("Clear cast history?")  :
+               action == "clear-receivers"  ? @tr("Clear known receivers?") :
                                                "";
     }
     pure function dialog-body(action: string) -> string {
         return action == "reset-all"
-                 ? "All settings will be restored to defaults. This cannot be undone."
+                 ? @tr("All settings will be restored to defaults. This cannot be undone.")
              : action == "clear-history"
-                 ? "Past cast sessions will be removed from the history list."
+                 ? @tr("Past cast sessions will be removed from the history list.")
              : action == "clear-receivers"
-                 ? "Known receivers will be forgotten and rediscovered next scan."
+                 ? @tr("Known receivers will be forgotten and rediscovered next scan.")
              : "";
     }
     pure function dialog-confirm-label(action: string) -> string {
-        return action == "reset-all"        ? "Reset" :
-               action == "clear-history"    ? "Clear" :
-               action == "clear-receivers"  ? "Clear" :
-                                               "OK";
+        return action == "reset-all"        ? @tr("Reset") :
+               action == "clear-history"    ? @tr("Clear") :
+               action == "clear-receivers"  ? @tr("Clear") :
+                                               @tr("OK");
     }
 
     VerticalLayout {
@@ -101,14 +101,14 @@ export component BackupResetPage inherits Rectangle {
             HorizontalLayout {
                 padding: Theme.padding-screen;
                 Text {
-                    text: "Backup & reset";
+                    text: @tr("Backup & reset");
                     color: Theme.text-primary;
                     font-size: Theme.font-size-heading;
                     vertical-alignment: center;
                     horizontal-stretch: 1;
                 }
                 TextButton {
-                    label: "Done";
+                    label: @tr("close-panel-button" => "Done");
                     clicked => { Bridge.active-panel = Panel.none; }
                 }
             }
@@ -136,38 +136,38 @@ export component BackupResetPage inherits Rectangle {
 
                 // ── Section: BACKUP ─────────────────────────────────────
                 SettingsSection {
-                    title: "BACKUP";
+                    title: @tr("BACKUP");
                     SettingsValueRow {
-                        title: "Export settings to file";
+                        title: @tr("Export settings to file");
                         value: "";
                         clicked => {
-                            root.show-banner("Exported to ~/fcast-backup.json (placeholder).");
+                            root.show-banner(@tr("Exported to ~/fcast-backup.json (placeholder)."));
                         }
                     }
                     SettingsValueRow {
-                        title: "Import settings from file";
+                        title: @tr("Import settings from file");
                         value: "";
                         clicked => {
-                            root.show-banner("Settings imported (placeholder).");
+                            root.show-banner(@tr("Settings imported (placeholder)."));
                         }
                     }
                 }
 
                 // ── Section: RESET ──────────────────────────────────────
                 SettingsSection {
-                    title: "RESET";
+                    title: @tr("RESET");
                     SettingsValueRow {
-                        title: "Reset all settings";
+                        title: @tr("Reset all settings");
                         value: "";
                         clicked => { root.pending-action = "reset-all"; }
                     }
                     SettingsValueRow {
-                        title: "Clear cast history";
+                        title: @tr("Clear cast history");
                         value: "";
                         clicked => { root.pending-action = "clear-history"; }
                     }
                     SettingsValueRow {
-                        title: "Clear known receivers";
+                        title: @tr("Clear known receivers");
                         value: "";
                         clicked => { root.pending-action = "clear-receivers"; }
                     }

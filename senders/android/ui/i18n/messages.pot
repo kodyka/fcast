@@ -1,0 +1,1130 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"POT-Creation-Date: 2026-05-09 22:17+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: senders/android/ui/components/stealth_overlay.slint:21
+msgctxt "StealthOverlay"
+msgid "Tap to wake"
+msgstr ""
+
+#: senders/android/ui/components/capture_preview.slint:20
+msgctxt "CapturePreview"
+msgid "Screen capture"
+msgstr ""
+
+#: senders/android/ui/components/qr_placeholder.slint:40
+msgctxt "QrPlaceholder"
+msgid "(QR preview)"
+msgstr ""
+
+#: senders/android/ui/components/receiver_context_menu.slint:64
+msgctxt "ReceiverContextMenu"
+msgid "Rename"
+msgstr ""
+
+#: senders/android/ui/components/receiver_context_menu.slint:68
+msgctxt "ReceiverContextMenu"
+msgid "Set as default"
+msgstr ""
+
+#: senders/android/ui/components/receiver_context_menu.slint:72
+msgctxt "ReceiverContextMenu"
+msgid "Disconnect"
+msgstr ""
+
+#: senders/android/ui/components/receiver_context_menu.slint:76
+msgctxt "ReceiverContextMenu"
+msgid "Forget receiver"
+msgstr ""
+
+#: senders/android/ui/components/status_badges.slint:77
+msgctxt "StatusBadgesRow"
+msgid "{}%"
+msgstr ""
+
+#: senders/android/ui/components/buttons.slint:78
+msgctxt "LoadingView"
+msgid "Loading"
+msgstr ""
+
+#: senders/android/ui/components/snapshot_countdown.slint:39
+msgctxt "SnapshotCountdown"
+msgid "Casting in"
+msgstr ""
+
+#: senders/android/ui/components/snapshot_countdown.slint:54
+#: senders/android/ui/components/snapshot_countdown.slint:54
+#: senders/android/ui/components/snapshot_countdown.slint:54
+msgctxt "cancel-cast-button"
+msgid "Cancel"
+msgstr ""
+
+#: senders/android/ui/components/confirm_dialog.slint:27
+msgctxt "ConfirmDialog"
+msgid "Confirm"
+msgstr ""
+
+#: senders/android/ui/components/confirm_dialog.slint:28
+msgctxt "ConfirmDialog"
+msgid "Are you sure?"
+msgstr ""
+
+#: senders/android/ui/components/confirm_dialog.slint:29
+msgctxt "ConfirmDialog"
+msgid "OK"
+msgstr ""
+
+#: senders/android/ui/components/confirm_dialog.slint:81
+#: senders/android/ui/components/confirm_dialog.slint:81
+#: senders/android/ui/components/confirm_dialog.slint:81
+#: senders/android/ui/components/confirm_dialog.slint:81
+msgctxt "dismiss-dialog-button"
+msgid "Cancel"
+msgstr ""
+
+#: senders/android/ui/components/lock_overlay.slint:47
+msgctxt "LockOverlay"
+msgid "🔒"
+msgstr ""
+
+#: senders/android/ui/components/lock_overlay.slint:53
+msgctxt "LockOverlay"
+msgid "UI Locked"
+msgstr ""
+
+#: senders/android/ui/components/lock_overlay.slint:61
+msgctxt "LockOverlay"
+msgid "Tap and hold for 1.5s to unlock"
+msgstr ""
+
+#: senders/android/ui/pages/receiver_rename_page.slint:25
+msgctxt "ReceiverRenamePage"
+msgid "Rename receiver"
+msgstr ""
+
+#: senders/android/ui/pages/receiver_rename_page.slint:36
+msgctxt "ReceiverRenamePage"
+msgid "Cancel"
+msgstr ""
+
+#: senders/android/ui/pages/receiver_rename_page.slint:53
+msgctxt "ReceiverRenamePage"
+msgid "Display name"
+msgstr ""
+
+#: senders/android/ui/pages/receiver_rename_page.slint:60
+msgctxt "ReceiverRenamePage"
+msgid "Enter a name"
+msgstr ""
+
+#: senders/android/ui/pages/receiver_rename_page.slint:74
+msgctxt "ReceiverRenamePage"
+msgid "Save"
+msgstr ""
+
+#: senders/android/ui/pages/network_page.slint:118
+msgctxt "NetworkInterfaceRow"
+msgid "IPv6: {}"
+msgstr ""
+
+#: senders/android/ui/pages/network_page.slint:118
+msgctxt "NetworkInterfaceRow"
+msgid "(none)"
+msgstr ""
+
+#: senders/android/ui/pages/network_page.slint:124
+msgctxt "NetworkInterfaceRow"
+msgid "Kind: {}"
+msgstr ""
+
+#: senders/android/ui/pages/network_page.slint:185
+msgctxt "NetworkPage"
+msgid "Network"
+msgstr ""
+
+#: senders/android/ui/pages/network_page.slint:192
+#: senders/android/ui/pages/network_page.slint:192
+#: senders/android/ui/pages/network_page.slint:192
+#: senders/android/ui/pages/network_page.slint:192
+#: senders/android/ui/pages/network_page.slint:192
+#: senders/android/ui/pages/network_page.slint:192
+#: senders/android/ui/pages/network_page.slint:192
+#: senders/android/ui/pages/network_page.slint:192
+#: senders/android/ui/pages/network_page.slint:192
+#: senders/android/ui/pages/network_page.slint:192
+#: senders/android/ui/pages/network_page.slint:192
+#: senders/android/ui/pages/network_page.slint:192
+#: senders/android/ui/pages/network_page.slint:192
+#: senders/android/ui/pages/network_page.slint:192
+#: senders/android/ui/pages/network_page.slint:192
+msgctxt "close-panel-button"
+msgid "Done"
+msgstr ""
+
+#: senders/android/ui/pages/network_page.slint:205
+msgctxt "NetworkPage"
+msgid "Wi-Fi Aware enabled (placeholder — no permission requested)."
+msgstr ""
+
+#: senders/android/ui/pages/network_page.slint:220
+msgctxt "NetworkPage"
+msgid "INTERFACES"
+msgstr ""
+
+#: senders/android/ui/pages/network_page.slint:230
+msgctxt "NetworkPage"
+msgid "WI-FI AWARE"
+msgstr ""
+
+#: senders/android/ui/pages/network_page.slint:232
+msgctxt "NetworkPage"
+msgid "Enable Wi-Fi Aware discovery"
+msgstr ""
+
+#: senders/android/ui/pages/network_page.slint:245
+msgctxt "NetworkPage"
+msgid ""
+"Wi-Fi Aware (NAN) requires location permission. This build is UI-only — "
+"toggling the switch does not request the permission or open a Wi-Fi Aware "
+"session."
+msgstr ""
+
+#: senders/android/ui/pages/codec_test_page.slint:27
+msgctxt "CodecTestPage"
+msgid "Press \"Run encoder test\" to start."
+msgstr ""
+
+#: senders/android/ui/pages/codec_test_page.slint:41
+msgctxt "CodecTestPage"
+msgid "Codec test"
+msgstr ""
+
+#: senders/android/ui/pages/codec_test_page.slint:60
+msgctxt "CodecTestPage"
+msgid "Run encoder test"
+msgstr ""
+
+#: senders/android/ui/pages/casting_page.slint:26
+msgctxt "CastButton"
+msgid "Stop Casting"
+msgstr ""
+
+#: senders/android/ui/pages/casting_page.slint:37
+msgctxt "WaitingForMediaView"
+msgid "Waiting for media"
+msgstr ""
+
+#: senders/android/ui/pages/casting_page.slint:50
+#: senders/android/ui/pages/casting_page.slint:50
+msgctxt "CastingView"
+msgid "Receiver"
+msgstr ""
+
+#: senders/android/ui/pages/casting_page.slint:51
+#: senders/android/ui/pages/casting_page.slint:51
+msgctxt "CastingView"
+msgid "Encoder"
+msgstr ""
+
+#: senders/android/ui/pages/casting_page.slint:52
+#: senders/android/ui/pages/casting_page.slint:52
+msgctxt "CastingView"
+msgid "Network"
+msgstr ""
+
+#: senders/android/ui/pages/casting_page.slint:58
+msgctxt "CastingView"
+msgid "Reconnecting…"
+msgstr ""
+
+#: senders/android/ui/pages/casting_page.slint:59
+msgctxt "CastingView"
+msgid "Failed"
+msgstr ""
+
+#: senders/android/ui/pages/casting_page.slint:65
+msgctxt "CastingView"
+msgid "Casting"
+msgstr ""
+
+#: senders/android/ui/pages/debug_video_page.slint:47
+msgctxt "DebugVideoPage"
+msgid "Video pipeline"
+msgstr ""
+
+#: senders/android/ui/pages/debug_video_page.slint:66
+msgctxt "DebugVideoPage"
+msgid "PIPELINE OVERLAY"
+msgstr ""
+
+#: senders/android/ui/pages/debug_video_page.slint:68
+msgctxt "DebugVideoPage"
+msgid "Show element graph"
+msgstr ""
+
+#: senders/android/ui/pages/debug_video_page.slint:73
+msgctxt "DebugVideoPage"
+msgid "Show buffer timestamps"
+msgstr ""
+
+#: senders/android/ui/pages/debug_video_page.slint:78
+msgctxt "DebugVideoPage"
+msgid "Show negotiated caps"
+msgstr ""
+
+#: senders/android/ui/pages/debug_video_page.slint:83
+msgctxt "DebugVideoPage"
+msgid "Show keyframe markers"
+msgstr ""
+
+#: senders/android/ui/pages/debug_video_page.slint:89
+msgctxt "DebugVideoPage"
+msgid "PIPELINE STATE"
+msgstr ""
+
+#: senders/android/ui/pages/audio_page.slint:28
+msgctxt "AudioPage"
+msgid "Audio"
+msgstr ""
+
+#: senders/android/ui/pages/audio_page.slint:44
+msgctxt "AudioPage"
+msgid "INPUT"
+msgstr ""
+
+#: senders/android/ui/pages/audio_page.slint:46
+msgctxt "AudioPage"
+msgid "Source"
+msgstr ""
+
+#: senders/android/ui/pages/audio_page.slint:47
+msgctxt "AudioPage"
+msgid "Microphone"
+msgstr ""
+
+#: senders/android/ui/pages/audio_page.slint:47
+msgctxt "AudioPage"
+msgid "System audio"
+msgstr ""
+
+#: senders/android/ui/pages/audio_page.slint:47
+msgctxt "AudioPage"
+msgid "Both"
+msgstr ""
+
+#: senders/android/ui/pages/audio_page.slint:51
+msgctxt "AudioPage"
+msgid "Mute"
+msgstr ""
+
+#: senders/android/ui/pages/audio_page.slint:56
+msgctxt "AudioPage"
+msgid "Input gain"
+msgstr ""
+
+#: senders/android/ui/pages/audio_page.slint:64
+msgctxt "AudioPage"
+msgid "ENCODING"
+msgstr ""
+
+#: senders/android/ui/pages/audio_page.slint:66
+msgctxt "AudioPage"
+msgid "Bitrate"
+msgstr ""
+
+#: senders/android/ui/pages/audio_page.slint:71
+msgctxt "AudioPage"
+msgid "Codec"
+msgstr ""
+
+#: senders/android/ui/pages/audio_page.slint:72
+msgctxt "AudioPage"
+msgid "AAC-LC"
+msgstr ""
+
+#: senders/android/ui/pages/cast_history_detail_page.slint:125
+msgctxt "CastHistoryDetailPage"
+msgid "Started"
+msgstr ""
+
+#: senders/android/ui/pages/cast_history_detail_page.slint:138
+msgctxt "CastHistoryDetailPage"
+msgid "Duration"
+msgstr ""
+
+#: senders/android/ui/pages/cast_history_detail_page.slint:151
+msgctxt "CastHistoryDetailPage"
+msgid "Status"
+msgstr ""
+
+#: senders/android/ui/pages/cast_history_detail_page.slint:165
+msgctxt "CastHistoryDetailPage"
+msgid "Avg bitrate"
+msgstr ""
+
+#: senders/android/ui/pages/cast_history_detail_page.slint:173
+msgctxt "CastHistoryDetailPage"
+msgid "Peak bitrate"
+msgstr ""
+
+#: senders/android/ui/pages/cast_history_detail_page.slint:181
+msgctxt "CastHistoryDetailPage"
+msgid "Dropped frames"
+msgstr ""
+
+#: senders/android/ui/pages/cast_history_detail_page.slint:192
+msgctxt "CastHistoryDetailPage"
+msgid "Cast again to {}"
+msgstr ""
+
+#: senders/android/ui/pages/macros_page.slint:25
+msgctxt "MacrosPage"
+msgid "Scan QR"
+msgstr ""
+
+#: senders/android/ui/pages/macros_page.slint:26
+msgctxt "MacrosPage"
+msgid "Open Audio"
+msgstr ""
+
+#: senders/android/ui/pages/macros_page.slint:27
+msgctxt "MacrosPage"
+msgid "Start Recording"
+msgstr ""
+
+#: senders/android/ui/pages/macros_page.slint:33
+msgctxt "MacrosPage"
+msgid "Stop Recording"
+msgstr ""
+
+#: senders/android/ui/pages/macros_page.slint:34
+msgctxt "MacrosPage"
+msgid "Stop Cast"
+msgstr ""
+
+#: senders/android/ui/pages/macros_page.slint:50
+msgctxt "MacrosPage"
+msgid "Macros"
+msgstr ""
+
+#: senders/android/ui/pages/macros_page.slint:75
+msgctxt "MacrosPage"
+msgid "No macros yet. Tap “Add macro” below to create one."
+msgstr ""
+
+#. String interpolation handles int via "\{n}".
+#: senders/android/ui/pages/macros_page.slint:114
+msgctxt "MacrosPage"
+msgid "{n} step"
+msgid_plural "{n} steps"
+msgstr[0] ""
+msgstr[1] ""
+
+#: senders/android/ui/pages/macros_page.slint:142
+msgctxt "MacrosPage"
+msgid "Add macro"
+msgstr ""
+
+#: senders/android/ui/pages/recording_page.slint:96
+msgctxt "RecordingPage"
+msgid "Recording"
+msgstr ""
+
+#. ── Section: RECORDING ──────────────────────────────────
+#: senders/android/ui/pages/recording_page.slint:115
+msgctxt "RecordingPage"
+msgid "RECORDING"
+msgstr ""
+
+#: senders/android/ui/pages/recording_page.slint:163
+msgctxt "RecordingPage"
+msgid "Stop"
+msgstr ""
+
+#: senders/android/ui/pages/recording_page.slint:174
+msgctxt "RecordingPage"
+msgid "OUTPUT"
+msgstr ""
+
+#: senders/android/ui/pages/recording_page.slint:176
+msgctxt "RecordingPage"
+msgid "Format"
+msgstr ""
+
+#: senders/android/ui/pages/recording_page.slint:183
+msgctxt "RecordingPage"
+msgid "Folder"
+msgstr ""
+
+#: senders/android/ui/pages/recording_page.slint:190
+msgctxt "RecordingPage"
+msgid "Record audio"
+msgstr ""
+
+#: senders/android/ui/pages/recording_page.slint:195
+msgctxt "RecordingPage"
+msgid "Disk free"
+msgstr ""
+
+#: senders/android/ui/pages/bitrate_preset_edit_page.slint:43
+msgctxt "BitratePresetEditPage"
+msgid "Edit preset"
+msgstr ""
+
+#: senders/android/ui/pages/bitrate_preset_edit_page.slint:51
+#: senders/android/ui/pages/bitrate_preset_edit_page.slint:51
+msgctxt "save-button"
+msgid "Save"
+msgstr ""
+
+#: senders/android/ui/pages/bitrate_preset_edit_page.slint:67
+msgctxt "BitratePresetEditPage"
+msgid "NAME"
+msgstr ""
+
+#: senders/android/ui/pages/bitrate_preset_edit_page.slint:74
+msgctxt "BitratePresetEditPage"
+msgid "Preset name"
+msgstr ""
+
+#: senders/android/ui/pages/bitrate_preset_edit_page.slint:83
+msgctxt "BitratePresetEditPage"
+msgid "BITRATE"
+msgstr ""
+
+#: senders/android/ui/pages/bitrate_preset_edit_page.slint:85
+msgctxt "BitratePresetEditPage"
+msgid "Bitrate"
+msgstr ""
+
+#: senders/android/ui/pages/pairing_page.slint:25
+msgctxt "PairingPage"
+msgid "Pair via QR"
+msgstr ""
+
+#: senders/android/ui/pages/pairing_page.slint:36
+msgctxt "PairingPage"
+msgid "Done"
+msgstr ""
+
+#: senders/android/ui/pages/pairing_page.slint:56
+msgctxt "PairingPage"
+msgid "(QR preview)"
+msgstr ""
+
+#: senders/android/ui/pages/pairing_page.slint:69
+msgctxt "PairingPage"
+msgid "Point receiver camera at this code"
+msgstr ""
+
+#: senders/android/ui/pages/pairing_page.slint:98
+msgctxt "PairingPage"
+msgid "Refresh"
+msgstr ""
+
+#: senders/android/ui/pages/pairing_page.slint:120
+msgctxt "PairingPage"
+msgid "Copy address"
+msgstr ""
+
+#: senders/android/ui/pages/pairing_page.slint:142
+msgctxt "PairingPage"
+msgid "✓ Done"
+msgstr ""
+
+#: senders/android/ui/pages/camera_page.slint:75
+#: senders/android/ui/pages/camera_page.slint:75
+msgctxt "CameraPage"
+msgid "Camera"
+msgstr ""
+
+#: senders/android/ui/pages/camera_page.slint:96
+msgctxt "CameraPage"
+msgid "SOURCE"
+msgstr ""
+
+#: senders/android/ui/pages/camera_page.slint:105
+msgctxt "CameraPage"
+msgid "Resolution"
+msgstr ""
+
+#: senders/android/ui/pages/camera_page.slint:112
+msgctxt "CameraPage"
+msgid "Framerate"
+msgstr ""
+
+#: senders/android/ui/pages/camera_page.slint:122
+msgctxt "CameraPage"
+msgid "IMAGE"
+msgstr ""
+
+#: senders/android/ui/pages/camera_page.slint:124
+msgctxt "CameraPage"
+msgid "Mirror front camera"
+msgstr ""
+
+#: senders/android/ui/pages/camera_page.slint:129
+msgctxt "CameraPage"
+msgid "Video stabilization"
+msgstr ""
+
+#: senders/android/ui/pages/camera_page.slint:134
+msgctxt "CameraPage"
+msgid "Tap to focus"
+msgstr ""
+
+#: senders/android/ui/pages/camera_page.slint:142
+msgctxt "CameraPage"
+msgid "ZOOM"
+msgstr ""
+
+#: senders/android/ui/pages/camera_page.slint:144
+msgctxt "CameraPage"
+msgid "Current zoom"
+msgstr ""
+
+#: senders/android/ui/pages/bitrate_presets_page.slint:63
+msgctxt "BitratePresetsPage"
+msgid "Bitrate presets"
+msgstr ""
+
+#: senders/android/ui/pages/bitrate_presets_page.slint:104
+msgctxt "BitratePresetsPage"
+msgid "{} kbps"
+msgstr ""
+
+#: senders/android/ui/pages/bitrate_presets_page.slint:110
+msgctxt "BitratePresetsPage"
+msgid "✓"
+msgstr ""
+
+#: senders/android/ui/pages/bitrate_presets_page.slint:119
+msgctxt "BitratePresetsPage"
+msgid "Add preset"
+msgstr ""
+
+#: senders/android/ui/pages/debug_page.slint:25
+msgctxt "DebugPageInner"
+msgid "Migrated server tests"
+msgstr ""
+
+#: senders/android/ui/pages/debug_page.slint:29
+msgctxt "DebugPageInner"
+msgid "Start Migrated Server"
+msgstr ""
+
+#: senders/android/ui/pages/debug_page.slint:34
+msgctxt "DebugPageInner"
+msgid "Test Legacy GetInfo"
+msgstr ""
+
+#: senders/android/ui/pages/debug_page.slint:39
+msgctxt "DebugPageInner"
+msgid "Test Legacy Crossfade"
+msgstr ""
+
+#: senders/android/ui/pages/debug_page.slint:44
+msgctxt "DebugPageInner"
+msgid "Test Graph Smoke"
+msgstr ""
+
+#: senders/android/ui/pages/debug_page.slint:79
+msgctxt "FullDebugPage"
+msgid "Debug panel"
+msgstr ""
+
+#: senders/android/ui/pages/quick_actions_page.slint:169
+msgctxt "QuickActionsPage"
+msgid "Quick actions"
+msgstr ""
+
+#: senders/android/ui/pages/quick_actions_page.slint:189
+msgctxt "QuickActionsPage"
+msgid "Bar holds up to 6 actions — extras will overflow."
+msgstr ""
+
+#: senders/android/ui/pages/quick_actions_page.slint:210
+msgctxt "QuickActionsPage"
+msgid "No bar actions configured."
+msgstr ""
+
+#. ── Section header ──────────────────────────────────────
+#: senders/android/ui/pages/quick_actions_page.slint:220
+msgctxt "QuickActionsPage"
+msgid "BAR ACTIONS"
+msgstr ""
+
+#: senders/android/ui/pages/macro_edit_page.slint:29
+msgctxt "MacroEditPage"
+msgid "Scan QR"
+msgstr ""
+
+#: senders/android/ui/pages/macro_edit_page.slint:30
+msgctxt "MacroEditPage"
+msgid "Open Audio"
+msgstr ""
+
+#: senders/android/ui/pages/macro_edit_page.slint:31
+msgctxt "MacroEditPage"
+msgid "Open Camera"
+msgstr ""
+
+#: senders/android/ui/pages/macro_edit_page.slint:32
+msgctxt "MacroEditPage"
+msgid "Start Recording"
+msgstr ""
+
+#: senders/android/ui/pages/macro_edit_page.slint:33
+msgctxt "MacroEditPage"
+msgid "Stop Recording"
+msgstr ""
+
+#: senders/android/ui/pages/macro_edit_page.slint:34
+msgctxt "MacroEditPage"
+msgid "Stop Cast"
+msgstr ""
+
+#: senders/android/ui/pages/macro_edit_page.slint:50
+msgctxt "MacroEditPage"
+msgid "New macro"
+msgstr ""
+
+#: senders/android/ui/pages/macro_edit_page.slint:51
+msgctxt "MacroEditPage"
+msgid "Edit macro"
+msgstr ""
+
+#: senders/android/ui/pages/macro_edit_page.slint:77
+msgctxt "MacroEditPage"
+msgid "NAME"
+msgstr ""
+
+#: senders/android/ui/pages/macro_edit_page.slint:83
+msgctxt "MacroEditPage"
+msgid "Untitled macro"
+msgstr ""
+
+#: senders/android/ui/pages/macro_edit_page.slint:95
+msgctxt "MacroEditPage"
+msgid "Enabled"
+msgstr ""
+
+#: senders/android/ui/pages/macro_edit_page.slint:118
+msgctxt "MacroEditPage"
+msgid "STEPS"
+msgstr ""
+
+#: senders/android/ui/pages/macro_edit_page.slint:128
+msgctxt "MacroEditPage"
+msgid "No steps yet. Tap “Add step” below."
+msgstr ""
+
+#: senders/android/ui/pages/macro_edit_page.slint:197
+msgctxt "MacroEditPage"
+msgid "Add step"
+msgstr ""
+
+#: senders/android/ui/pages/macro_edit_page.slint:233
+msgctxt "MacroEditPage"
+msgid "Choose action"
+msgstr ""
+
+#: senders/android/ui/pages/connecting_page.slint:14
+msgctxt "ConnectingView"
+msgid "Connecting"
+msgstr ""
+
+#: senders/android/ui/pages/cast_history_page.slint:71
+msgctxt "CastHistoryPage"
+msgid "Cast history"
+msgstr ""
+
+#: senders/android/ui/pages/cast_history_page.slint:79
+msgctxt "CastHistoryPage"
+msgid "Clear all"
+msgstr ""
+
+#: senders/android/ui/pages/cast_history_page.slint:100
+msgctxt "CastHistoryPage"
+msgid "No casts yet."
+msgstr ""
+
+#: senders/android/ui/pages/cast_history_page.slint:177
+msgctxt "CastHistoryPage"
+msgid "Clear all cast history?"
+msgstr ""
+
+#: senders/android/ui/pages/cast_history_page.slint:178
+msgctxt "CastHistoryPage"
+msgid "This removes all past cast session entries. Cannot be undone."
+msgstr ""
+
+#: senders/android/ui/pages/cast_history_page.slint:179
+msgctxt "CastHistoryPage"
+msgid "Clear"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:39
+msgctxt "SettingsPageView"
+msgid "Max resolution"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:49
+msgctxt "SettingsPageView"
+msgid "Max framerate"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:57
+#: senders/android/ui/pages/settings_page.slint:57
+msgctxt "start-cast-button"
+msgid "Start"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:65
+msgctxt "SettingsPageView"
+msgid "Disconnect"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:93
+msgctxt "FullSettingsPage"
+msgid "Settings"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:114
+msgctxt "FullSettingsPage"
+msgid "PRIVACY"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:116
+msgctxt "FullSettingsPage"
+msgid "Lock UI"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:117
+#: senders/android/ui/pages/settings_page.slint:117
+msgctxt "FullSettingsPage"
+msgid "Enter"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:121
+msgctxt "FullSettingsPage"
+msgid "Stealth mode"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:126
+msgctxt "FullSettingsPage"
+msgid "Cast with countdown"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:137
+msgctxt "FullSettingsPage"
+msgid "RECEIVER"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:139
+msgctxt "FullSettingsPage"
+msgid "Discovered receivers"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:140
+msgctxt "FullSettingsPage"
+msgid "{n} receiver found"
+msgid_plural "{n} receivers found"
+msgstr[0] ""
+msgstr[1] ""
+
+#: senders/android/ui/pages/settings_page.slint:145
+msgctxt "FullSettingsPage"
+msgid "mDNS discovery"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:155
+msgctxt "FullSettingsPage"
+msgid "AUDIO & VIDEO"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:157
+msgctxt "FullSettingsPage"
+msgid "Audio"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:158
+#: senders/android/ui/pages/settings_page.slint:158
+#: senders/android/ui/pages/settings_page.slint:158
+#: senders/android/ui/pages/settings_page.slint:158
+#: senders/android/ui/pages/settings_page.slint:158
+#: senders/android/ui/pages/settings_page.slint:158
+#: senders/android/ui/pages/settings_page.slint:158
+#: senders/android/ui/pages/settings_page.slint:158
+#: senders/android/ui/pages/settings_page.slint:158
+#: senders/android/ui/pages/settings_page.slint:158
+#: senders/android/ui/pages/settings_page.slint:158
+#: senders/android/ui/pages/settings_page.slint:158
+msgctxt "open-panel-action"
+msgid "Open"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:162
+msgctxt "FullSettingsPage"
+msgid "Bitrate"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:167
+msgctxt "FullSettingsPage"
+msgid "Camera"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:172
+msgctxt "FullSettingsPage"
+msgid "Max resolution"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:179
+msgctxt "FullSettingsPage"
+msgid "Max framerate"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:189
+msgctxt "FullSettingsPage"
+msgid "DISPLAY"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:191
+msgctxt "FullSettingsPage"
+msgid "Quick actions"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:199
+msgctxt "FullSettingsPage"
+msgid "CODEC & DEBUG"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:201
+msgctxt "FullSettingsPage"
+msgid "H.264 encoder test"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:206
+msgctxt "FullSettingsPage"
+msgid "Debug log"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:211
+msgctxt "FullSettingsPage"
+msgid "Video pipeline"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:219
+msgctxt "FullSettingsPage"
+msgid "DATA"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:221
+msgctxt "FullSettingsPage"
+msgid "Backup & reset"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:226
+msgctxt "FullSettingsPage"
+msgid "Cast history"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:234
+msgctxt "FullSettingsPage"
+msgid "ADVANCED"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:236
+msgctxt "FullSettingsPage"
+msgid "Recording"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:241
+msgctxt "FullSettingsPage"
+msgid "Network"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:249
+msgctxt "FullSettingsPage"
+msgid "AUTOMATION"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:251
+msgctxt "FullSettingsPage"
+msgid "Macros"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:259
+msgctxt "FullSettingsPage"
+msgid "ABOUT"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:261
+msgctxt "FullSettingsPage"
+msgid "App version"
+msgstr ""
+
+#: senders/android/ui/pages/settings_page.slint:266
+msgctxt "FullSettingsPage"
+msgid "FCast protocol"
+msgstr ""
+
+#: senders/android/ui/pages/debug_log_page.slint:98
+msgctxt "DebugLogPage"
+msgid "Debug log"
+msgstr ""
+
+#: senders/android/ui/pages/debug_log_page.slint:202
+msgctxt "DebugLogPage"
+msgid "Clear"
+msgstr ""
+
+#: senders/android/ui/pages/debug_log_page.slint:208
+msgctxt "DebugLogPage"
+msgid "Copy all"
+msgstr ""
+
+#: senders/android/ui/pages/connect_page.slint:42
+msgctxt "ConnectView"
+msgid "Connect to your receiver"
+msgstr ""
+
+#: senders/android/ui/pages/connect_page.slint:61
+msgctxt "ConnectView"
+msgid "Searching for receivers…"
+msgstr ""
+
+#: senders/android/ui/pages/connect_page.slint:135
+msgctxt "ConnectView"
+msgid "Receiver IP address"
+msgstr ""
+
+#: senders/android/ui/pages/connect_page.slint:139
+msgctxt "ConnectView"
+msgid "Connect"
+msgstr ""
+
+#: senders/android/ui/pages/connect_page.slint:158
+msgctxt "ConnectView"
+msgid "Pair via QR"
+msgstr ""
+
+#: senders/android/ui/pages/connect_page.slint:216
+msgctxt "ConnectView"
+msgid "Forget receiver?"
+msgstr ""
+
+#: senders/android/ui/pages/connect_page.slint:217
+msgctxt "ConnectView"
+msgid "This receiver will be removed from your known devices list."
+msgstr ""
+
+#: senders/android/ui/pages/connect_page.slint:218
+msgctxt "ConnectView"
+msgid "Forget"
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:64
+msgctxt "BackupResetPage"
+msgid "Settings reset (placeholder)."
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:66
+msgctxt "BackupResetPage"
+msgid "Cast history cleared (placeholder)."
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:68
+msgctxt "BackupResetPage"
+msgid "Known receivers cleared (placeholder)."
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:75
+msgctxt "BackupResetPage"
+msgid "Reset all settings?"
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:76
+msgctxt "BackupResetPage"
+msgid "Clear cast history?"
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:77
+msgctxt "BackupResetPage"
+msgid "Clear known receivers?"
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:82
+msgctxt "BackupResetPage"
+msgid "All settings will be restored to defaults. This cannot be undone."
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:84
+msgctxt "BackupResetPage"
+msgid "Past cast sessions will be removed from the history list."
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:86
+msgctxt "BackupResetPage"
+msgid "Known receivers will be forgotten and rediscovered next scan."
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:104
+msgctxt "BackupResetPage"
+msgid "Backup & reset"
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:139
+msgctxt "BackupResetPage"
+msgid "BACKUP"
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:141
+msgctxt "BackupResetPage"
+msgid "Export settings to file"
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:144
+msgctxt "BackupResetPage"
+msgid "Exported to ~/fcast-backup.json (placeholder)."
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:148
+msgctxt "BackupResetPage"
+msgid "Import settings from file"
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:151
+msgctxt "BackupResetPage"
+msgid "Settings imported (placeholder)."
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:158
+msgctxt "BackupResetPage"
+msgid "RESET"
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:160
+msgctxt "BackupResetPage"
+msgid "Reset all settings"
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:165
+msgctxt "BackupResetPage"
+msgid "Clear cast history"
+msgstr ""
+
+#: senders/android/ui/pages/backup_reset_page.slint:170
+msgctxt "BackupResetPage"
+msgid "Clear known receivers"
+msgstr ""

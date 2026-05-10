@@ -39,7 +39,7 @@ export component ConnectView inherits Rectangle {
             horizontal-alignment: center;
             font-size: Theme.font-size-body;
             font-weight: 600;
-            text: "Connect to your receiver";
+            text: @tr("Connect to your receiver");
         }
 
         // ── Empty state: searching ────────────────────────────────────────
@@ -58,7 +58,7 @@ export component ConnectView inherits Rectangle {
                     height: 24px;
                 }
                 Text {
-                    text: "Searching for receivers…";
+                    text: @tr("Searching for receivers…");
                     color: Theme.text-secondary;
                     vertical-alignment: center;
                 }
@@ -132,11 +132,11 @@ export component ConnectView inherits Rectangle {
         HorizontalLayout {
             spacing: Theme.spacing-default;
             ip-input := LineEdit {
-                placeholder-text: "Receiver IP address";
+                placeholder-text: @tr("Receiver IP address");
                 horizontal-stretch: 1;
             }
             PrimaryButton {
-                label: "Connect";
+                label: @tr("Connect");
                 enabled: ip-input.text != "";
                 // UI-only — no real connect handler in this phase.
                 clicked => { /* placeholder */ }
@@ -155,7 +155,7 @@ export component ConnectView inherits Rectangle {
                 background: Theme.surface-card;
 
                 Text {
-                    text: "Pair via QR";
+                    text: @tr("Pair via QR");
                     color: Theme.accent;
                     font-size: Theme.font-size-body;
                     horizontal-alignment: center;
@@ -213,9 +213,9 @@ export component ConnectView inherits Rectangle {
 
     // Forget confirmation dialog.
     if root.show-forget-confirm: ConfirmDialog {
-        title: "Forget receiver?";
-        body:  "This receiver will be removed from your known devices list.";
-        confirm-label: "Forget";
+        title: @tr("Forget receiver?");
+        body: @tr("This receiver will be removed from your known devices list.");
+        confirm-label: @tr("Forget");
         destructive: true;
 
         confirmed => {

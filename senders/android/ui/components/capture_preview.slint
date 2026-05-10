@@ -17,7 +17,7 @@
 import { Theme } from "../theme.slint";
 
 export component CapturePreview inherits Rectangle {
-    in property <string> mock-source-label: "Screen capture";
+    in property <string> mock-source-label: @tr("Screen capture");
     in property <bool>   mock-active: true;
 
     background: Theme.surface-card;

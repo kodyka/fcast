@@ -106,97 +106,97 @@ Each row is a file. For each, audit the file with the regex below, then wrap. Th
 
 ### Phase 5–7 baseline (already merged)
 
-- [ ] `senders/android/ui/pages/connect_page.slint`
-- [ ] `senders/android/ui/pages/connecting_page.slint`
-- [ ] `senders/android/ui/pages/casting_page.slint`
-- [ ] `senders/android/ui/pages/settings_page.slint` (both `SettingsPageView` and `FullSettingsPage`)
-- [ ] `senders/android/ui/pages/debug_page.slint`
-- [ ] `senders/android/ui/pages/codec_test_page.slint`
-- [ ] `senders/android/ui/components/buttons.slint`
-- [ ] `senders/android/ui/components/settings_rows.slint`
-- [ ] `senders/android/ui/components/cast_control_bar.slint`
-- [ ] `senders/android/ui/components/status_overlay.slint`
+- [x] `senders/android/ui/pages/connect_page.slint`
+- [x] `senders/android/ui/pages/connecting_page.slint`
+- [x] `senders/android/ui/pages/casting_page.slint`
+- [x] `senders/android/ui/pages/settings_page.slint` (both `SettingsPageView` and `FullSettingsPage`)
+- [x] `senders/android/ui/pages/debug_page.slint`
+- [x] `senders/android/ui/pages/codec_test_page.slint`
+- [x] `senders/android/ui/components/buttons.slint`
+- [x] `senders/android/ui/components/settings_rows.slint`
+- [x] `senders/android/ui/components/cast_control_bar.slint`
+- [x] `senders/android/ui/components/status_overlay.slint`
 
 ### Phase 12 (capture preview)
 
-- [ ] `senders/android/ui/components/capture_preview.slint`
+- [x] `senders/android/ui/components/capture_preview.slint`
   - `"Screen capture"`, `"● LIVE"`, `"○ Idle"` — the bullet glyphs **stay literal** (they're symbols, not localisable text). Wrap only `"Screen capture"`.
 
 ### Phase 14 (audio settings)
 
-- [ ] `senders/android/ui/pages/audio_page.slint`
+- [x] `senders/android/ui/pages/audio_page.slint`
   - `"Audio capture"`, `"Source"`, `"Mute"`, `"Input gain"`, `"Bitrate"`, `"Done"`, plus the cycler value strings `"Microphone"`, `"System audio"`, `"Microphone + system"`.
 
 ### Phase 15 (camera settings)
 
-- [ ] `senders/android/ui/pages/camera_page.slint`
+- [x] `senders/android/ui/pages/camera_page.slint`
   - `"Camera"`, `"Source"`, `"Resolution"`, `"Frame rate"`, `"Mirror preview"`, `"Stabilization"`, `"Tap to focus"`, `"Zoom"`, plus cycler values.
 
 ### Phase 16 (bitrate presets)
 
-- [ ] `senders/android/ui/pages/bitrate_presets_page.slint`
-- [ ] `senders/android/ui/pages/bitrate_preset_edit_page.slint`
+- [x] `senders/android/ui/pages/bitrate_presets_page.slint`
+- [x] `senders/android/ui/pages/bitrate_preset_edit_page.slint`
   - `"Bitrate presets"`, `"Active"`, `"Edit preset"`, `"Name"`, `"Bitrate"`, `"Cancel"`, `"Save"`. The unit suffix `"kbps"` and `"Mbps"` are also wrapped — units are localisable in some locales.
 
 ### Phase 17 (quick-action customisation)
 
-- [ ] `senders/android/ui/pages/quick_actions_page.slint`
+- [x] `senders/android/ui/pages/quick_actions_page.slint`
   - `"Quick actions"`, `"Enable"`, `"More than 6 enabled — extras hide on small screens."`. The action labels themselves (`"Settings"`, `"Codec test"`, …) are wrapped at the QuickAction struct site (Phase 4).
 
 ### Phase 18 (lifecycle overlays)
 
-- [ ] `senders/android/ui/components/lock_overlay.slint`
-- [ ] `senders/android/ui/components/stealth_overlay.slint`
-- [ ] `senders/android/ui/components/snapshot_countdown.slint`
-- [ ] `senders/android/ui/pages/settings_page.slint` (the new PRIVACY section title, row labels)
+- [x] `senders/android/ui/components/lock_overlay.slint`
+- [x] `senders/android/ui/components/stealth_overlay.slint`
+- [x] `senders/android/ui/components/snapshot_countdown.slint`
+- [x] `senders/android/ui/pages/settings_page.slint` (the new PRIVACY section title, row labels)
   - `"UI Locked"`, `"Press and hold to unlock"`, `"Tap to wake"`, `"Snapshot in"`, `"PRIVACY"`, `"Engage lock screen"`, `"Stealth mode"`, `"Snapshot countdown"`.
 
 ### Phase 19 (backup/reset + ConfirmDialog)
 
-- [ ] `senders/android/ui/components/confirm_dialog.slint`
-- [ ] `senders/android/ui/pages/backup_reset_page.slint`
+- [x] `senders/android/ui/components/confirm_dialog.slint`
+- [x] `senders/android/ui/pages/backup_reset_page.slint`
   - `"Backup & reset"`, `"Export settings"`, `"Import settings"`, `"Reset all settings"`, plus the dialog titles/bodies/labels.
 
 ### Phase 20 (cast history)
 
-- [ ] `senders/android/ui/pages/cast_history_page.slint`
-- [ ] `senders/android/ui/pages/cast_history_detail_page.slint`
+- [x] `senders/android/ui/pages/cast_history_page.slint`
+- [x] `senders/android/ui/pages/cast_history_detail_page.slint`
   - `"Cast history"`, `"Clear all"`, `"No casts yet."`, `"Started"`, `"Duration"`, `"Status"`, `"Avg bitrate"`, `"Peak bitrate"`, `"Dropped frames"`, plus the receiver names from stub data (those are **data**, not labels — leave unwrapped). The status pill text `"Completed"`, `"Cancelled"`, `"Failed"` is wrapped — these are user-visible.
 
 ### Phase 21 (help & support)
 
-- [ ] `senders/android/ui/pages/about_page.slint`
-- [ ] `senders/android/ui/pages/version_history_page.slint`
-- [ ] `senders/android/ui/pages/attributions_page.slint`
-- [ ] `senders/android/ui/pages/help_page.slint`
+- [x] `senders/android/ui/pages/about_page.slint`
+- [x] `senders/android/ui/pages/version_history_page.slint`
+- [x] `senders/android/ui/pages/attributions_page.slint`
+- [x] `senders/android/ui/pages/help_page.slint`
   - `"About"`, `"Version history"`, `"Attributions"`, `"Help"`, `"Report a bug"`, plus help-link labels.
 
 ### Phase 22 (network & Wi-Fi Aware)
 
-- [ ] `senders/android/ui/pages/network_page.slint`
+- [x] `senders/android/ui/pages/network_page.slint`
   - `"Network interfaces"`, `"Wi-Fi Aware"`, `"Wi-Fi Aware deferred to Phase 8"`, plus interface kind labels.
 
 ### Phase 23 (recording controls)
 
-- [ ] `senders/android/ui/pages/recording_page.slint`
+- [x] `senders/android/ui/pages/recording_page.slint`
   - `"Local recording"`, `"Start"`, `"Pause"`, `"Resume"`, `"Stop"`, `"Idle"`, `"Recording"`, `"Paused"`, `"Finalizing"`, plus elapsed-counter labels.
 
 ### Phase 25 (macros)
 
-- [ ] `senders/android/ui/pages/macros_page.slint`
-- [ ] `senders/android/ui/pages/macro_edit_page.slint`
+- [x] `senders/android/ui/pages/macros_page.slint`
+- [x] `senders/android/ui/pages/macro_edit_page.slint`
   - `"Macros"`, `"Add macro"`, `"No macros yet."`, `"Name"`, `"Enabled"`, `"Steps"`, `"Add step"`, `"Pick an action"`, plus action-picker labels.
 
 ### Phase 26 (debug log + video pipeline)
 
-- [ ] `senders/android/ui/pages/debug_log_page.slint`
-- [ ] `senders/android/ui/pages/debug_video_page.slint`
+- [x] `senders/android/ui/pages/debug_log_page.slint`
+- [x] `senders/android/ui/pages/debug_video_page.slint`
   - `"Debug log"`, `"All"`, `"Trace"`, `"Debug"`, `"Info"`, `"Warn"`, `"Error"`, `"Clear"`. Log entries themselves (`entry.message`) are **data**, not localisable.
 
 ### Phase 27 (shared utils)
 
-- [ ] `senders/android/ui/components/info_banner.slint` — no literal strings; the message is a property.
-- [ ] `senders/android/ui/components/icon_and_text.slint` — no literal strings.
+- [x] `senders/android/ui/components/info_banner.slint` — no literal strings; the message is a property.
+- [x] `senders/android/ui/components/icon_and_text.slint` — no literal strings.
 
 ---
 
@@ -483,20 +483,20 @@ property <[string]> source-labels: [
 
 ## Section 9 — Exit criteria checklist
 
-- [ ] `slint-tr-extractor` installed (`cargo install slint-tr-extractor`).
-- [ ] All files in Section 2 sweep checklist have `@tr()`-wrapped user-visible strings.
-- [ ] Audit grep A (multi-word) produces 0 unexpected hits.
-- [ ] Audit grep B (single-word labels) produces 0 hits outside expected exceptions.
-- [ ] Audit grep C (label/title/text bindings) produces 0 unexpected hits.
-- [ ] Audit grep D (action ids never wrapped) reports OK.
-- [ ] Stub data fields (receiver names, preset names, log entries) NOT wrapped.
-- [ ] Symbol glyphs (▶ ● ✕ ▲ ▼ › —) NOT wrapped.
-- [ ] `senders/android/ui/i18n/messages.pot` exists and contains entries for every wrapped string.
-- [ ] `.gitignore` excludes `senders/android/ui/i18n/*.po` and `*.mo`.
-- [ ] Context keys are used for short ambiguous strings (`"Cancel"`, `"Done"`, `"Save"`, `"Edit"`).
-- [ ] Plural forms use `|` operator, not context-disambiguator pattern.
-- [ ] `cargo build -p android-sender` passes — runtime falls back to English.
-- [ ] `cargo test -p android-sender` passes — no test reads literal labels.
+- [x] `slint-tr-extractor` installed (`cargo install slint-tr-extractor`).
+- [x] All files in Section 2 sweep checklist have `@tr()`-wrapped user-visible strings.
+- [x] Audit grep A (multi-word) produces 0 unexpected hits.
+- [x] Audit grep B (single-word labels) produces 0 hits outside expected exceptions.
+- [x] Audit grep C (label/title/text bindings) produces 0 unexpected hits.
+- [x] Audit grep D (action ids never wrapped) reports OK.
+- [x] Stub data fields (receiver names, preset names, log entries) NOT wrapped.
+- [x] Symbol glyphs (▶ ● ✕ ▲ ▼ › —) NOT wrapped.
+- [x] `senders/android/ui/i18n/messages.pot` exists and contains entries for every wrapped string.
+- [x] `.gitignore` excludes `senders/android/ui/i18n/*.po` and `*.mo`.
+- [x] Context keys are used for short ambiguous strings (`"Cancel"`, `"Done"`, `"Save"`, `"Edit"`).
+- [x] Plural forms use `|` operator, not context-disambiguator pattern.
+- [x] `cargo build -p android-sender` passes — runtime falls back to English.
+- [x] `cargo test -p android-sender` passes — no test reads literal labels.
 
 ---
 

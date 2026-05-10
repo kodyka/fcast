@@ -72,14 +72,14 @@ export component CameraPage inherits Rectangle {
             HorizontalLayout {
                 padding: Theme.padding-screen;
                 Text {
-                    text: "Camera";
+                    text: @tr("Camera");
                     color: Theme.text-primary;
                     font-size: Theme.font-size-heading;
                     vertical-alignment: center;
                     horizontal-stretch: 1;
                 }
                 TextButton {
-                    label: "Done";
+                    label: @tr("close-panel-button" => "Done");
                     clicked => { Bridge.active-panel = Panel.none; }
                 }
             }
@@ -93,23 +93,23 @@ export component CameraPage inherits Rectangle {
 
                 // ── Section: SOURCE ─────────────────────────────────────
                 SettingsSection {
-                    title: "SOURCE";
+                    title: @tr("SOURCE");
                     SettingsValueRow {
-                        title: "Camera";
-                        value: ["Front", "Back", "External"][root.mock-camera-idx];
+                        title: @tr("Camera");
+                        value: [@tr("Front"), @tr("Back"), @tr("External")][root.mock-camera-idx];
                         clicked => {
                             root.mock-camera-idx = Math.mod(root.mock-camera-idx + 1, 3);
                         }
                     }
                     SettingsValueRow {
-                        title: "Resolution";
+                        title: @tr("Resolution");
                         value: ["480p", "720p", "1080p", "4K"][root.mock-resolution-idx];
                         clicked => {
                             root.mock-resolution-idx = Math.mod(root.mock-resolution-idx + 1, 4);
                         }
                     }
                     SettingsValueRow {
-                        title: "Framerate";
+                        title: @tr("Framerate");
                         value: ["24 fps", "30 fps", "60 fps"][root.mock-framerate-idx];
                         clicked => {
                             root.mock-framerate-idx = Math.mod(root.mock-framerate-idx + 1, 3);
@@ -119,19 +119,19 @@ export component CameraPage inherits Rectangle {
 
                 // ── Section: IMAGE ──────────────────────────────────────
                 SettingsSection {
-                    title: "IMAGE";
+                    title: @tr("IMAGE");
                     SettingsToggleRow {
-                        title: "Mirror front camera";
+                        title: @tr("Mirror front camera");
                         checked: root.mock-mirror-front;
                         toggled(checked) => { root.mock-mirror-front = checked; }
                     }
                     SettingsToggleRow {
-                        title: "Video stabilization";
+                        title: @tr("Video stabilization");
                         checked: root.mock-stabilization;
                         toggled(checked) => { root.mock-stabilization = checked; }
                     }
                     SettingsToggleRow {
-                        title: "Tap to focus";
+                        title: @tr("Tap to focus");
                         checked: root.mock-tap-to-focus;
                         toggled(checked) => { root.mock-tap-to-focus = checked; }
                     }
@@ -139,9 +139,9 @@ export component CameraPage inherits Rectangle {
 
                 // ── Section: ZOOM ───────────────────────────────────────
                 SettingsSection {
-                    title: "ZOOM";
+                    title: @tr("ZOOM");
                     SettingsSliderRow {
-                        title: "Current zoom";
+                        title: @tr("Current zoom");
                         unit: "×";
                         minimum: 0.5;
                         maximum: 5.0;

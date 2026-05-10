@@ -44,14 +44,14 @@ export component DebugVideoPage inherits Rectangle {
             HorizontalLayout {
                 padding: Theme.padding-screen;
                 Text {
-                    text: "Video pipeline";
+                    text: @tr("Video pipeline");
                     color: Theme.text-primary;
                     font-size: Theme.font-size-heading;
                     vertical-alignment: center;
                     horizontal-stretch: 1;
                 }
                 TextButton {
-                    label: "Done";
+                    label: @tr("close-panel-button" => "Done");
                     clicked => { Bridge.active-panel = Panel.none; }
                 }
             }
@@ -63,30 +63,30 @@ export component DebugVideoPage inherits Rectangle {
                 padding: Theme.padding-screen;
 
                 SettingsSection {
-                    title: "PIPELINE OVERLAY";
+                    title: @tr("PIPELINE OVERLAY");
                     SettingsToggleRow {
-                        title: "Show element graph";
+                        title: @tr("Show element graph");
                         checked: root.mock-show-element-graph;
                         toggled(checked) => { root.mock-show-element-graph = checked; }
                     }
                     SettingsToggleRow {
-                        title: "Show buffer timestamps";
+                        title: @tr("Show buffer timestamps");
                         checked: root.mock-show-buffer-timestamps;
                         toggled(checked) => { root.mock-show-buffer-timestamps = checked; }
                     }
                     SettingsToggleRow {
-                        title: "Show negotiated caps";
+                        title: @tr("Show negotiated caps");
                         checked: root.mock-show-negotiated-caps;
                         toggled(checked) => { root.mock-show-negotiated-caps = checked; }
                     }
                     SettingsToggleRow {
-                        title: "Show keyframe markers";
+                        title: @tr("Show keyframe markers");
                         checked: root.mock-show-keyframe-markers;
                         toggled(checked) => { root.mock-show-keyframe-markers = checked; }
                     }
                 }
 
-                SettingsSection { title: "PIPELINE STATE"; }
+                SettingsSection { title: @tr("PIPELINE STATE"); }
                 Rectangle {
                     background: Theme.surface-card;
                     border-radius: Theme.radius-card;
