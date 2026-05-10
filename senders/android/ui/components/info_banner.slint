@@ -1,6 +1,13 @@
-// info_banner.slint — Auto-hiding transient banner pill.
+// info_banner.slint — Transient banner pill driven by Bridge.
 //
-// Consumer pattern:
+// Default consumer pattern (Rust-driven):
+//
+//     InfoBanner { }   // binds to Bridge.banner-* by default
+//
+// Rust controls visibility and auto-hide via `set_banner`,
+// `clear_banner`, and `flash_banner` in `senders/android/src/lib.rs`.
+//
+// Page-local override pattern (e.g. Backup/Reset's pending-action banner):
 //
 //     InfoBanner {
 //         message: "Exported to ~/fcast-backup.json";
@@ -8,12 +15,13 @@
 //         shown <=> root.banner-visible;
 //     }
 //
-// The component owns the Timer that flips `shown` back to false
-// after `auto-hide-delay`; the consumer just needs to set shown = true
-// to trigger.
+// Note: this component intentionally does NOT own a Timer. Auto-hide
+// is the caller's responsibility (Rust `flash_banner` for Bridge-
+// driven banners, or a page-local Timer for overrides). An internal
+// Timer would imperatively write `shown` and break the one-way
+// binding to `Bridge.banner-visible`.
 //
 // Slint docs ref:
-//   draft/slint-ui/docs/astro/src/content/docs/reference/timer.mdx
 //   draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/structs-and-enums.mdx
 
 import { Theme } from "../theme.slint";
@@ -26,7 +34,6 @@ export component InfoBanner inherits Rectangle {
     in property <string>          message: Bridge.banner-message;
     in property <BannerSeverity>  severity: Bridge.banner-severity;
     in-out property <bool>        shown: Bridge.banner-visible;
-    in property <duration>        auto-hide-delay: 3s;
 
     height: root.shown ? 40px : 0px;
     clip: true;
@@ -48,11 +55,5 @@ export component InfoBanner inherits Rectangle {
             vertical-alignment: center;
             font-size: Theme.font-size-label;
         }
-    }
-
-    Timer {
-        interval: root.auto-hide-delay;
-        running: root.shown;
-        triggered => { root.shown = false; }
     }
 }
