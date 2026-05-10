@@ -68,6 +68,7 @@ export component MacroEditPage inherits Rectangle {
         }
 
         ScrollView {
+            mouse-drag-pan-enabled: true;
             VerticalLayout {
                 spacing: Theme.spacing-default;
                 padding: Theme.padding-screen;
@@ -235,6 +236,7 @@ export component MacroEditPage inherits Rectangle {
                     font-size: Theme.font-size-heading;
                 }
                 ScrollView {
+                    mouse-drag-pan-enabled: true;
                     VerticalLayout {
                         spacing: 4px;
                         for action in root.available-actions: Rectangle {

@@ -50,6 +50,7 @@ component DebugPageInner inherits VerticalBox {
     // which is equivalent to the original `parent.width` that referred to the
     // outer VerticalBox in ConnectView.
     if Bridge.test-status != "": ScrollView {
+        mouse-drag-pan-enabled: true;
         // Intrinsic test-log height; not tokenized (Phase 2-H).
         height: 100px;
         viewport-width: root.width;
