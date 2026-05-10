@@ -175,6 +175,14 @@ let presets: Arc<Mutex<Vec<BitratePreset>>> = Arc::new(Mutex::new(vec![
     BitratePreset { id: "max".into(),  name: "Maximum".into(), bitrate_kbps: 15000, active: false },
 ]));
 
+// Monotonic counter for new preset ids. Do NOT use `g.len()` for id
+// generation — after a delete-then-add cycle, len can return a value
+// that was previously used (delete one of 5 → len=4 → next add reuses
+// `custom-4` if it ever existed). An AtomicUsize is the simplest
+// always-unique source; alternatively use uuid::Uuid::new_v4().
+use std::sync::atomic::{AtomicUsize, Ordering};
+let next_preset_id = Arc::new(AtomicUsize::new(0));
+
 // `push_presets` is a closure so it captures `presets` and `ui_weak` once
 // and can be cloned into each callback handler. The body just rebuilds
 // the VecModel and calls set_presets.
@@ -193,14 +201,17 @@ let push_presets = {
 push_presets();   // initial render
 
 ui.global::<Bridge>().on_save_preset({
-    let presets = presets.clone();
-    let push    = push_presets.clone();
+    let presets       = presets.clone();
+    let next_id       = next_preset_id.clone();
+    let push          = push_presets.clone();
     move |id, name, kbps| {
         let mut g = presets.lock().unwrap();
         if id.is_empty() {
-            // New preset.
+            // New preset. Use the monotonic counter — never `g.len()`,
+            // which can collide with previously-deleted ids.
+            let new_id = format!("custom-{}", next_id.fetch_add(1, Ordering::Relaxed));
             g.push(BitratePreset {
-                id:           format!("custom-{}", g.len()).into(),
+                id:           new_id.into(),
                 name:         name.into(),
                 bitrate_kbps: kbps,
                 active:       false,
@@ -586,6 +597,10 @@ let macros: Arc<Mutex<Vec<Macro>>> = Arc::new(Mutex::new(vec![
     // Phase 8 bring-up: empty list. User creates macros via the UI.
 ]));
 
+// Same caveat as C1: do NOT use `g.len()` for new-macro ids. After a
+// delete-then-add cycle len() can collide with a previously-issued id.
+let next_macro_id = Arc::new(AtomicUsize::new(0));
+
 let push_macros = {
     let macros = macros.clone();
     let ui_weak = ui.as_weak();
@@ -601,15 +616,17 @@ let push_macros = {
 push_macros();
 
 ui.global::<Bridge>().on_save_macro({
-    let macros = macros.clone();
-    let push   = push_macros.clone();
+    let macros  = macros.clone();
+    let next_id = next_macro_id.clone();
+    let push    = push_macros.clone();
     move |id, name, steps, enabled| {
         let steps_vec: Vec<MacroStep> =
             steps.iter().collect::<Vec<_>>().into_iter().collect();
         let mut g = macros.lock().unwrap();
         if id.is_empty() {
+            let new_id = format!("macro-{}", next_id.fetch_add(1, Ordering::Relaxed));
             g.push(Macro {
-                id:      format!("macro-{}", g.len()).into(),
+                id:      new_id.into(),
                 name:    name.into(),
                 steps:   std::rc::Rc::new(slint::VecModel::from(steps_vec)).into(),
                 enabled,
