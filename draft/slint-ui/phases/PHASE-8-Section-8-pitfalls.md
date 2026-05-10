@@ -16,8 +16,10 @@ These are the recurring traps you'll hit during execution. Each links to a speci
 | 8.8 | In-place struct-field mutation on a list element | — | `grep -nE '\\[[0-9]+\\]\\.[a-z-]+ *=' senders/android/ui/` |
 | 8.9 | Holding a `Mutex` lock across `await` | R2 | `grep -n 'await' senders/android/src/lib.rs` (manual inspection of surrounding code) |
 | 8.10 | Forgetting to push the **whole** list after a single-row mutation | — | (manual code review) |
+| 8.11 | Mismatched `RecordingTickerState` between handlers and ticker | — | (manual code review) |
+| 8.12 | Slint `pure` requirement for functions called from bindings | — | (compile error surfaces it) |
 | 8.13 | Reentrant tracing deadlock inside `LogRing` (Cluster A5) | — | (manual code review; filter own target) |
-| 8.15 | Assuming Slint auto-generates `on_<prop>_changed` callbacks | — | `grep -nE 'on_[a-z_]+_changed' senders/android/src/lib.rs` — every match must have a matching `changed` handler in `bridge.slint` |
+| 8.14 | Assuming Slint auto-generates `on_<prop>_changed` callbacks | — | `grep -nE 'on_[a-z_]+_changed' senders/android/src/lib.rs` — every match must have a matching `changed` handler in `bridge.slint` |
 
 ---
 
@@ -383,7 +385,7 @@ which note that `on_event` may be called recursively.
 
 ---
 
-## 8.15 — Assuming Slint auto-generates `on_<prop>_changed` callbacks
+## 8.14 — Assuming Slint auto-generates `on_<prop>_changed` callbacks
 
 **Symptom:** Rust compile error like `no method named on_selected_history_id_changed found for global 'Bridge'`. Or — worse — the code compiles because of an unrelated handler with a similar name, and the change observer silently never fires.
 
@@ -426,18 +428,11 @@ grep -nE 'changed [a-z-]+ =>' senders/android/ui/bridge.slint
 
 ---
 
-## 8.14 Exit criteria for Section 8
+## Exit criteria for Section 8
 
 This section is a reference, not a checklist. Treat it as a debugging aid when something goes wrong during execution. The corresponding fixes are spread across Sections 1-6 — each pitfall above links back to where the canonical pattern is documented.
 
 You can now move to **Section 9 — stop conditions** at [`PHASE-8-Section-9-stop-conditions.md`](./PHASE-8-Section-9-stop-conditions.md).
-
----
-
-> **Note.** Section heading numbering: §8.13 is the new reentrant-tracing
-> pitfall (Cluster A5). The previous "Exit criteria" subsection has been
-> renumbered §8.14. Anchors of the form `#813-` in earlier docs should be
-> updated.
 
 ---
 

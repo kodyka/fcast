@@ -261,7 +261,7 @@ fn default_quick_actions() -> Vec<QuickAction> {
 +    // Slint-side change observer — Slint does NOT auto-generate
 +    // on_<prop>_changed callbacks. We declare an explicit callback and
 +    // wire it from a `changed` handler below. See Step 4 for the Rust
-+    // binding and Section 8 / pitfall 8.15 for the rationale.
++    // binding and Section 8 / pitfall 8.14 for the rationale.
 +    callback selected-history-id-changed(string);
 +    changed selected-history-id => {
 +        Bridge.selected-history-id-changed(Bridge.selected-history-id);
