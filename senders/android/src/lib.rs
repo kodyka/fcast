@@ -11,8 +11,11 @@ use parking_lot::{Condvar, Mutex};
 #[cfg(target_os = "android")]
 use serde_json::{json, Value};
 use std::{collections::HashMap, net::Ipv6Addr, sync::Arc};
+use std::sync::atomic::AtomicU64;
 #[cfg(target_os = "android")]
 use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(not(target_os = "android"))]
+use std::sync::atomic::Ordering;
 use tracing::{debug, error};
 #[cfg(target_os = "android")]
 use tracing::{info, warn};
@@ -560,6 +563,58 @@ impl Application {
             tx_sink: None,
             our_source_url: None,
         })
+    }
+
+    // Helper for any callback that needs to flash a banner. Centralised so we
+    // only own one upgrade-on-event-loop pattern.
+    //
+    // A monotonic generation counter is bumped on every `set_banner` /
+    // `clear_banner` call. `flash_banner` captures the generation it
+    // installed and its spawned auto-hide task only clears the banner if
+    // that generation is still current — otherwise a newer banner has
+    // taken over and the old timer is a no-op. This avoids an earlier
+    // flash_banner racing with a later one and hiding it prematurely.
+    fn banner_generation() -> &'static AtomicU64 {
+        static GEN: AtomicU64 = AtomicU64::new(0);
+        &GEN
+    }
+
+    fn set_banner(
+        ui_handle: slint::Weak<MainWindow>,
+        msg: String,
+        severity: BannerSeverity,
+    ) -> u64 {
+        let gen = Self::banner_generation().fetch_add(1, Ordering::SeqCst) + 1;
+        let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+            let bridge = ui.global::<Bridge>();
+            bridge.set_banner_message(msg.into());
+            bridge.set_banner_severity(severity);
+            bridge.set_banner_visible(true);
+        });
+        gen
+    }
+
+    fn clear_banner(ui_handle: slint::Weak<MainWindow>) {
+        Self::banner_generation().fetch_add(1, Ordering::SeqCst);
+        let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+            ui.global::<Bridge>().set_banner_visible(false);
+        });
+    }
+
+    fn flash_banner(
+        ui_handle: slint::Weak<MainWindow>,
+        msg: String,
+        severity: BannerSeverity,
+        duration: std::time::Duration,
+    ) {
+        let gen = Self::set_banner(ui_handle.clone(), msg, severity);
+        tokio::spawn(async move {
+            tokio::time::sleep(duration).await;
+            // Only clear if no newer set_banner / clear_banner has run.
+            if Self::banner_generation().load(Ordering::SeqCst) == gen {
+                Self::clear_banner(ui_handle);
+            }
+        });
     }
 
     fn update_receivers_in_ui(&mut self) -> Result<()> {

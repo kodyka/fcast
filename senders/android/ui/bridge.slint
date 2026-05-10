@@ -15,6 +15,15 @@ export enum LifecycleMode {
     snapshot-countdown,
 }
 
+// New in Phase 8 / Cluster F. Drives both Bridge.banner-* and any page-
+// local banner that wants to consume the same semantics.
+export enum BannerSeverity {
+    info,
+    success,
+    warning,
+    error,
+}
+
 export enum RecordingState {
     idle,
     recording,
@@ -137,6 +146,12 @@ export global Bridge {
     ];
     in-out property <AppState> app-state: AppState.Disconnected;
     in-out property <Panel>    active-panel: Panel.none;
+    // ── Banner (Phase 8 / Cluster F1) ───────────────────────────────────
+    // Rust pushes a banner with severity; auto-hide is handled by
+    // Rust's `flash_banner` helper (consumer is `components/info_banner.slint`).
+    in-out property <string>          banner-message:  "";
+    in-out property <bool>            banner-visible:  false;
+    in-out property <BannerSeverity>  banner-severity: BannerSeverity.info;
     in-out property <string>   mock-macro-edit-id: "";   // "" means "new macro"
     in-out property <LifecycleMode> lifecycle: LifecycleMode.normal;
     in-out property <int> mock-snapshot-secs: 5;
