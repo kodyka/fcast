@@ -189,13 +189,13 @@ After Phase 8 lands, `bridge.slint` is expected to grow to **~280-320 lines** de
 
 Before moving on to Section 1, all of the following must hold:
 
-- [ ] `ls senders/android/ui/pages/` lists 22 expected files
-- [ ] `grep -rnE 'in-out property <[^>]+> mock-|in property <[^>]+> mock-' senders/android/ui/ | wc -l` printed and saved
-- [ ] Already-wired bindings inventory **read** and understood
-- [ ] `cargo build -p android-sender` is green on master
-- [ ] `cargo clippy -p android-sender --all-targets -- -D warnings` is green on master
-- [ ] Branch `devin/<ts>-phase-8-bridge-reactivation` checked out
-- [ ] `wc -l senders/android/ui/bridge.slint` printed and noted
+- [x] `ls senders/android/ui/pages/` lists 22 expected files
+- [x] `grep -rnE 'in-out property <[^>]+> mock-|in property <[^>]+> mock-' senders/android/ui/ | wc -l` printed and saved
+- [x] Already-wired bindings inventory **read** and understood
+- [x] `cargo build -p android-sender` is green on master
+- [x] `cargo clippy -p android-sender --all-targets -- -D warnings` is green on master
+- [x] Branch `devin/<ts>-phase-8-bridge-reactivation` checked out
+- [x] `wc -l senders/android/ui/bridge.slint` printed and noted
 
 You're now ready for **Section 1 — Cluster F**. Continue with [`PHASE-8-Section-1-cluster-F-shared-tokens.md`](./PHASE-8-Section-1-cluster-F-shared-tokens.md).
 

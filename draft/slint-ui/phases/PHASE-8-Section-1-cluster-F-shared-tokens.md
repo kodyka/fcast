@@ -268,12 +268,12 @@ Clusters A-D).
 
 ## 1.7 Exit criteria for Section 1
 
-- [ ] `bridge.slint` declares `BannerSeverity`, `banner-message`, `banner-visible`, `banner-severity`
-- [ ] `components/info_banner.slint` no longer declares its own `BannerSeverity` enum
-- [ ] `lib.rs` has `set_banner`, `clear_banner`, `flash_banner` helpers (or one of them, depending on whether you choose to ship `flash_banner` now or wait)
-- [ ] `cargo build` and `cargo clippy --all-targets -- -D warnings` are green
-- [ ] `slint-viewer` smoke test renders without binding-loop warnings
-- [ ] `mock-*` inventory count is unchanged from Section 0.2
+- [x] `bridge.slint` declares `BannerSeverity`, `banner-message`, `banner-visible`, `banner-severity`
+- [x] `components/info_banner.slint` no longer declares its own `BannerSeverity` enum
+- [x] `lib.rs` has `set_banner`, `clear_banner`, `flash_banner` helpers (or one of them, depending on whether you choose to ship `flash_banner` now or wait)
+- [x] `cargo build` and `cargo clippy --all-targets -- -D warnings` are green
+- [x] `slint-viewer` smoke test renders without binding-loop warnings
+- [x] `mock-*` inventory count is unchanged from Section 0.2
 
 You can now move to **Section 2 — Cluster A: read-only view models** at [`PHASE-8-Section-2-cluster-A-readonly-view-models.md`](./PHASE-8-Section-2-cluster-A-readonly-view-models.md).
 

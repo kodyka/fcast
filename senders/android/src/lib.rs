@@ -562,6 +562,40 @@ impl Application {
         })
     }
 
+    // Helper for any callback that needs to flash a banner. Centralised so we
+    // only own one upgrade-on-event-loop pattern.
+    fn set_banner(
+        ui_handle: slint::Weak<MainWindow>,
+        msg: String,
+        severity: BannerSeverity,
+    ) {
+        let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+            let bridge = ui.global::<Bridge>();
+            bridge.set_banner_message(msg.into());
+            bridge.set_banner_severity(severity);
+            bridge.set_banner_visible(true);
+        });
+    }
+
+    fn clear_banner(ui_handle: slint::Weak<MainWindow>) {
+        let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+            ui.global::<Bridge>().set_banner_visible(false);
+        });
+    }
+
+    fn flash_banner(
+        ui_handle: slint::Weak<MainWindow>,
+        msg: String,
+        severity: BannerSeverity,
+        duration: std::time::Duration,
+    ) {
+        Self::set_banner(ui_handle.clone(), msg, severity);
+        tokio::spawn(async move {
+            tokio::time::sleep(duration).await;
+            Self::clear_banner(ui_handle);
+        });
+    }
+
     fn update_receivers_in_ui(&mut self) -> Result<()> {
         let receivers = self
             .devices
