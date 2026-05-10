@@ -715,6 +715,35 @@ ui.global::<Bridge>().on_clear_log_entries(move || {
 - 1024 entries × ~150 B/entry = ~150 KB, comfortably below typical Android Slint memory budget.
 - A bounded ring removes any need to truncate Slint-side. The page becomes purely declarative.
 
+**Reentrancy warning — `std::sync::Mutex` inside `on_event` is not reentrant.** The
+sketch above locks `self.entries` at the top of `on_event`, drops the guard, and
+then calls `push_to_ui` which re-locks. That's safe as written, but it is *one
+edit away* from a self-deadlock: if any code that runs **inside** the lock ever
+emits a `tracing` event (allocator hooks, instrumented `VecDeque` impls in some
+toolchains, panic-on-overflow paths, a future `tracing::trace!` added inside
+`LogEventVisitor`), the subscriber re-enters `on_event` on the same thread and
+deadlocks on the same `Mutex`. `std::sync::Mutex` is not reentrant.
+
+Pick one of the following before shipping:
+
+1. **Filter the subscriber so it ignores its own target.** Cheapest:
+   ```rust
+   if metadata.target().starts_with("fcast::log_ring") { return; }
+   ```
+   plus an explicit `tracing_subscriber::filter::Targets` rule in `init_ui`.
+2. **Use `try_lock` and silently drop on contention.** Acceptable for a debug log
+   ring — losing a re-entrant event is preferable to a deadlock:
+   ```rust
+   let Ok(mut q) = self.entries.try_lock() else { return; };
+   ```
+3. **Use a reentrant mutex** (`parking_lot::ReentrantMutex`). Last resort — adds a
+   dependency and masks the underlying problem rather than fixing it.
+
+The same caveat applies to `clear()` at the top of `LogRing` — it locks, calls
+`push_to_ui` (which re-locks), and would deadlock under reentrant tracing. The
+guard drops at end-of-statement today, but a refactor that holds the guard
+longer would break this. See [`PHASE-8-Section-8-pitfalls.md`](./PHASE-8-Section-8-pitfalls.md) §8.13.
+
 **Why `push_to_ui` rebuilds the whole `VecModel`:**
 
 - See Section 8 / R3 — `VecModel<T>` doesn't have a public diff API. For a 1024-entry list, full rebuild is O(N) but Slint's `ListView` virtualises rendering at 60 fps, so even a 5000-entry rebuild is <2 ms in practice. The cost is dominated by the `ModelRc<...>` allocation, not the iteration.

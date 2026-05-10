@@ -16,6 +16,7 @@ These are the recurring traps you'll hit during execution. Each links to a speci
 | 8.8 | In-place struct-field mutation on a list element | — | `grep -nE '\\[[0-9]+\\]\\.[a-z-]+ *=' senders/android/ui/` |
 | 8.9 | Holding a `Mutex` lock across `await` | R2 | `grep -n 'await' senders/android/src/lib.rs` (manual inspection of surrounding code) |
 | 8.10 | Forgetting to push the **whole** list after a single-row mutation | — | (manual code review) |
+| 8.13 | Reentrant tracing deadlock inside `LogRing` (Cluster A5) | — | (manual code review; filter own target) |
 
 ---
 
@@ -328,11 +329,71 @@ Without `pure`, binding-context calls fail at compile time. With `pure`, the fun
 
 ---
 
-## 8.13 Exit criteria for Section 8
+## 8.13 — Reentrant tracing deadlock inside `LogRing` (Cluster A5)
+
+**Symptom:** the app freezes the first time the debug log subscriber processes
+an event whose handler — directly or transitively — emits another `tracing`
+event. Stacks show one thread parked on `Mutex::lock` inside `LogRing::on_event`
+with the same thread already owning the mutex one frame up.
+
+**Cause:** `std::sync::Mutex` is **not reentrant**. The Cluster A5 sketch
+([Section 2.5](./PHASE-8-Section-2-cluster-A-readonly-view-models.md#25--a5--debug-log-entries))
+locks `self.entries` inside `Layer::on_event`. If anything between
+`q.lock().unwrap()` and `drop(q);` emits a `tracing` event — an instrumented
+allocator, a panic-on-overflow path, a `tracing::trace!` added inside
+`LogEventVisitor`, even a future inside `chrono::Local::now().format(...)` — the
+subscriber re-enters `on_event` on the same thread and self-deadlocks. Phase
+8.9 covered "lock across `await`"; this is the orthogonal "lock across
+re-entry" trap.
+
+**Fix (pick one):**
+
+1. **Filter the subscriber so it ignores its own target.** Cheapest and
+   robust — events emitted from inside the ring are dropped before the
+   subscriber tries to lock anything:
+   ```rust
+   fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, S>) {
+       if event.metadata().target().starts_with("fcast::log_ring") { return; }
+       // … rest of body …
+   }
+   ```
+   Combine with a `tracing_subscriber::filter::Targets` rule in `init_ui` to
+   exclude the same target from the global registry as well.
+
+2. **Use `try_lock` and silently drop on contention.** Losing a reentrant event
+   is preferable to a deadlock for a debug-only ring:
+   ```rust
+   let Ok(mut q) = self.entries.try_lock() else { return; };
+   ```
+
+3. **Use `parking_lot::ReentrantMutex`.** Last resort. Adds a dependency and
+   papers over the bug rather than fixing it; future refactors may still hit
+   subtler ordering issues.
+
+**Detect:** code review only. There's no clean grep for "tracing event emitted
+under a lock" — the event source is often transitive. Run a stress test under
+`tracing_subscriber::filter::LevelFilter::TRACE` with a tracing-instrumented
+allocator (e.g. `tracing-allocations`) and watch for hangs.
+
+**Slint doc reference:** none — this is a Rust / `tracing` interaction. The
+authoritative reference is the [`tracing-subscriber` Layer
+docs](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/layer/trait.Layer.html)
+which note that `on_event` may be called recursively.
+
+---
+
+## 8.14 Exit criteria for Section 8
 
 This section is a reference, not a checklist. Treat it as a debugging aid when something goes wrong during execution. The corresponding fixes are spread across Sections 1-6 — each pitfall above links back to where the canonical pattern is documented.
 
 You can now move to **Section 9 — stop conditions** at [`PHASE-8-Section-9-stop-conditions.md`](./PHASE-8-Section-9-stop-conditions.md).
+
+---
+
+> **Note.** Section heading numbering: §8.13 is the new reentrant-tracing
+> pitfall (Cluster A5). The previous "Exit criteria" subsection has been
+> renumbered §8.14. Anchors of the form `#813-` in earlier docs should be
+> updated.
 
 ---
 
