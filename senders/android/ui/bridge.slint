@@ -147,8 +147,8 @@ export global Bridge {
     in-out property <AppState> app-state: AppState.Disconnected;
     in-out property <Panel>    active-panel: Panel.none;
     // ── Banner (Phase 8 / Cluster F1) ───────────────────────────────────
-    // Rust pushes a banner with severity; auto-hide is handled by a
-    // Bridge-side timer (consumer is `components/info_banner.slint`).
+    // Rust pushes a banner with severity; auto-hide is handled by
+    // Rust's `flash_banner` helper (consumer is `components/info_banner.slint`).
     in-out property <string>          banner-message:  "";
     in-out property <bool>            banner-visible:  false;
     in-out property <BannerSeverity>  banner-severity: BannerSeverity.info;
