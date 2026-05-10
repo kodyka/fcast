@@ -17,6 +17,7 @@ These are the recurring traps you'll hit during execution. Each links to a speci
 | 8.9 | Holding a `Mutex` lock across `await` | R2 | `grep -n 'await' senders/android/src/lib.rs` (manual inspection of surrounding code) |
 | 8.10 | Forgetting to push the **whole** list after a single-row mutation | — | (manual code review) |
 | 8.13 | Reentrant tracing deadlock inside `LogRing` (Cluster A5) | — | (manual code review; filter own target) |
+| 8.15 | Assuming Slint auto-generates `on_<prop>_changed` callbacks | — | `grep -nE 'on_[a-z_]+_changed' senders/android/src/lib.rs` — every match must have a matching `changed` handler in `bridge.slint` |
 
 ---
 
@@ -379,6 +380,49 @@ allocator (e.g. `tracing-allocations`) and watch for hangs.
 authoritative reference is the [`tracing-subscriber` Layer
 docs](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/layer/trait.Layer.html)
 which note that `on_event` may be called recursively.
+
+---
+
+## 8.15 — Assuming Slint auto-generates `on_<prop>_changed` callbacks
+
+**Symptom:** Rust compile error like `no method named on_selected_history_id_changed found for global 'Bridge'`. Or — worse — the code compiles because of an unrelated handler with a similar name, and the change observer silently never fires.
+
+**Cause:** Slint's Rust binding generator emits `set_<prop>` / `get_<prop>` for properties and `on_<callback>` for callbacks, but **does not** synthesize `on_<prop>_changed` callbacks for `in` / `in-out` properties. There is no automatic property-change observer in the public API. (Internal `PropertyTracker` / `ChangeTracker` types exist but aren't part of the generated global surface.)
+
+**Fix.** Declare an explicit callback in the global and wire it from a `changed` handler:
+
+```slint
+export global Bridge {
+    in-out property <string> selected-history-id: "";
+    callback selected-history-id-changed(string);
+    changed selected-history-id => {
+        Bridge.selected-history-id-changed(Bridge.selected-history-id);
+    }
+}
+```
+
+Then on the Rust side, bind to the explicit callback:
+
+```rust
+ui.global::<Bridge>().on_selected_history_id_changed(|id: slint::SharedString| {
+    // … react to the new value …
+});
+```
+
+This is the canonical pattern; Cluster D2's `selected-history-entry` plumbing in [Section 5.2 Step 1](./PHASE-8-Section-5-cluster-D-destructive-flows.md#step-1-extend-bridgeslint-1) uses it.
+
+**Detect:**
+
+```sh
+# Every on_<x>_changed binding in lib.rs must have a matching `changed <x>`
+# handler in bridge.slint that re-emits the corresponding callback.
+grep -nE 'on_[a-z_]+_changed' senders/android/src/lib.rs
+grep -nE 'changed [a-z-]+ =>' senders/android/ui/bridge.slint
+# Pair them up by hand. A name in lib.rs without a counterpart in bridge.slint
+# is a bug.
+```
+
+**Slint doc reference:** `draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/properties.mdx` — the `changed` handler section.
 
 ---
 
