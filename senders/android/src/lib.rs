@@ -1255,6 +1255,12 @@ fn android_main(app: PlatformApp) {
     // auto-generate on_<property>_changed; the `changed` handler in
     // bridge.slint re-emits via the explicit `selected-history-id-changed`
     // callback bound below.
+    //
+    // The callback fires on the Slint UI thread, so we use `ui_weak.upgrade()`
+    // (synchronous) instead of `upgrade_in_event_loop` (deferred). The
+    // consumer page sets `Bridge.active-panel = Panel.cast-history-detail`
+    // immediately after setting the id; a deferred property write would
+    // render the detail page one frame with stale/empty data.
     ui.global::<Bridge>().on_selected_history_id_changed({
         let history = history.clone();
         let ui_weak = ui.as_weak();
@@ -1263,9 +1269,9 @@ fn android_main(app: PlatformApp) {
             let entry = history.lock().iter()
                 .find(|e| e.id == id).cloned();
             let Some(entry) = entry else { return; };
-            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+            if let Some(ui) = ui_weak.upgrade() {
                 ui.global::<Bridge>().set_selected_history_entry(entry);
-            });
+            }
         }
     });
 
