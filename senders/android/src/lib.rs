@@ -1139,21 +1139,69 @@ fn android_main(app: PlatformApp) {
     ui.global::<Bridge>()
         .set_app_version(env!("CARGO_PKG_VERSION").into());
 
-    let bar_actions = Arc::new(Mutex::new(default_quick_actions()));
-
+    let bar_actions: Arc<Mutex<Vec<QuickAction>>> =
+        Arc::new(Mutex::new(default_quick_actions()));
+    // Initial push is synchronous — we still hold the strong `ui` handle,
+    // so the control bar is populated before `ui.run()` paints the first
+    // frame. Subsequent mutations from callbacks use `push_bar()` which
+    // hops through `upgrade_in_event_loop` because they only have a weak.
+    {
+        let snapshot = bar_actions.lock().clone();
+        ui.global::<Bridge>().set_quick_actions(
+            std::rc::Rc::new(slint::VecModel::from(snapshot)).into(),
+        );
+    }
     let push_bar = {
         let bar_actions = bar_actions.clone();
         let ui_weak = ui.as_weak();
         move || {
-            let snap = bar_actions.lock().clone();
+            let snapshot = bar_actions.lock().clone();
             let _ = ui_weak.upgrade_in_event_loop(move |ui| {
                 ui.global::<Bridge>().set_quick_actions(
-                    std::rc::Rc::new(slint::VecModel::from(snap)).into(),
+                    std::rc::Rc::new(slint::VecModel::from(snapshot)).into(),
                 );
             });
         }
     };
-    push_bar();
+
+    ui.global::<Bridge>().on_move_bar_action({
+        let bar_actions = bar_actions.clone();
+        let push        = push_bar.clone();
+        move |from, to| {
+            let mut g = bar_actions.lock();
+            if let (Ok(from_u), Ok(to_u)) = (usize::try_from(from), usize::try_from(to)) {
+                if from_u < g.len() && to_u < g.len() && from_u != to_u {
+                    let item = g.remove(from_u);
+                    g.insert(to_u, item);
+                }
+            }
+            drop(g);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_set_bar_action_enabled({
+        let bar_actions = bar_actions.clone();
+        let push        = push_bar.clone();
+        move |idx, enabled| {
+            let mut g = bar_actions.lock();
+            if let Ok(i) = usize::try_from(idx) {
+                if let Some(a) = g.get_mut(i) { a.enabled = enabled; }
+            }
+            drop(g);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_save_bar_actions({
+        let _bar_actions = bar_actions.clone();
+        let push        = push_bar.clone();
+        move || {
+            // Phase 11: persist to DataStore via JNI here.
+            // For now, just re-push the in-memory state.
+            push();
+        }
+    });
 
     let history: Arc<Mutex<Vec<crate::CastHistoryEntry>>> = Arc::new(Mutex::new(vec![
         crate::CastHistoryEntry {

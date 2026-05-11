@@ -185,6 +185,9 @@ export global Bridge {
     in-out property <bool>     show-debug: false;
     in-out property <string>   test-status: "";
     in property <[QuickAction]> quick-actions: [];
+    callback move-bar-action(int, int);
+    callback set-bar-action-enabled(int, bool);
+    callback save-bar-actions();
     in-out property <string> selected-receiver-id;
     in-out property <string> selected-receiver-name;
 
