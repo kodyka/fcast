@@ -114,16 +114,49 @@ export component BitratePresetEditPage inherits Rectangle {
         }
     }
 
-    // Helper since Slint has no built-in dictionary lookup. Linear scan via
-    // the `for p[i] in list { if … return … }` pattern documented in
-    // guide/language/coding/repetition-and-data-models.mdx — works for any
-    // list length, unlike a hand-unrolled lookup capped at N rows.
+    // Helper since Slint has no built-in dictionary lookup. Slint 1.16
+    // pure functions don't accept `for` loops in their body (only
+    // repeaters do), so we hand-unroll a ternary chain — matching the
+    // pattern used by `find-entry` in cast_history_detail_page.slint.
+    //
+    // CAP: 32 entries. If the user creates more than 32 presets, the
+    // 33rd+ will silently appear as the empty fallback in the editor.
+    // Phase 11 should move this lookup to Rust (push the resolved draft
+    // fields into Bridge.draft-name / draft-kbps on selected-preset-id
+    // change) to remove the cap entirely.
     pure function preset-by-id(list: [BitratePreset], id: string) -> BitratePreset {
-        for p[i] in list {
-            if p.id == id {
-                return p;
-            }
-        }
-        return { id: "", name: "", bitrate-kbps: 0, active: false };
+        return list.length >  0 && list[ 0].id == id ? list[ 0] :
+               list.length >  1 && list[ 1].id == id ? list[ 1] :
+               list.length >  2 && list[ 2].id == id ? list[ 2] :
+               list.length >  3 && list[ 3].id == id ? list[ 3] :
+               list.length >  4 && list[ 4].id == id ? list[ 4] :
+               list.length >  5 && list[ 5].id == id ? list[ 5] :
+               list.length >  6 && list[ 6].id == id ? list[ 6] :
+               list.length >  7 && list[ 7].id == id ? list[ 7] :
+               list.length >  8 && list[ 8].id == id ? list[ 8] :
+               list.length >  9 && list[ 9].id == id ? list[ 9] :
+               list.length > 10 && list[10].id == id ? list[10] :
+               list.length > 11 && list[11].id == id ? list[11] :
+               list.length > 12 && list[12].id == id ? list[12] :
+               list.length > 13 && list[13].id == id ? list[13] :
+               list.length > 14 && list[14].id == id ? list[14] :
+               list.length > 15 && list[15].id == id ? list[15] :
+               list.length > 16 && list[16].id == id ? list[16] :
+               list.length > 17 && list[17].id == id ? list[17] :
+               list.length > 18 && list[18].id == id ? list[18] :
+               list.length > 19 && list[19].id == id ? list[19] :
+               list.length > 20 && list[20].id == id ? list[20] :
+               list.length > 21 && list[21].id == id ? list[21] :
+               list.length > 22 && list[22].id == id ? list[22] :
+               list.length > 23 && list[23].id == id ? list[23] :
+               list.length > 24 && list[24].id == id ? list[24] :
+               list.length > 25 && list[25].id == id ? list[25] :
+               list.length > 26 && list[26].id == id ? list[26] :
+               list.length > 27 && list[27].id == id ? list[27] :
+               list.length > 28 && list[28].id == id ? list[28] :
+               list.length > 29 && list[29].id == id ? list[29] :
+               list.length > 30 && list[30].id == id ? list[30] :
+               list.length > 31 && list[31].id == id ? list[31] :
+                                                       { id: "", name: "", bitrate-kbps: 0, active: false };
     }
 }
