@@ -1247,6 +1247,7 @@ fn android_main(app: PlatformApp) {
     use tracing_subscriber::layer::SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;
     use tracing_subscriber::filter::LevelFilter;
+    use tracing_subscriber::Layer;
     // Cap the LogRing layer at DEBUG so the firehose of GStreamer `Fixme`
     // / TRACE events forwarded by `tracing_gstreamer::integrate_events`
     // (see `Application::run_event_loop`) never reaches the ring buffer.
