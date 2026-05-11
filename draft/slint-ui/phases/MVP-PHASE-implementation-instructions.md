@@ -4,754 +4,944 @@
 > get a working **Android sender → FCast receiver** screen-mirror loop —
 > i.e. the user opens the app, picks a receiver, hits Cast, grants the
 > MediaProjection permission, and sees their phone screen on the receiver.
+>
 > **Goal:** end-to-end mirroring works on a real device. Everything else is
 > a follow-up.
+>
 > **Out of scope:** every Phase-12-through-27 UI sub-page (audio settings,
 > camera settings, bitrate presets, recording, macros, debug log…) is
 > *cosmetic* relative to the MVP. They make the app feel finished but they
 > do not affect whether mirroring works.
 
-This guide complements the Phase-8 split (`PHASE-8-Section-*.md`) and the
-existing 19 reimplement guides — those are the **completeness** roadmap.
-This one is the **MVP** roadmap: the shortest path from "app builds and
-launches" to "screen is on the TV".
+This guide is the **MVP** roadmap: the shortest path from "app builds and
+launches" to "screen is on the TV". It complements:
+
+- the Phase-8 split (`PHASE-8-Section-*.md`) — Bridge / Slint surface
+  completeness;
+- the 19 reimplement guides (`PHASE-9` … `PHASE-27`) — page-by-page UI
+  completeness;
+- the existing Phase-8 strategy / spec docs (`PHASE-8-bridge-migration-plan.md`,
+  `PHASE-8-rust-bridge.md`).
+
+It is a **doc-only** guide: it tells you what to change in the existing
+tree, with `file:line` citations and code snippets. It does not modify the
+codebase itself.
+
+This is the **post-Phase-8 rewrite**: Phase 8 is now landed on `master`
+(15+ Bridge clusters wired), and the functional **migration runtime** in
+`senders/android/src/migration/` is fully shipped as a parallel node-graph
+API. The MVP framing is updated to reflect both.
 
 ---
 
-## 0. TL;DR — What's actually blocking MVP today
+## 0. TL;DR
 
-After auditing `senders/android/src/lib.rs` (1494 lines), `app/src/main/java/.../MainActivity.java`, `sdk/mirroring_core/src/transmission.rs`, `app/jni/Android.mk`, and the live Slint tree on `master`:
+After Phase 8 (Clusters F + A1–A5 + B1–B5 + C1/C2/C4/C5 + D1/D2 + E)
+landed on `master`, **the live state is**:
 
-**Already shipped and wired in Rust + JNI** (the green path):
-
-| Layer | Mechanism | Live in master |
+| Surface | State | What ships today |
 |---|---|---|
-| mDNS discovery | `FCastDiscoveryListener` (Java) → `Java_…_serviceFound` JNI → `Event::DeviceAvailable` | ✅ <ref_snippet file="/home/ubuntu/repos/fcast/senders/android/src/lib.rs" lines="1153-1253" /> |
-| Connect (Slint→Rust) | `Bridge.connect-receiver(name)` callback | ✅ wired in `android_main` <ref_snippet file="/home/ubuntu/repos/fcast/senders/android/src/lib.rs" lines="1008-1015" /> |
-| Connect (Rust→FCast SDK) | `cast_ctx.create_device_from_info(…).connect(…)` | ✅ <ref_snippet file="/home/ubuntu/repos/fcast/senders/android/src/lib.rs" lines="617-637" /> |
-| MediaProjection consent | `startScreenCapture(w,h,fps)` Java method called from Rust | ✅ <ref_snippet file="/home/ubuntu/repos/fcast/senders/android/src/lib.rs" lines="881-921" /> |
-| VirtualDisplay → OES texture → GLES YUV split → 3 ByteBuffers | `MainActivity.java` GL pipeline | ✅ <ref_snippet file="/home/ubuntu/repos/fcast/senders/android/app/src/main/java/org/fcast/android/sender/MainActivity.java" lines="380-595" /> |
-| Frame hand-off across threads | `FRAME_PAIR: (Mutex<Option<VideoFrame>>, Condvar)` + `FRAME_POOL` | ✅ <ref_snippet file="/home/ubuntu/repos/fcast/senders/android/src/lib.rs" lines="29-37" /> |
-| GStreamer pipeline | `appsrc → BaseWebRTCSink (with WhepServerSignaller)` | ✅ <ref_snippet file="/home/ubuntu/repos/fcast/sdk/mirroring_core/src/transmission.rs" lines="476-513" /> |
-| Receiver play message | After signaller binds: send `device.load(LoadRequest::Url{…})` to FCast device | ✅ <ref_snippet file="/home/ubuntu/repos/fcast/senders/android/src/lib.rs" lines="660-700" /> |
-| Stop / disconnect | `Bridge.stop-casting()` → `Event::EndSession{disconnect:true}` → `WhepSink::shutdown()` + `device.disconnect()` | ✅ <ref_snippet file="/home/ubuntu/repos/fcast/senders/android/src/lib.rs" lines="1030-1037" /> |
+| **Bridge.slint globals** | wired by Phase 8 | `status-items`, `app-version`, `network-interfaces`, `recording-state` + `recording-elapsed-s`, `log-entries`, `banner-*`, `macros` + draft macro state, `quick-actions`, `history`, `presets`, `wifi-aware-enabled`, lifecycle, audio/camera/resolution/framerate selectors, panel routing. `senders/android/ui/bridge.slint` |
+| **Screen-mirror cast loop** (Android → WHEP receiver) | **blocked by one Slint placeholder** | Rust state machine + JNI + MediaProjection + OpenGL YUV conversion + `appsrc` → `BaseWebRTCSink` + `WhepServerSignaller` + FCast `LoadRequest::Url` are all wired. Phase 8 did **not** touch `pages/connect_page.slint` — the device list still iterates `mock-devices` and the `clicked` handler is still a placeholder. |
+| **Migration runtime** (node-graph media API) | **functional, shipped, parallel** | `start_graph_runtime()` is called during `run_event_loop`; HTTP + JNI + direct-Rust entry points all live; refresh tick runs every 100 ms; debug smoke quick-actions verify the end-to-end command flow. `senders/android/src/migration/runtime.rs` |
 
-**The single MVP blocker** — caught during this audit:
+**The MVP is one cluster, not five.** The 757-line pre-Phase-8 draft of
+this guide called out M1–M5; M2–M5 are now subsumed by Phase 8. **Only M1
+remains**:
 
-> `pages/connect_page.slint` iterates over a page-local `mock-devices: [ReceiverItem]` (3 hardcoded entries). The `clicked => { /* placeholder */ }` handler does not call `Bridge.connect-receiver(name)`. As a result, even though Rust pushes real discovered receivers to `Bridge.devices`, the user can't actually connect to any of them — taps are no-ops.
+> `senders/android/ui/pages/connect_page.slint` line 86:
+> ```slint
+> clicked => {
+>     /* placeholder: would call connect-receiver(device.address) */
+> }
+> ```
+> Rust pushes real receivers to `Bridge.devices` (`bridge.slint:145`,
+> via `update_receivers_in_ui` at `lib.rs:659-680`) and FCast SDK is
+> connected through the `on_connect_receiver` callback (`lib.rs:1800`).
+> But the connect-page row
+> iterates `root.mock-devices` (`connect_page.slint:69, 72`) and never
+> invokes `Bridge.connect-receiver(...)`. Tapping a real receiver does
+> nothing. Everything downstream of that callback is already wired.
 
-That is **literally the only code change required** to make MVP work. Everything downstream of `Bridge.connect-receiver(name)` is already wired and tested. See [Section 4 (M1)](#41-m1--wire-the-connect-page-tap-actually-onto-bridgeconnect-receiver) below for the precise diff.
+Total MVP diff: **~10 lines** in one Slint file.
 
-The next four MVP polish phases (M2–M5) are small, self-contained, and each adds visible UX value:
-
-- **M2** — Casting status badges (Cluster A1; ~30 lines of Rust). Tells the user what's happening on the cast page.
-- **M3** — MediaProjection-denied recovery. Today, declining the consent dialog leaves the UI stuck in WaitingForMedia. Fix the rollback.
-- **M4** — Stop button confirmation. The cast page already has Stop/Cancel buttons; verify they roll back cleanly.
-- **M5** — `Bridge.app-version` (Cluster A2; literally one line). About page shows `0.0.0` until this is wired.
-
-After M1–M5, you have a shippable MVP. M6+ are optional follow-ups.
+The migration runtime is **not** on the screen-mirror cast path today (no
+`MediaProjection` `SourceNode` variant; no WHEP `DestinationFamily`
+variant) — it services a complementary surface (URL/file → mixer →
+RTMP/UDP/LocalFile/LocalPlayback) and is reachable from Java via
+`MainActivity.graphCommand(...)` (which calls `nativeGraphCommand` →
+`migration::runtime::try_handle_command_json`) and from a debug HTTP
+server gated by `MIGRATION_COMMAND_BIND`.
 
 ---
 
-## 1. What "MVP" means for this app
+## 1. What "MVP" means
 
-| Capability | MVP scope | Justification |
+**Definition.** *One Android device casts its screen to one FCast receiver
+on the local network, end-to-end, with no manual intervention beyond
+granting the MediaProjection permission.*
+
+### 1.1 What the user must be able to do
+
+| Step | User action | Live behaviour required |
 |---|---|---|
-| Discover receivers on local Wi-Fi | ✅ included | Without this, no path forward. |
-| Tap → connect to a receiver | ✅ included | Currently the **blocker**. |
-| Pick scale + framerate (or accept defaults) | ✅ included | The UI defaults are sensible (1080p×30). |
-| Grant MediaProjection consent | ✅ included | Cannot be skipped — Android API requirement. |
-| See screen on receiver | ✅ included | This is the deliverable. |
-| Stop / disconnect cleanly | ✅ included | Required to free the projection token. |
-| **System audio mirroring** | ❌ out | Requires API 29+ MediaProjection audio capture; never wired. Defer. |
-| **Multiple cast destinations (RTMP, UDP, LocalFile)** | ❌ out | Behind `senders/android/TODO.codecs/` work — those need an `amcvidenc` encoder fallback chain. Not blocking screen mirroring over WHEP. |
-| **Camera capture** | ❌ out | UI exists (Phase 15) but no JNI camera path; the front/rear/external cycler is decoration. |
-| **Local recording to disk** | ❌ out | UI exists (Phase 23) but no MediaRecorder pipeline. |
-| **Bitrate presets / quick-action customisation / macros** | ❌ out | UI-only Phase-12-27 work. None of it changes mirroring quality today. |
-| **Localisation** | ❌ out for shipping; ✅ green-lighted in code | Phase 9 already wraps strings in `@tr()`; non-EN `.mo` files are not blockers for an English-first release. |
+| 1 | Launches app | Connect page shows; receiver discovery starts |
+| 2 | Sees their TV listed | A `ReceiverItem` row appears within ~5 s of opening the app |
+| 3 | Taps the receiver | App transitions to `Connecting` → `SelectingSettings` |
+| 4 | Confirms resolution / framerate | App requests MediaProjection consent |
+| 5 | Grants consent | App transitions to `Casting`; phone screen renders on TV |
+| 6 | Taps Stop | Cast ends cleanly; app returns to `Disconnected` |
 
-**MVP cluster (the 5 phases):**
+### 1.2 What is **explicitly out of scope** for MVP
 
-- M1 — connect-page wiring (the only blocker)
-- M2 — status badges on the casting page
-- M3 — MediaProjection denial recovery
-- M4 — verify stop / disconnect cleanly
-- M5 — app version push (cosmetic but trivial)
+| Surface | Why deferred |
+|---|---|
+| Audio settings (Phase 14) | The MVP cast path uses default `audio: true, video: true`. |
+| Camera capture (Phase 15) | Screen mirror is the MVP source. |
+| Bitrate presets (Phase 16) | `BaseWebRTCSink` selects encoders internally. |
+| Local recording (Phase 23) | Independent destination. |
+| Macros (Phase 25) | UI sugar over Bridge callbacks. |
+| Pairing / QR / receiver mgmt (Phase 24) | Optional; mDNS auto-discovery already works. |
+| Debug log / debug video (Phases 18, 21) | Diagnostic surfaces. |
+| Backup-and-reset, cast history (Phase 19, 20) | Storage surfaces. |
+| **Migration runtime → WHEP unification** | Architectural follow-up (see §8). |
+| **Migration runtime → MediaProjection source** | Architectural follow-up (see §8). |
 
-Total estimated diff: ~120 lines across 4 files.
+### 1.3 Why the MVP is **one cluster** and not five
 
----
+The pre-Phase-8 version of this guide called out five clusters M1–M5:
 
-## 2. How the layers actually plug together
+- **M1** — `connect_page.slint` → `Bridge.connect-receiver(...)`. **Still
+  live.** Phase 8 did not touch this file.
+- **M2** — push `Bridge.status-items` on `Event::CaptureStarted`. **Done by
+  Phase 8 / Cluster A1.** `Bridge.status-items` is declared on
+  `bridge.slint:149` and consumed by `components/status_overlay.slint`.
+- **M3** — MediaProjection consent denial → state rollback. **Already wired.**
+  See `senders/android/src/lib.rs:734-925`.
+- **M4** — Stop button → `EndSession{disconnect:true}` → clean rollback.
+  **Already wired** at `bridge.slint:237`, `lib.rs:1822`,
+  `lib.rs:682` (`stop_cast`).
+- **M5** — `Bridge.app-version` push from `env!("CARGO_PKG_VERSION")`. **Done
+  by Phase 8 / Cluster A2.** `bridge.slint:151`.
 
-The published architecture overview is correct, but it leaves out the
-exact line numbers / function names you need to read to understand the
-state machine. Here is the layered view, grounded in the live tree:
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│ Slint UI (declarative, runs on the main thread)                      │
-│ -------------------------------------------------                    │
-│ pages/{connect,connecting,casting,settings,debug}_page.slint         │
-│ components/{control_bar,status_overlay,buttons,…}.slint              │
-│ bridge.slint   ← Bridge global: properties + callbacks               │
-│ main.slint     ← Panel router; AppState dispatch                     │
-└──────────────────────────────────────────────────────────────────────┘
-                       │
-                       │ Slint generates Rust bindings via include_modules!()
-                       ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│ Rust state machine (senders/android/src/lib.rs, 1494 lines)          │
-│ -------------------------------------------------                    │
-│ android_main()                  ← entry point per slint::android     │
-│   ├── ui = MainWindow::new()                                         │
-│   ├── ui.global::<Bridge>().on_connect_receiver({…})    line 1008   │
-│   ├── ui.global::<Bridge>().on_start_casting({…})       line 1017   │
-│   ├── ui.global::<Bridge>().on_stop_casting({…})        line 1030   │
-│   ├── ui.global::<Bridge>().on_invoke_action({…})       line 1039   │
-│   ├── runtime.spawn(async {                                          │
-│   │       Application::new().run_event_loop(event_rx)                │
-│   │   })                                                             │
-│   └── ui.run()    ← blocking; runs until window closes               │
-│                                                                      │
-│ Application::handle_event(Event)                        line 640    │
-│   • Event::ConnectToDevice(name) → connect_with_device_info(…)       │
-│   • Event::SignallerStarted{…}   → device.load(LoadRequest::Url{…})  │
-│   • Event::FromDevice{…}.StateChanged(Connected) → AppState::SelectingSettings │
-│   • Event::StartCast{w,h,fps}    → call Java startScreenCapture(…)   │
-│   • Event::CaptureStarted        → build appsrc + WhepSink           │
-│   • Event::CaptureStopped        → set_capture_active(false)         │
-│   • Event::CaptureCancelled      → AppState::Disconnected + stop_cast│
-│   • Event::EndSession{disconnect}→ stop_cast(disconnect)             │
-│                                                                      │
-│ JNI callbacks (Java → Rust)                                          │
-│   • Java_…_serviceFound          line 1153  ← mDNS                  │
-│   • Java_…_serviceLost           line 1258                          │
-│   • Java_…_nativeCaptureStarted  line 1275  ← user granted consent  │
-│   • Java_…_nativeCaptureStopped  line 1289                          │
-│   • Java_…_nativeCaptureCancelled line 1303 ← user denied consent   │
-│   • Java_…_nativeProcessFrame    line 1465  ← per-frame YUV planes  │
-│   • Java_…_nativeQrScanResult    line 1482                          │
-└──────────────────────────────────────────────────────────────────────┘
-                       │
-                       │ JNI bridge: jni::JavaVM + JNIEnv (lib.rs:455-484)
-                       ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│ Java/Android (app/src/main/java/org/fcast/android/sender/…)          │
-│ -------------------------------------------------                    │
-│ MainActivity.java                                                    │
-│   • startScreenCapture(w,h,fps) ← Rust calls into Java               │
-│   • onActivityResult            ← MediaProjection consent             │
-│   • initializeCapture            line 815                           │
-│   • setupGles + GL rendering loop  line 380–595                     │
-│   • nativeProcessFrame(w,h,Y,U,V)  line 591                         │
-│   • stopCapture()                  line 801                         │
-│ FCastDiscoveryListener.java     ← NSD wrapper                        │
-│ ScreenCaptureService.java       ← Foreground service for projection  │
-└──────────────────────────────────────────────────────────────────────┘
-                       │
-                       │ Frame data passed via ByteBuffers
-                       ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│ GStreamer pipeline (sdk/mirroring_core/src/transmission.rs)          │
-│ -------------------------------------------------                    │
-│ Pipeline:                                                            │
-│   appsrc (built in lib.rs:789-851)                                   │
-│      │                                                               │
-│      └─→  BaseWebRTCSink (gst-plugins-rs)                            │
-│             │                                                        │
-│             └─→ WhepServerSignaller (whep_signaller.rs)              │
-│                  • Listens on auto-assigned port                     │
-│                  • Emits SignallerStarted{port_v4, port_v6}          │
-│                  • Provides WHEP HTTP endpoint for receiver          │
-│                  • Internal MediaCodec encoder selection             │
-│                    via `amcvidenc-*` factories on Android            │
-└──────────────────────────────────────────────────────────────────────┘
-                       │
-                       │ WHEP (WebRTC-HTTP Egress Protocol)
-                       ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│ FCast receiver (TV / desktop / web)                                  │
-│   1. Receives PlayMessage with content-type=video/whep + URL         │
-│   2. WHEP client opens HTTP POST → SDP offer/answer exchange         │
-│   3. WebRTC media flows, decoded, rendered                           │
-└──────────────────────────────────────────────────────────────────────┘
-```
-
-### 2.1 Frame pump in detail
-
-The Android-specific frame path is the one piece that's worth reading
-slowly, because it's the only place where multiple threads exchange
-data without a queue:
-
-```
-┌─────────────────────────┐   1. ImageReader / VirtualDisplay produces        ┌────────────────────────────┐
-│ MainActivity.java       │      OES texture frames at 30/60 Hz               │ Rust appsrc need-data CB    │
-│ (MediaProjection +      │   2. GLES shader downsamples + plane-splits       │ (lib.rs:803-849)            │
-│  GL renderer thread)    │      to 3 textures, glReadPixels into             │                             │
-│                         │      direct ByteBuffers                           │  loop {                     │
-│                         │   3. nativeProcessFrame(w,h,Y,U,V)                │    let frame = lock.lock(); │
-└────────┬────────────────┘                                                   │    cvar.wait_for(100ms)     │
-         │ JNI                                                                 │      until frame.is_some()  │
-         ▼                                                                     │      OR !CAPTURE_ACTIVE     │
-┌─────────────────────────┐                                                   │    appsrc.push_buffer(...)  │
-│ process_frame()         │   4. Acquire pooled gst::Buffer (FRAME_POOL)      │  }                          │
-│ (lib.rs:1315-1460)      │   5. Build VideoFrame<Writable> over the buffer   │                             │
-│                         │   6. Copy 3 source planes into the writable frame │ Latency: 1 frame max         │
-│ FRAME_PAIR.lock()       │   7. *frame_slot = Some(vframe);                  │ (drop-old semantics)         │
-│ + cvar.notify_one()     │      cvar.notify_one()                            └────────────────────────────┘
-└─────────────────────────┘
-```
-
-Key invariants:
-
-- **`FRAME_PAIR` holds at most 1 frame.** New writes overwrite old ones if
-  the consumer hasn't taken yet. This is intentional drop-old-frames
-  semantics — better than queuing for a live mirror.
-- **`CAPTURE_ACTIVE: AtomicBool`** is the kill switch. When the user stops
-  capture, it flips to false and the consumer wakes from `cvar.wait_for`
-  to call `appsrc.end_of_stream()`.
-- **`FRAME_POOL: gst_video::VideoBufferPool`** reuses gst::Buffer
-  allocations. On caps change (resolution/format), the pool is reconfigured.
-- **No allocation on the hot path** once the pool is warm — `acquire_buffer`
-  returns a pre-allocated buffer.
-
-### 2.2 What the published architecture overview missed
-
-- The `select_video_encoder` chain in `senders/android/src/migration/nodes/destination.rs` (P0-1 in `TODO.codecs/`) is **only** used by the migration framework's RTMP / UDP / LocalFile destinations. The MVP cast-to-FCast-receiver path uses `gst_rs_webrtc::webrtcsink::BaseWebRTCSink::with_signaller(...)` directly in `transmission.rs:476-513`, which has **its own internal encoder selection** that picks `amcvidenc-*` automatically on Android. So the TODO.codecs P0-1 work does **not** block MVP — it blocks alternative destinations nobody is using yet.
-
-- The `migration` runtime (`crate::migration::runtime::start_graph_runtime()`, called from `run_event_loop` at lib.rs:947) is a parallel debug-only graph engine for the migration tests. It is **not** on the MVP cast path. You can read its logs without it interfering.
-
-- The Phase-8 migration plan documents the **full** Bridge → Rust wiring for every UI page. The MVP only needs **two** of those wirings (`Bridge.connect-receiver` from the connect page, `Bridge.app-version` push). Everything else stays UI-only.
+So **the MVP guide collapses to M1** plus a verification pass over M2–M5.
 
 ---
 
-## 3. Smoke test that proves MVP is broken today
+## 2. The two functional surfaces
 
-Before fixing anything, reproduce the broken state:
+After Phase 8 the Android sender has **two complementary functional
+surfaces**, both shipped on `master`. The MVP cluster only needs to
+unblock Surface A. Surface B is already running and only needs use-case
+adoption.
 
-```sh
-# 1. Build + install on a real Android device.
-./gradlew :app:installDebug
-
-# 2. Make sure an FCast receiver is on the same Wi-Fi network. Easiest:
-#    run the Linux receiver in a sibling terminal:
-cargo run -p fcast-receiver  # or whichever desktop receiver you have
-
-# 3. On the phone, open the FCast sender app. Wait ~3 seconds.
-#    Expected:  the receiver appears in the connect-page list.
-#    Actual:    the connect-page list shows 3 hardcoded mock entries
-#               ("Living Room TV", "Office Display", "Kitchen Chromecast")
-#               and any real receivers do NOT appear.
-#    Cause:     ConnectView reads `mock-devices`, not `Bridge.devices`.
-#               Rust pushed `Bridge.devices` correctly (via lib.rs:572-577)
-#               but the UI never reads it.
-
-# 4. Tap any of the mock entries.
-#    Expected:  state transitions to Connecting → SelectingSettings.
-#    Actual:    nothing happens.
-#    Cause:     `clicked => { /* placeholder */ }` in connect_page.slint:86.
-#               Rust's `on_connect_receiver` handler is wired but the UI
-#               never fires the callback.
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Surface A — Screen-mirror cast path (MVP target)                       │
+│                                                                         │
+│   Slint UI ── on_connect_receiver ──▶ Application::handle_event         │
+│                                       │                                 │
+│                                       ▼                                 │
+│                       Event::ConnectToDevice(name)                      │
+│                            ↓                                            │
+│                     FCast SDK device.connect()                          │
+│                            ↓                                            │
+│              Event::CaptureStarted → Bridge.status-items push           │
+│                            ↓                                            │
+│   Java MainActivity.startScreenCapture(w,h,fps)  (via JNI)              │
+│                            ↓                                            │
+│      MediaProjection consent → onActivityResult                         │
+│                            ↓                                            │
+│      VirtualDisplay + OpenGL ES (RGBA→YUV420 planar shader)             │
+│                            ↓                                            │
+│      nativeProcessFrame(w, h, Y, U, V)  ── JNI ──▶ Rust process_frame   │
+│                            ↓                                            │
+│      FRAME_PAIR (Mutex<Option<VideoFrame>> + Condvar)                   │
+│                            ↓                                            │
+│      appsrc.set_callbacks(need-data) → push_buffer                      │
+│                            ↓                                            │
+│      BaseWebRTCSink (gst-plugins-rs, internal MediaCodec enc selection) │
+│                            ↓                                            │
+│      WhepServerSignaller binds → Event::SignallerStarted{port_v4/v6}    │
+│                            ↓                                            │
+│      device.load(LoadRequest::Url{ ... }) ─── over FCast TCP protocol   │
+│                            ↓                                            │
+│      Receiver opens WHEP, decodes, renders on TV                        │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-This 30-second walkthrough is sufficient to confirm the M1 diagnosis. If
-M1 fails to manifest after applying the fix below, double-check that
-your APK was rebuilt and reinstalled (Slint changes require a full
-rebuild — they're not hot-swappable).
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Surface B — Migration runtime (parallel, post-MVP integration target)  │
+│                                                                         │
+│   ┌──────────────────────┐    ┌──────────────────────┐                  │
+│   │  Java               │    │  Debug HTTP server   │                  │
+│   │  MainActivity.      │    │  (env-gated:         │                  │
+│   │  graphCommand(...)  │    │   MIGRATION_COMMAND_ │                  │
+│   │   ↓                 │    │   BIND)              │                  │
+│   │  nativeGraphCommand │    │   ↓                  │                  │
+│   │   (JString)         │    │  POST /command       │                  │
+│   └─────────┬────────────┘    └──────────┬───────────┘                  │
+│             │                            │                              │
+│             ├────────────┬───────────────┘                              │
+│             ▼            ▼                                              │
+│   migration::runtime::handle_command_json(&payload)                     │
+│             ↓                                                           │
+│   InboundCommand (ControllerMessage | bare Command)                     │
+│             ↓                                                           │
+│   GRAPH_NODE_MANAGER.lock().dispatch(command)                           │
+│             ↓                                                           │
+│   ┌─────────────────────────────────────────────────────────────────┐   │
+│   │ NodeManager state:                                              │   │
+│   │   nodes:           HashMap<String, NodeRecord>                  │   │
+│   │   links:           HashMap<String, LinkRecord>                  │   │
+│   │   media_bridges:   HashMap<String, StreamBridge>                │   │
+│   │                                                                 │   │
+│   │ NodeRecord variants:                                            │   │
+│   │   Source           — fallbacksrc / uridecodebin (URL/file in)  │   │
+│   │   Destination      — RTMP / UDP / LocalFile / LocalPlayback     │   │
+│   │   Mixer            — compositor + audiomixer                    │   │
+│   │   VideoGenerator   — videotestsrc (ball pattern)                │   │
+│   └─────────────────────────────────────────────────────────────────┘   │
+│             ↓                                                           │
+│   Refresh thread tick() every 100 ms:                                   │
+│     - refresh_nodes() — drive each node's state machine                 │
+│         (Initial → Starting → Started → Stopping → Stopped)             │
+│     - sync_media_links() — wire StreamBridges between sibling pipelines │
+│                                                                         │
+│   StreamBridge = single appsink producer → many appsrc consumers,       │
+│                  with caps caching + EOS propagation + stale removal.   │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+Surface A and Surface B run in the same Rust process but do not share
+GStreamer elements today. Unifying them (so the Android screen-mirror
+loop also flows through the node graph as a custom `SourceNode` and a
+WHEP `DestinationFamily`) is the **first architectural follow-up** after
+MVP — see §8.
 
 ---
 
-## 4. Implementation — M1 through M5
+## 3. How the layers plug together
 
-Each section below is independently shippable. M1 is the only mandatory
-one for MVP; M2–M5 are quality-of-life follow-ups.
+A 13-step walkthrough that maps the Android-sender architecture diagram
+to the live code. Every step cites `file:line` so you can follow each
+transition.
+
+> Sources for the layer model: `senders/android/src/lib.rs`, `senders/android/ui/main.slint`, `senders/android/ui/bridge.slint`, `senders/android/app/src/main/java/org/fcast/android/sender/MainActivity.java`.
+
+### 3.1 Application startup
+**Entry:** `android_main()` in `senders/android/src/lib.rs`.
+
+1. Android logger initializes.
+2. Slint Android platform initializes with the Android app context.
+3. The Slint `MainWindow` is created from the `ui/*.slint` definitions.
+4. Quick actions (settings, debug, codec-test, scan-qr, record, pair,
+   bitrate) are seeded via `default_quick_actions()` at
+   `senders/android/src/lib.rs:1070-1089`.
+   In debug builds four extra quick-actions are appended:
+   `migrated-server`, `test-getinfo`, `test-crossfade`, `test-smoke` —
+   these drive Surface B from the UI for smoke testing.
+5. The Tokio runtime spawns the `Application` task.
+6. UI event loop starts via `ui.run()`.
+
+### 3.2 Rust application initialization
+**Entry:** `Application::new()` / `run_event_loop()` in `senders/android/src/lib.rs`.
+
+1. Global event channel forwarding thread is set up.
+2. `CastContext` is created for FCast device management.
+3. Device map and active device tracking initialize.
+4. The event loop is run by `run_event_loop()` at
+   `senders/android/src/lib.rs:1025-1058`.
+
+### 3.3 Event loop and runtime initialization
+**Inside `run_event_loop()`:**
+
+1. `tracing_gstreamer::integrate_events()` enables GStreamer tracing.
+2. `ensure_gstreamer_initialized()` initialises GStreamer.
+3. **`migration::runtime::start_graph_runtime()`** is called
+   (`lib.rs:1035`):
+   - `NodeManager` starts.
+   - The 100 ms refresh thread spawns (`runtime.rs:51-58`).
+   - If `MIGRATION_COMMAND_BIND` is set, the HTTP command-server thread
+     spawns.
+4. The main loop drains `event_rx` and dispatches into `handle_event`.
+5. On shutdown, `migration::runtime::shutdown_graph_runtime()` runs
+   (`lib.rs:1053`) — stops the HTTP server, stops the refresh thread,
+   tears down all nodes / links / media bridges.
+
+### 3.4 Device discovery (mDNS)
+**Java side:** `FCastDiscoveryListener.java` → JNI callback.
+
+1. Android NSD scans for FCast receivers.
+2. When found, JNI callback
+   `Java_org_fcast_android_sender_FCastDiscoveryListener_serviceFound`
+   runs at `senders/android/src/lib.rs:2125-2225`.
+3. Rust receives device info (name, addresses, port).
+4. `Event::DeviceAvailable(device_info)` is sent (`lib.rs:2222`).
+5. `handle_event` calls `add_or_update_device(...)` (`lib.rs:676-680`).
+6. UI is updated via `update_receivers_in_ui()` (`lib.rs:659-674`) —
+   pushes the device *name* into `Bridge.devices` (`bridge.slint:145`).
+
+### 3.5 User connects to receiver — **the MVP gap**
+**UI → Rust:** Slint `Bridge.connect-receiver` callback (`bridge.slint:235`).
+
+1. User taps a receiver row on the connect page.
+2. *(MVP gap)* `pages/connect_page.slint:85-88` should invoke
+   `Bridge.connect-receiver(device.name)`. It currently does **not** —
+   the body is a `/* placeholder ... */` comment.
+3. Once fixed, `on_connect_receiver` (`lib.rs:1800-1810`) sends
+   `Event::ConnectToDevice(device_name)`.
+4. `handle_event` matches `Event::ConnectToDevice(...)` at `lib.rs:747`
+   and calls `connect_with_device_info(...)` (`lib.rs:711`).
+5. The FCast device is created, `DeviceHandler` callback is wired, and
+   `active_device` is set.
+6. UI state transitions to `AppState::Connecting` (`bridge.slint:36`).
+
+### 3.6 Connection established and settings selection
+
+1. FCast SDK handshake completes.
+2. `DeviceEvent::StateChanged(Connected)` fires.
+3. UI transitions to `AppState::SelectingSettings`.
+4. User picks resolution / framerate (Phase-7 settings panel) — already
+   wired to `Bridge.resolution-idx` and `Bridge.framerate-idx`
+   (`bridge.slint:192-193`).
+5. User taps "Start Casting".
+
+### 3.7 Screen capture initiation
+**Rust → Java:** `startScreenCapture()` JNI call.
+
+1. Slint `Bridge.start-casting(w, h, fps)` callback (`bridge.slint:236`)
+   sends `Event::StartCast { ... }` (`lib.rs:1813`).
+2. Handler at `lib.rs:963` / `lib.rs:1011` calls Java
+   `startScreenCapture(int, int, int)` via JNI
+   (`senders/android/app/src/main/java/org/fcast/android/sender/MainActivity.java:720-799`).
+3. Android shows the MediaProjection permission dialog.
+4. User grants permission.
+5. `MainActivity.onActivityResult()` fires; a broadcast with
+   `ACTION_MEDIA_PROJECTION_STARTED` is sent
+   (`MainActivity.java:206, 280`).
+6. `initializeCapture(resultCode, data)` sets up the capture pipeline
+   (`MainActivity.java:815`).
+
+### 3.8 OpenGL frame processing
+**Java side:** `MainActivity.java` GL rendering loop.
+
+1. `VirtualDisplay` is created from the MediaProjection token.
+2. OpenGL ES context + EGL surface initialise.
+3. Per frame:
+   - Surface texture is updated from `VirtualDisplay`.
+   - Fragment shader converts RGBA → YUV420 planar.
+   - Y, U, V planes go into three direct `ByteBuffer`s.
+4. `nativeProcessFrame(w, h, Y, U, V)` JNI callback runs per frame
+   (`MainActivity.java:591`).
+
+### 3.9 Frame hand-off to GStreamer
+**JNI → Rust:** frame data transfer.
+
+1. Rust receives the YUV plane data in
+   `Java_org_fcast_android_sender_MainActivity_nativeProcessFrame`
+   (`lib.rs:2437`).
+2. Frames are stored in the global `FRAME_PAIR`
+   (`Mutex<Option<VideoFrame<Writable>>>` + `Condvar`,
+   `lib.rs:71`).
+3. `CAPTURE_ACTIVE` (`lib.rs:76`) gates whether `appsrc`'s `need-data`
+   callback waits or exits.
+4. `FRAME_POOL` (`lib.rs:72`,
+   `gst_video::VideoBufferPool`) recycles allocations.
+5. The `appsrc` element pulls frames via `set_callbacks(need-data)`
+   (`lib.rs:895`).
+
+### 3.10 GStreamer pipeline & WHEP streaming
+**Pipeline construction:** built in Rust when capture starts.
+
+1. `appsrc` is configured to accept YUV frames.
+2. `gst_rs_webrtc::webrtcsink::BaseWebRTCSink::with_signaller(...)`
+   handles WebRTC encoding. Internal encoder selection picks the right
+   `amcvidenc-*` MediaCodec on Android — see the existing
+   `senders/android/TODO.codecs.md` for the rationale on why this path
+   does **not** need the migration runtime's `try_create_encoder_with_fallback`
+   chain.
+3. `WhepServerSignaller` creates the WHEP HTTP endpoint.
+4. The signaller emits `Event::SignallerStarted { port_v4, port_v6 }`
+   (`lib.rs:754`).
+5. Rust sends `device.load(device::LoadRequest::Url { ... })` to the
+   FCast device with the WHEP URL (`lib.rs:778`).
+
+### 3.11 Receiver playback
+
+1. FCast receiver receives a `PlayMessage` with the WHEP URL.
+2. The receiver's WHEP client POSTs to the signaller.
+3. SDP offer / answer exchange happens.
+4. WebRTC media stream is established.
+5. Receiver decodes and renders video / audio.
+
+### 3.12 Migration runtime (graph system)
+**Node-based processing:** `senders/android/src/migration/mod.rs`.
+
+This is a parallel system for media-graph control. It is **not** on the
+screen-mirror cast path today.
+
+**Three entry points** (all funnel into `handle_command_json`):
+
+| Entry | Where | Use |
+|---|---|---|
+| HTTP `POST /command` | `runtime.rs:200-300` | Debug / scripted, gated by `MIGRATION_COMMAND_BIND` env var |
+| Java `nativeGraphCommand(String)` | `MainActivity.java:1100`, `lib.rs:2100-2120` | Production-callable from Java |
+| Direct Rust `handle_command(...)` | `runtime.rs:322-324` | Internal callers (used by the in-tree smoke tests) |
+
+**Command set** (`protocol.rs:37-106`):
+
+| Command | Purpose |
+|---|---|
+| `CreateVideoGenerator { id }` | Test pattern (videotestsrc "ball") |
+| `CreateSource { id, uri, audio, video }` | URL/file ingest (fallbacksrc → uridecodebin) |
+| `CreateDestination { id, family, audio, video }` | RTMP / UDP / LocalFile / LocalPlayback |
+| `CreateMixer { id, config, audio, video }` | compositor + audiomixer |
+| `Connect { link_id, src_id, sink_id, audio, video, config }` | Add a link |
+| `Disconnect { link_id }` | Remove a link |
+| `Start { id, cue_time, end_time }` | Schedule a node to run |
+| `Reschedule { id, cue_time, end_time }` | Move cue/end times |
+| `Remove { id }` | Remove a node (cascades links) |
+| `GetInfo { id }` | Read state |
+| `AddControlPoint / RemoveControlPoint` | Mixer property timelines (volume, etc.) |
+
+**NodeManager** (`senders/android/src/migration/node_manager.rs`):
+
+```rust
+struct NodeManager {
+    started: bool,
+    nodes:         HashMap<String, NodeRecord>,
+    links:         HashMap<String, LinkRecord>,
+    media_bridges: HashMap<String, StreamBridge>,
+}
+```
+
+- `start()` / `tick()` / `shutdown()` (`node_manager.rs:289-314`).
+- `dispatch(command)` (`node_manager.rs:316`) — central command router.
+- `sync_media_links()` (`node_manager.rs:222-287`) — keeps StreamBridges
+  consistent with the link graph.
+- Tick interval: 100 ms (`runtime.rs:28`).
+
+**StreamBridge** (`senders/android/src/migration/media_bridge.rs`):
+
+- One producer `appsink` → many consumer `appsrc`s.
+- Caps caching applied to late-joining consumers.
+- `new_sample` callback fans buffers out.
+- EOS propagated to all consumers.
+- Stale consumers removed on push failure.
+
+**State machine** (`protocol.rs:115-123`):
+
+```
+Initial → Starting → Started → Stopping → Stopped
+```
+
+**Destination pipelines** (per family, in `nodes/destination.rs`):
+
+| Family | Video chain | Audio chain |
+|---|---|---|
+| `Rtmp` | `appsrc → videoconvert → timecodestamper → timeoverlay → H.264 enc → h264parse → queue → flvmux → rtmp2sink` | `appsrc → audioconvert → audioresample → AAC enc → queue → flvmux` |
+| `Udp` | `appsrc → videoconvert → H.264 enc → h264parse → mpegtsmux → udpsink` | `appsrc → audioconvert → audioresample → AAC enc → mpegtsmux` |
+| `LocalFile` | `appsrc → videoconvert → H.264 enc → h264parse → multiqueue → splitmuxsink` | `appsrc → audioconvert → audioresample → AAC enc → multiqueue → splitmuxsink` |
+| `LocalPlayback` | `appsrc → queue → videoconvert → glimagesink / autovideosink` | `appsrc → queue → audioconvert → audioresample → openslessink / autoaudiosink` |
+
+**Mixer pipeline** (`nodes/mixer.rs`):
+
+- Video: `compositor` with black background + fallback videotestsrc +
+  per-slot `appsrc → queue → compositor` request pads (xy/w/h/alpha/zorder).
+- Audio: `audiomixer` with fallback audiotestsrc + per-slot
+  `appsrc → queue → audioconvert → audioresample → capsfilter → audiomixer`
+  (volume control point).
+
+**VideoGenerator** (`nodes/video_generator.rs`):
+
+- `videotestsrc pattern=ball flip=true is-live=true → deinterlace → appsink`.
+
+**Smoke test path** (verifies the entire runtime from the UI):
+
+The `test-smoke` quick-action in debug builds runs `run_graph_smoke_test()`
+at `senders/android/src/lib.rs:418-481`:
+
+1. `createvideogenerator { id }` — create a source.
+2. `createmixer { id, audio:false, video:true }` — create a mixer.
+3. `connect { link_id, src_id, sink_id, audio:false, video:true }` — link
+   them.
+4. `start { id }` for both nodes.
+5. `getinfo {}` — read back the graph.
+6. `remove { id }` for both nodes.
+
+This exercises command parsing, node creation, link creation, scheduling,
+StreamBridge wire-up, GStreamer pipeline building, and graceful teardown
+in a single quick-action tap.
+
+### 3.13 Stopping casting
+**Cleanup flow** (Surface A):
+
+1. User taps Stop.
+2. Slint `Bridge.stop-casting()` callback (`bridge.slint:237`) → `on_stop_casting`
+   handler at `lib.rs:1822`.
+3. Rust sends `Event::EndSession { disconnect: true }` (`lib.rs:1826`).
+4. `handle_event` matches `Event::EndSession { .. }` at `lib.rs:738`
+   and calls `stop_cast(true)` (`lib.rs:682`):
+   - Java `stopCapture()` is invoked via JNI
+     (`MainActivity.java:801, 1113`).
+   - `VirtualDisplay` is released.
+   - FCast device `stop_playback()` runs.
+   - Device `disconnect()` runs.
+   - GStreamer pipeline is torn down.
+5. UI state returns to `AppState::Disconnected`.
+
+The migration runtime is unaffected by Surface A's stop — it has its own
+lifecycle tied to `run_event_loop`'s entry / exit (`lib.rs:1035, 1053`).
 
 ---
 
-### 4.1 M1 — Wire the connect page tap actually onto `Bridge.connect-receiver`
+## 4. Implementation — M1 (the only MVP cluster)
+
+The only thing standing between you and a working Android-to-receiver
+screen mirror is wiring the connect-page row taps to
+`Bridge.connect-receiver(...)`. Everything downstream is already wired.
+
+### 4.1 Step 1: replace the mock device list
 
 **File:** `senders/android/ui/pages/connect_page.slint`
 
-#### Current state
+Change the iterator and the click handler.
+
+**Before** (lines 69-88):
 
 ```slint
-// pages/connect_page.slint (lines ~17-89, ABRIDGED)
-export component ConnectView inherits Rectangle {
-    in-out property <[ReceiverItem]> mock-devices: [
-        { id: "dev-1", name: "Living Room TV",     address: "192.168.1.50", … },
-        { id: "dev-2", name: "Office Display",     address: "192.168.1.51", … },
-        { id: "dev-3", name: "Kitchen Chromecast", address: "192.168.1.52", … },
-    ];
-    in-out property <bool> mock-empty: false;
+if !root.mock-empty && root.mock-devices.length > 0: VerticalLayout {
+    spacing: Theme.spacing-default;
 
-    VerticalBox {
-        // …
-        if !root.mock-empty && root.mock-devices.length > 0: VerticalLayout {
-            for device[idx] in root.mock-devices: Rectangle {
-                ta := TouchArea {
-                    clicked => {
-                        /* placeholder: would call connect-receiver(device.address) */
-                    }
-                }
-                // …
-            }
-        }
-    }
-}
-```
+    for device[idx] in root.mock-devices: Rectangle {
+        height: Theme.row-height + 18px;
 
-#### Target state
+        property <bool> lp-armed: false;
 
-```slint
-// pages/connect_page.slint — M1
-export component ConnectView inherits Rectangle {
-    // Real device names come from Rust via Bridge.devices: [string].
-    // The ReceiverItem type stays for future enrichment (kind, port, etc.)
-    // but Rust currently only pushes [string]; reduce to a name-only iter.
-    in-out property <bool> mock-empty: false;     // dev-time toggle for empty-state QA
-
-    VerticalBox {
-        // … (header text unchanged) …
-
-        // ── Empty state: searching ────────────────────────────────────────
-        if root.mock-empty || Bridge.devices.length == 0: Rectangle {
-            // … (Spinner + "Searching for receivers…" — unchanged) …
-        }
-
-        // ── Populated state: device list ──────────────────────────────────
-        if !root.mock-empty && Bridge.devices.length > 0: VerticalLayout {
-            spacing: Theme.spacing-default;
-
-            for name[idx] in Bridge.devices: Rectangle {
-                height: Theme.row-height + 18px;
-
-                property <bool> lp-armed: false;
-
-                ta := TouchArea {
-                    changed pressed => {
-                        if self.pressed { parent.lp-armed = true; }
-                        else            { parent.lp-armed = false; }
-                    }
-                    clicked => {
-                        Bridge.connect-receiver(name);
-                    }
-                }
-
-                Timer {
-                    interval: 600ms;
-                    running: parent.lp-armed;
-                    triggered => {
-                        parent.lp-armed = false;
-                        root.context-receiver-id = name;     // for now id == name
-                        root.context-receiver-name = name;
-                        root.context-menu-y = (parent.height * idx) + 100px;
-                        root.show-context-menu = true;
-                    }
-                }
-
-                Rectangle {
-                    width: parent.width - 10px;
-                    height: parent.height - 8px;
-                    background: ta.pressed ? Theme.accent-pressed : Theme.surface-card;
-                    border-radius: Theme.radius-card;
-
-                    VerticalLayout {
-                        padding-left: Theme.padding-screen;
-                        padding-right: Theme.padding-screen;
-                        alignment: center;
-                        spacing: 2px;
-
-                        Text {
-                            text: name;       // was: device.name
-                            color: Theme.text-primary;
-                            font-size: Theme.font-size-body;
-                            overflow: elide;
-                        }
-                        // No subtitle — Bridge.devices is just names today.
-                        // Phase 8 (Cluster A — see PHASE-8-Section-2) can promote
-                        // Bridge.devices to a [ReceiverItem] later for richer rows.
-                    }
+        ta := TouchArea {
+            changed pressed => {
+                if self.pressed {
+                    parent.lp-armed = true;
+                } else {
+                    parent.lp-armed = false;
                 }
             }
+            clicked => {
+                /* placeholder: would call connect-receiver(device.address) */
+            }
         }
+        // …long-press timer, label rectangle…
     }
-
-    // … (context menu + forget confirm — unchanged) …
 }
 ```
 
-#### Diff summary
-
-- **Remove** `in-out property <[ReceiverItem]> mock-devices: [...]` (3 hardcoded entries).
-- **Replace** `for device[idx] in root.mock-devices:` with `for name[idx] in Bridge.devices:`.
-- **Replace** the placeholder `clicked => { /* … */ }` with `clicked => { Bridge.connect-receiver(name); }`.
-- **Replace** every `device.name` / `device.id` reference with `name` (the iter variable).
-- **Remove** any `device.kind == "fcast" ? "FCast" : "Generic"` subtitle logic — `Bridge.devices` is `[string]` today, no subtitle.
-
-#### Why this is the only MVP blocker
-
-After M1, the chain is complete end-to-end:
-
-```
-User taps row → Bridge.connect-receiver(name) callback fires
-              → on_connect_receiver in lib.rs:1008 sends Event::ConnectToDevice(name)
-              → run_event_loop dispatches to handle_event → Event::ConnectToDevice
-              → connect_with_device_info → device.connect() → FCast SDK handshake
-              → DeviceConnectionState::Connected → AppState::SelectingSettings
-              → Slint Panel router shows pages/settings_page.slint with the Cast button
-              → user taps Cast → Bridge.start-casting(w, h, fps)
-              → on_start_casting in lib.rs:1017 sends Event::StartCast
-              → handle_event → calls Java startScreenCapture(w, h, fps)
-              → MediaProjection consent dialog
-              → user grants → onActivityResult → initializeCapture → GL pipeline starts
-              → nativeCaptureStarted JNI → Event::CaptureStarted
-              → handle_event builds appsrc + WhepSink → AppState::Casting
-              → frames pump through FRAME_PAIR → appsrc → BaseWebRTCSink
-              → WhepServerSignaller binds → Event::SignallerStarted{port}
-              → device.load(LoadRequest::Url{ url }) → receiver opens WHEP stream
-              → MIRRORING IS LIVE
-```
-
-#### Verification
-
-1. Apply the diff. Rebuild the APK.
-2. Open the app on a real device with an FCast receiver on the same Wi-Fi.
-3. The list should populate with the real receiver name(s) within ~3 seconds.
-4. Tap a row. The state must transition: Disconnected → Connecting → SelectingSettings.
-5. On the SelectingSettings page, tap "Cast". MediaProjection consent dialog appears.
-6. Grant. State transitions: WaitingForMedia → Casting. Receiver shows the screen.
-
-If the list stays empty: NSD discovery is not finding the receiver — check the receiver is broadcasting on `_fcast._tcp.local`. If the row fires but state stays Disconnected: the SDK `device.connect()` call is failing — check the SDK logs in `adb logcat` filtered by `tag:android-sender`.
-
-#### Slint-doc references for M1
-
-- `draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/globals.mdx` — `Bridge.devices` is a global property, readable from any component.
-- `draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/repetition-and-data-models.mdx` — `for name[idx] in <expr>:` syntax.
-- `draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/functions-and-callbacks.mdx` — invoking a global callback from a touch area.
-
----
-
-### 4.2 M2 — Casting status badges (Cluster A1, abbreviated)
-
-**Goal:** when the user is casting, the casting page shows three live badges:
-"Receiver: <name>", "Encoder: <selected>", "Network: <local-addr>".
-
-This is exactly Cluster A1 from the Phase-8 split, but with two simplifications for MVP:
-
-- Push only **once** per cast session (on `Event::CaptureStarted`), not on a 5-second poll.
-- Don't bother with `BannerSeverity` (Cluster F) — keep severity inline.
-
-**File:** `senders/android/src/lib.rs`
-
-In the `Event::CaptureStarted` handler at line 787, after the `WhepSink::new(...)` succeeds and just before the `invoke_change_state(AppState::Casting)` call, push the badges:
-
-```rust
-// Right before: ui.global::<Bridge>().invoke_change_state(AppState::Casting);
-
-let receiver_name = self.active_device.as_ref().map(|d| d.name()).unwrap_or_default();
-let encoder_label = "Hardware (MediaCodec)".to_string();   // amcvidenc-* selected internally
-let network_label = self.local_address.as_ref().map(|a| a.to_string()).unwrap_or_default();
-
-self.ui_weak.upgrade_in_event_loop(move |ui| {
-    let items: Vec<StatusItem> = vec![
-        StatusItem {
-            label: "Receiver".into(),
-            value: receiver_name.into(),
-            severity: StatusSeverity::Info,
-        },
-        StatusItem {
-            label: "Encoder".into(),
-            value: encoder_label.into(),
-            severity: StatusSeverity::Info,
-        },
-        StatusItem {
-            label: "Network".into(),
-            value: network_label.into(),
-            severity: StatusSeverity::Info,
-        },
-    ];
-    let model = std::rc::Rc::new(slint::VecModel::from(items));
-    ui.global::<Bridge>().set_status_items(model.into());
-})?;
-```
-
-And in `Event::EndSession` / `Event::CaptureCancelled`, clear:
-
-```rust
-self.ui_weak.upgrade_in_event_loop(|ui| {
-    let empty = std::rc::Rc::new(slint::VecModel::<StatusItem>::from(Vec::<StatusItem>::new()));
-    ui.global::<Bridge>().set_status_items(empty.into());
-    ui.global::<Bridge>().invoke_change_state(AppState::Disconnected);
-})?;
-```
-
-**Bridge change** (one line):
-
-```diff
- // bridge.slint
- export global Bridge {
-     in property <[string]> devices: [];
-+    in property <[StatusItem]> status-items: [];
-     // …
- }
-```
-
-**Slint consumer** (in `pages/casting_page.slint`, replace the existing `mock-status-items` section):
+**After:**
 
 ```slint
-// Was:
-//   for item[idx] in root.mock-status-items: StatusPill { … }
-// Becomes:
-for item[idx] in Bridge.status-items: StatusPill {
-    label: item.label;
-    value: item.value;
-    severity: item.severity;
-}
-```
+if Bridge.devices.length > 0: VerticalLayout {
+    spacing: Theme.spacing-default;
 
-#### Why M2 matters for MVP
+    for device[idx] in Bridge.devices: Rectangle {
+        height: Theme.row-height + 18px;
 
-Without it, the casting page renders the same mock badges (e.g. "Receiver: Living Room TV") regardless of which receiver the user actually connected to. That's confusing. M2 is ~30 lines and makes the casting page tell the truth.
+        property <bool> lp-armed: false;
 
----
-
-### 4.3 M3 — Recover from MediaProjection denial
-
-**Symptom today:** if the user taps "Cancel" or "Don't allow" on the consent dialog, the JNI callback `nativeCaptureCancelled` fires, which is handled at `lib.rs:1303`. The handler emits `Event::CaptureCancelled` which routes to `AppState::Disconnected` and stops the cast. **This already works correctly!** — but only because of the explicit handler.
-
-**Verification:**
-
-```sh
-adb shell am start -n org.fcast.android.sender/.MainActivity
-# Tap the receiver, tap Cast, tap "Cancel" on the consent dialog.
-# Expected: page returns to ConnectView with the receiver still listed.
-# Verify in logcat:
-adb logcat android-sender:D *:S | grep -i 'capture\|state'
-# You should see:
-#   D android-sender: Screen capture was cancelled
-#   D android-sender: Handling event: CaptureCancelled
-#   …state transitions to Disconnected…
-```
-
-**If verification reveals the rollback is broken** (e.g. UI stays in WaitingForMedia), apply this defensive guard in `Event::CaptureCancelled`:
-
-```rust
-#[cfg(target_os = "android")]
-Event::CaptureCancelled => {
-    set_capture_active(false);
-    self.ui_weak.upgrade_in_event_loop(|ui| {
-        // Always go back to a deterministic state.
-        let empty = std::rc::Rc::new(slint::VecModel::<StatusItem>::from(Vec::<StatusItem>::new()));
-        ui.global::<Bridge>().set_status_items(empty.into());
-        ui.global::<Bridge>().invoke_change_state(AppState::Disconnected);
-    })?;
-    self.stop_cast(false).await?;
-}
-```
-
-(This is identical to the current code; if your audit shows missing rollback, the diff is empty — that means it already works and M3 is verification only.)
-
----
-
-### 4.4 M4 — Verify stop / disconnect cleanly
-
-**Goal:** ensure the user can press the cast page's Stop button and the
-app returns to a clean Disconnected state, with the receiver also
-returning to its idle screen.
-
-**Already wired** at `lib.rs:1030-1037`:
-
-```rust
-ui.global::<Bridge>().on_stop_casting({
-    let event_tx = event_tx.clone();
-    move || {
-        event_tx
-            .send(Event::EndSession { disconnect: true })
-            .unwrap();
+        ta := TouchArea {
+            changed pressed => {
+                if self.pressed {
+                    parent.lp-armed = true;
+                } else {
+                    parent.lp-armed = false;
+                }
+            }
+            clicked => {
+                Bridge.connect-receiver(device);
+            }
+        }
+        // …long-press timer, label rectangle…
     }
-});
+}
 ```
 
-And the `EndSession` handler at `lib.rs:644-652` calls `stop_cast(true)`
-which:
+Two changes:
 
-1. Calls `stopCapture()` JNI Java method (releases MediaProjection).
-2. Drops the `WhepSink`, which `shutdown()`s the GStreamer pipeline.
-3. Calls `device.disconnect()` to tell the receiver we're done.
+1. **Iterator source.** `root.mock-devices` (a page-local
+   `[ReceiverItem]`) is replaced with `Bridge.devices` (the real
+   `[string]` model pushed by Rust from `update_receivers_in_ui()`).
+2. **Click handler.** The placeholder comment is replaced with a real
+   call to `Bridge.connect-receiver(device)`. Because `Bridge.devices`
+   is `[string]` today, `device` is the receiver *name* — which matches
+   `on_connect_receiver`'s expected argument
+   (`senders/android/src/lib.rs:1800-1810`).
 
-**Verification:**
+Inside the row rectangle, you may need to swap `device.name` →
+`device` and remove any other fields that the old `ReceiverItem` struct
+exposed (`address`, `kind`, `is-default`) — those are not on
+`Bridge.devices`. See §4.3 for the post-MVP fix.
 
-```sh
-# While casting:
-adb logcat android-sender:D *:S | grep -i 'stop\|disconnect\|end'
-# Tap Stop on the cast page.
-# Expected sequence:
-#   D android-sender: Handling event: EndSession { disconnect: true }
-#   D android-sender: Stopping playback
-#   D android-sender: Disconnecting from active device
-#   D android-sender: Screen capture was stopped
+The "empty state" branch on `connect_page.slint:46` keys off
+`root.mock-empty || root.mock-devices.length == 0`. Switch the condition
+to `Bridge.devices.length == 0` so it stays in sync.
+
+### 4.2 Step 2: keep the long-press / context-menu intact
+
+The long-press timer at `senders/android/ui/pages/connect_page.slint:90-101` stores
+`device.id` and `device.name` into `root.context-receiver-id` /
+`root.context-receiver-name`. With `Bridge.devices` returning strings,
+adjust to:
+
+```slint
+triggered => {
+    parent.lp-armed = false;
+    root.context-receiver-id = device;
+    root.context-receiver-name = device;
+    root.context-menu-y = (parent.height * idx) + 100px;
+    root.show-context-menu = true;
+}
 ```
 
-If the receiver doesn't return to idle — most common cause is that
-`active_device.disconnect()` returns Ok but the FCast protocol disconnect
-hasn't propagated yet. The 100ms sleep at lib.rs:600 is a workaround for
-this. If you observe the receiver staying frozen, increase the sleep to
-500ms.
+This loses the distinction between *display name* and *stable id* for
+the context menu. That distinction matters for Phase 24 (rename / forget
+receiver) but **not** for MVP — the disconnect button at line 209 is
+already a documented no-op (`// UI-only: no-op. Phase 8 wires to
+Bridge.disconnect-receiver(id).`).
+
+### 4.3 Post-MVP cleanup (not required to ship the mirror)
+
+The reason `Bridge.devices` is `[string]` and not `[ReceiverItem]` is
+historical — see `senders/android/ui/bridge.slint:143-148`.
+
+After MVP, promote it to `[ReceiverItem]` (already declared at
+`bridge.slint:110-118`) and update both Rust's
+`update_receivers_in_ui()` and the connect-page iterator to use the
+rich struct. This is the **post-Phase-8 follow-up** — it does not block
+the MVP demo. Track it in the existing phase docs (see Phase 24 — Pair
+QR / receiver management).
+
+### 4.4 Verification
+
+After Step 1 + 2:
+
+1. Build: `cargo +nightly build -p fcast-sender-android --target …`
+   (or use the existing `xtask android-sender build` recipe).
+2. Run on a device with a receiver on the same Wi-Fi.
+3. Within ~5 s the receiver appears in the list.
+4. Tap it. UI must transition Connect → Connecting → SelectingSettings.
+5. Confirm resolution / framerate.
+6. Grant MediaProjection consent. UI must transition →
+   `Casting`. Phone screen renders on the receiver.
+7. Tap Stop. UI must return to `Disconnected`. No GStreamer warnings in
+   `adb logcat` other than benign ones.
+
+If any of these steps fail, see §6 for the diagnostic recipe.
 
 ---
 
-### 4.5 M5 — Wire `Bridge.app-version` (Cluster A2 — one line)
+## 5. Verifying the Phase-8 surface that was previously M2–M5
 
-**Goal:** the About page in `pages/help_page.slint` reads `Bridge.app-version` (per Phase 21's reimplement guide). Today it's never set, so it shows the default `""` (or whatever the page falls back to). One line in `android_main`:
+These are "free" verifications now that Phase 8 is landed — they confirm
+the work it shipped actually drives the cast UI correctly.
 
-```rust
-// In android_main, right after `let ui = MainWindow::new().unwrap();`:
-ui.global::<Bridge>().set_app_version(env!("CARGO_PKG_VERSION").into());
+### 5.1 Status overlay (formerly M2)
+
+**Expected:** When `Event::CaptureStarted` fires (`lib.rs:2253`),
+`Bridge.status-items` (`bridge.slint:149`) is populated with at least
+three `StatusItem`s (receiver / encoder / network). `status_overlay.slint`
+reads these.
+
+**Verify:**
+
+```bash
+grep -n 'on_capture_started\|Bridge::status_items\|status-items:' \
+     senders/android/src/lib.rs senders/android/ui/*.slint
 ```
 
-**Bridge change:**
+You should see `Bridge.status-items` declared in `bridge.slint:149` and
+referenced from `components/status_overlay.slint`. The Rust push happens
+in the `Event::CaptureStarted` branch of `handle_event`.
 
-```diff
- // bridge.slint
- export global Bridge {
-     in property <[string]> devices: [];
-+    in property <string> app-version: "";
-     // …
- }
+If you see *zero* badges on the casting overlay during a live mirror,
+the issue is either:
+
+- The Rust push is gated by `cfg!(debug_assertions)` or similar — check
+  the `Event::CaptureStarted` handler at `lib.rs:875+`.
+- The `components/status_overlay.slint` for-loop is iterating a stale
+  page-local `mock-status-items` model. If so, replace with
+  `Bridge.status-items` (same pattern as §4.1).
+
+### 5.2 App version (formerly M5)
+
+**Expected:** The About screen shows the real version. `Bridge.app-version`
+(`bridge.slint:151`) is set from `env!("CARGO_PKG_VERSION")` during
+startup.
+
+**Verify:** open the About panel. The version must match
+`senders/android/Cargo.toml`'s `[package].version`.
+
+If it shows `"0.0.1-dev"` or empty, the Rust push line was not added in
+the Phase-8 work for Cluster A2. Search for `app_version` /
+`set_app_version` / `CARGO_PKG_VERSION` in `lib.rs` and add a one-line
+push during `android_main`.
+
+### 5.3 MediaProjection consent denial → rollback (formerly M3)
+
+**Expected:** if the user denies the MediaProjection dialog (taps
+Cancel), the app rolls back to `SelectingSettings` (or
+`Disconnected` if the device disconnected). No partial cast state.
+
+**Verify:** start a cast, then tap Cancel on the system dialog. The
+event chain should be:
+
+```
+onActivityResult(resultCode != RESULT_OK)
+  → Java does NOT broadcast ACTION_MEDIA_PROJECTION_STARTED
+  → Rust does NOT receive Event::CaptureStarted
+  → AppState rolls back to SelectingSettings via the timeout path
 ```
 
-That's it. The about page's existing `Text { text: Bridge.app-version; }` consumer will Just Work.
+If the UI gets stuck on a black `WaitingForMedia` screen, the
+`Application` timeout handler (`lib.rs:855+`) is not firing. Surface
+that as a separate bug — not in scope for MVP.
+
+### 5.4 Stop button → clean disconnect (formerly M4)
+
+**Expected:** Tap Stop while casting → mirror ends within ~1 s; app
+returns to `Disconnected`.
+
+**Verify:**
+
+```
+adb logcat | grep -E '(EndSession|stop_cast|stopCapture|disconnect)'
+```
+
+Trace from `on_stop_casting` (`lib.rs:1822`) → `Event::EndSession` →
+`stop_cast(true)` (`lib.rs:682`) → Java `stopCapture()`
+(`MainActivity.java:801`).
+
+If the UI hangs in `Casting` after Stop, check the FCast device
+`disconnect()` future — most likely it's awaiting a TCP write that's
+already dead. Adding a timeout to `device.disconnect()` is post-MVP.
 
 ---
 
-## 5. After MVP — recommended phase order
+## 6. Diagnostics — what to look at when the cast fails
 
-Once M1–M5 are merged and you have a shippable MVP, here is the **fastest route** to a feature-complete app, ordered by user-perceived value vs. implementation cost. This is **separate** from the comprehensive Phase 12-27 work; it's the subset that earns its keep on the MVP.
+The cast loop has six points where things commonly break. Each maps to a
+specific source file with a one-line `adb logcat` filter.
 
-### Tier 1 — High value, small diff (each ~1-2 days)
-
-| Order | Phase | Why |
+| Symptom | First check | File / line |
 |---|---|---|
-| 1 | **Phase 8 / Cluster A** (read-only view models) | Status badges (M2 above is the first half), app-version (M5 above), network interfaces, recording state. Pure additions to bridge + Rust pushes; no UI changes. ~150 lines. After Cluster A, the app **looks live** instead of looking like a mockup. |
-| 2 | **Phase 8 / Cluster F** (banner) | Single source of truth for the success/warning/error banner that appears across multiple pages. Backup-reset, Wi-Fi-Aware toggle, Cast-history-cleared all need it. ~70 lines. Unblocks Cluster B and D. |
-| 3 | **Phase 8 / Cluster B** (single-page state) | Audio settings, camera settings, recording controls, lifecycle modes, Wi-Fi-Aware all become real (Slint writes directly to `Bridge.<x>`, Rust reads at cast-start). ~250 lines. Audio settings actually shape the cast bitrate after this. |
+| No receivers ever appear | mDNS scan running? Java side `FCastDiscoveryListener` started? | `MainActivity.java` (look for `NsdManager.discoverServices`) |
+| Tapping receiver does nothing | **The MVP gap.** §4.1 above. | `connect_page.slint:85-88` |
+| Stuck on Connecting | FCast SDK `connect()` future never resolves | `lib.rs:711-720` |
+| Stuck on SelectingSettings | `Bridge.start-casting(...)` not invoked from UI | `bridge.slint:236`, look for caller in `pages/settings_*.slint` |
+| MediaProjection dialog never appears | JNI `startScreenCapture` not reached | `lib.rs:1011-1020`, `MainActivity.java:720` |
+| Black on receiver / no frames | YUV conversion shader bug or FRAME_PAIR contention | `MainActivity.java:591`, `lib.rs:71` |
+| Receiver shows error | WHEP signaller didn't bind, or FCast `device.load` failed | `lib.rs:754, 778` |
+| Migration smoke quick-action fails | NodeManager state machine / GStreamer caps | `runtime.rs`, `node_manager.rs:316` |
 
-### Tier 2 — Medium value, medium diff (~1 week each)
+### 6.1 Smoke testing the migration runtime independently
 
-| Order | Phase | Why |
-|---|---|---|
-| 4 | **Phase 8 / Cluster C** | List mutations: bitrate presets, quick-actions unification (the **B12 fix**), macros, debug log. ~400 lines. After this, the Settings panels are interactive instead of decorative. |
-| 5 | **Phase 8 / Cluster D + E** | Backup/import/reset + cast history + invariant docs. ~200 lines. After this, Phase 8 is fully done. |
-| 6 | **TODO.codecs / P0-1** (encoder fallback chain) | `select_video_encoder()` rank-based amcvidenc discovery. **Required only if you want RTMP/UDP/LocalFile destinations to work.** WHEP-only flows already work without this. |
+Even before fixing M1, you can verify Surface B end-to-end on a debug
+build:
 
-### Tier 3 — Lower priority but high-impact features
+1. Launch the app.
+2. Open the quick-action bar.
+3. Tap **"Smoke Graph"** (only visible in `cfg!(debug_assertions)`).
+4. `Bridge.test-status` (`bridge.slint:201`) updates to
+   `PASS smoke ok source=… mixer=… link=… nodes=…` or `FAIL …`.
 
-| Order | Phase | Why |
-|---|---|---|
-| 7 | **Phase 11 — Real platform plumbing** | Replace the placeholder `BatteryManager` / `ConnectivityManager` / `WifiAware` / `NetworkInterface` pushes Phase 8 stubs out with real JNI integrations. After this, status badges reflect reality. |
-| 8 | **Camera capture (Phase 15 + Rust)** | Actual `Camera2` / `CameraX` JNI wiring. The UI already has the cycler. ~500 lines + new JNI surface. |
-| 9 | **System audio mirroring** | Requires API 29+ MediaProjection audio capture path. New `AudioPlaybackCaptureConfiguration`, new `AudioRecord`, new `appsrc`. Not strictly needed for "screen mirror" but elevates the product. |
-| 10 | **Local recording (Phase 23)** | `MediaRecorder` integration writing to a file alongside the WHEP stream. ~300 lines. |
-| 11 | **Phases 21 / 26 (still-unbuilt UI)** | Help/about/attributions, debug log viewer. ~400 lines each. |
+If it returns `PASS`, the migration runtime works end-to-end from JNI
+through `dispatch` through GStreamer pipeline build through teardown —
+i.e. Surface B is shippable today.
 
-### Tier 4 — Speculative / out-of-scope until product direction firms up
+If you have `MIGRATION_COMMAND_BIND=127.0.0.1:7890` set, you can hit it
+directly:
 
-Phases 28-48 (chat, streaming destinations, scenes, peripherals,
-media-player). Defer until you have enough signal that users want these.
+```bash
+curl -X POST http://127.0.0.1:7890/command \
+     -d '{"createvideogenerator":{"id":"vg-1"}}'
+curl -X POST http://127.0.0.1:7890/command \
+     -d '{"createmixer":{"id":"mx-1","audio":false,"video":true}}'
+curl -X POST http://127.0.0.1:7890/command \
+     -d '{"connect":{"link_id":"l-1","src_id":"vg-1","sink_id":"mx-1","audio":false,"video":true}}'
+curl -X POST http://127.0.0.1:7890/command \
+     -d '{"start":{"id":"mx-1"}}'
+curl -X POST http://127.0.0.1:7890/command \
+     -d '{"start":{"id":"vg-1"}}'
+curl -X POST http://127.0.0.1:7890/command -d '{"getinfo":{}}' | jq .
+```
+
+The `getinfo` response is a `CommandResult::Info(Info { nodes: ... })`
+listing two nodes in `state: "started"`.
 
 ---
 
-## 6. Quick-reference for "I want to add a new <X> wiring"
+## 7. Recommended order **after** MVP
 
-When you need to wire a new property or callback after MVP:
+Once §4 ships and §5 is verified, the remaining work splits into four
+tiers. **Tier 1 is the architectural unification** — folding the two
+functional surfaces together. Tiers 2-4 are feature breadth.
 
-| You want to … | Pattern |
+### Tier 1 — surface unification (the **first** post-MVP architectural goal)
+
+These are the changes that fold the screen-mirror cast loop into the
+migration runtime, so that there is a single source of truth for "what
+is being captured, mixed, and sent where".
+
+1. **`SourceNode::ScreenCapture` variant.** Add a new node type that
+   exposes the existing JNI / OpenGL / FRAME_PAIR pipeline as a
+   `NodeRecord::Source`. The implementation lives next to
+   `nodes/source.rs` but feeds `appsrc` directly from `FRAME_PAIR`
+   rather than building a `fallbacksrc`/`uridecodebin`. Smallest change:
+   new file `nodes/screen_capture.rs` + new `NodeRecord` variant + new
+   `Command::CreateScreenCaptureSource { id, width, height, fps }`.
+
+2. **`DestinationFamily::Whep` variant.** Add a destination that wraps
+   `BaseWebRTCSink` + `WhepServerSignaller` as a destination family.
+   Smallest change: extend the `match family` in
+   `nodes/destination.rs::build_live_pipeline` with a `Whep` arm that
+   builds the existing pipeline. After this, the cast loop is:
+
+   ```json
+   {"createscreencapturesource":{"id":"cap-1","width":1280,"height":720,"fps":30}}
+   {"createdestination":{"id":"whep-1","family":"Whep"}}
+   {"connect":{"link_id":"l-1","src_id":"cap-1","sink_id":"whep-1"}}
+   {"start":{"id":"cap-1"}}
+   {"start":{"id":"whep-1"}}
+   ```
+
+3. **Replace direct `Event::StartCast` handling with graph commands.**
+   The Rust state machine still owns the FCast SDK side (connect /
+   disconnect / load) but the GStreamer side is fully expressed as
+   migration-runtime commands. This is the largest of the three changes
+   in this tier — touches `handle_event` for `StartCast` and
+   `EndSession`, plus the `Event::CaptureStarted` push of
+   `Bridge.status-items`.
+
+Together, Tier 1 collapses Surface A into Surface B and removes the
+"two functional surfaces" framing for good.
+
+### Tier 2 — completeness of the screen-mirror path
+
+- **Phase 24** — Pairing QR + receiver management. Adds the disconnect
+  / rename / forget actions on top of Phase 8 / Cluster D's
+  `ConfirmDialog`.
+- **Phase 8 / Cluster B5** — Wi-Fi Aware toggle.
+- **Phase 23** — Local recording. Trivially expressible as a second
+  `DestinationFamily::LocalFile` node hanging off the same
+  `ScreenCapture` source once Tier 1 is in.
+
+### Tier 3 — feature breadth
+
+- **Phase 15** — Camera capture (new `SourceNode::Camera` variant).
+- **Phase 14** — Audio source selection.
+- **Phase 16** — Bitrate presets (control points on the WHEP
+  destination's encoder).
+- **Phase 17 / 25** — Macros (composite commands that issue a
+  graph-command sequence).
+- **Phase 21 / 22** — Debug video / network detail pages (already wired
+  by Phase 8 / Cluster A3-A5, just need polish).
+
+### Tier 4 — defer indefinitely
+
+Phases 28–48 (chat / scenes / streaming destinations / peripherals /
+media player) sit downstream of architectural decisions that aren't
+locked yet. Don't pull them into MVP scope.
+
+---
+
+## 8. Out of scope
+
+This guide does **not** include:
+
+1. **Architectural unification of Surfaces A and B** (§7 Tier 1). The
+   MVP ships with the legacy cast path. Migration runtime is parallel.
+2. **WHEP support inside the migration runtime.** Not in
+   `DestinationFamily` (`protocol.rs:126-138`).
+3. **MediaProjection as a `SourceNode`.** Not in `NodeRecord`
+   (`node_manager.rs`).
+4. **Promotion of `Bridge.devices` to `[ReceiverItem]`.** See §4.3 —
+   loses display-name / id distinction but doesn't break the MVP.
+5. **The 18 Phase-8 clusters that already landed.** See `PHASE-8-Section-*.md`
+   for those.
+6. **The 19 reimplement guides** for individual UI pages
+   (`PHASE-9` … `PHASE-27`). They make the app feel finished. They
+   do **not** affect whether mirroring works.
+7. **Any feature not in §1.1.** Audio settings, camera, recording,
+   macros, debug log, cast history, bitrate presets, pairing QR — all
+   deferred.
+
+---
+
+## 9. Stop conditions
+
+The MVP is "done" when **both** of the following hold:
+
+### 9.1 Surface A (screen-mirror cast loop)
+
+1. App launches.
+2. Within 5 s, at least one receiver is listed on the connect page.
+3. Tapping the receiver transitions:
+   `Disconnected → Connecting → SelectingSettings`.
+4. Confirming settings + granting MediaProjection consent transitions:
+   `SelectingSettings → WaitingForMedia → Casting`.
+5. The receiver displays the phone's screen at the selected resolution
+   / framerate within 2 s of `Casting`.
+6. Tapping Stop transitions `Casting → Disconnected` within 1 s.
+7. `adb logcat` shows no `ERROR`-level lines from
+   `org.fcast.android.sender` or `tracing_gstreamer` during the run.
+8. Re-tapping the receiver works (no zombie state).
+
+### 9.2 Surface B (migration runtime)
+
+1. `Bridge.test-status` shows `PASS smoke ok …` after tapping the
+   `Smoke Graph` debug quick-action.
+2. `MIGRATION_COMMAND_BIND=127.0.0.1:7890` curl flow in §6.1 returns
+   `result.info.nodes` with two entries in `state: "started"`.
+3. `migration::runtime::shutdown_graph_runtime()` runs on app exit
+   without leaking GStreamer pipelines (verify via
+   `gst-launch-1.0 --gst-debug-no-color` traces).
+
+If any of these fail, file a bug — do **not** mark MVP shipped.
+
+---
+
+## 10. Cross-reference index
+
+| Topic | Live source | Companion phase guide |
+|---|---|---|
+| Bridge globals (canonical) | `senders/android/ui/bridge.slint` | `PHASE-8-Section-2-cluster-A-readonly-view-models.md` etc. |
+| Application state machine | `lib.rs:1025-1058`, `lib.rs:734-925` | `PHASE-8-implementation-instructions.md` |
+| Connect page (the **M1 gap**) | `pages/connect_page.slint:69-88` | `PHASE-6-receiver-list.md` |
+| FRAME_PAIR / FRAME_POOL | `lib.rs:71-76` | — |
+| MediaProjection / OpenGL | `MainActivity.java:206-845` | — |
+| WHEP signaller | `lib.rs:754, 778` | `sdk/mirroring_core/src/transmission.rs` |
+| Migration runtime entry | `lib.rs:1035, 2100, 2120` | — |
+| Migration NodeManager | `migration/node_manager.rs` | — |
+| Migration command protocol | `migration/protocol.rs` | — |
+| Migration MediaBridge | `migration/media_bridge.rs` | — |
+| Migration smoke test | `lib.rs:418-481` | — |
+| Phase 8 cluster split | `PHASE-8-Section-0` … `Section-9` | — |
+| UI bug review (2026-05-10) | `UI-REVIEW-2026-05-10.md` | — |
+
+---
+
+## Slint-doc references
+
+These are the upstream docs that justify the patterns used in §4. All
+paths verified against `draft/slint-ui/docs/astro/src/content/docs/`.
+
+| Pattern in §4 | Slint doc |
 |---|---|
-| Push read-only data Rust→Slint | `in property <T> X` in bridge.slint; Rust calls `set_X(...)` via `ui_weak.upgrade_in_event_loop`. See A1-A5 in [`PHASE-8-Section-2-cluster-A-readonly-view-models.md`](./PHASE-8-Section-2-cluster-A-readonly-view-models.md). |
-| Two-way state where Slint mutates and Rust reads on demand | `in-out property <T> X` in bridge.slint; Slint writes directly; Rust reads via `ui.global::<Bridge>().get_X()` at action time. See B1-B2 in [`PHASE-8-Section-3-cluster-B-single-page-state.md`](./PHASE-8-Section-3-cluster-B-single-page-state.md). |
-| Slint→Rust action with no return value | `callback X(...)` in bridge.slint; Rust binds via `ui.global::<Bridge>().on_X(\|args\| { ... })`. See M1 above (`Bridge.connect-receiver`). |
-| Push a list and let Slint mutate via callbacks | `in property <[T]> X` + `callback set-X-Y(string, …)` etc.; Rust holds `Arc<Mutex<Vec<T>>>` + a `push` closure. See C1-C5 in [`PHASE-8-Section-4-cluster-C-list-mutations.md`](./PHASE-8-Section-4-cluster-C-list-mutations.md). |
-| Add a new JNI method (Java→Rust) | Add a `pub extern "C" fn Java_<package>_<class>_<method>` block in `lib.rs` mirroring an existing one (mDNS handlers at lib.rs:1153 or capture handlers at lib.rs:1275 are good templates). Declare `native <returntype> <method>(...)` in the Java side. |
-| Add a new Rust→Java method | Use `vm.get_env()?.call_method(activity, "methodName", "(II)V", &[arg.into()])` (lib.rs:898 is the canonical example). |
+| `for device[idx] in Bridge.devices` over a `[string]` model | `draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/repetition-and-data-models.mdx` |
+| `Bridge.connect-receiver(device)` callback invocation | `draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/functions-and-callbacks.mdx` |
+| Reading `Bridge.devices.length` in `if` | `draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/expressions-and-statements.mdx` |
+| `TouchArea`, `changed pressed` | `draft/slint-ui/docs/astro/src/content/docs/reference/std-widgets/views/scrollview.mdx` (and the live `components/buttons.slint` patterns) |
+| Long-press `Timer` semantics | `draft/slint-ui/docs/astro/src/content/docs/reference/timer.mdx` |
+| Bridge as a `global` singleton | `draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/globals.mdx` |
 
----
-
-## 7. What MVP intentionally does NOT do
-
-A list to manage expectations:
-
-- **No multi-receiver casting.** One receiver at a time. The state machine
-  enforces this — `Event::ConnectToDevice` while `active_device` is Some
-  will silently overwrite, with no failure handling.
-- **No reconnection on Wi-Fi loss.** If Wi-Fi drops mid-cast, the WHEP
-  stream goes dead and the UI stays in `Casting` state until the user
-  taps Stop. Phase 11 will add `ConnectivityManager` listening; until
-  then, manual stop is the workflow.
-- **No background casting.** Casting runs in the activity's lifecycle.
-  If the user backgrounds the app, the foreground service keeps capture
-  going (see `ScreenCaptureService.java`) but the UI thread sleeps. This
-  is fine for MVP — most users keep the phone on for short casts.
-- **No QR-code pairing.** The UI exposes a `scan-qr` quick action (Phase 24)
-  that calls into Java's `scanQr` method and routes the result back via
-  `nativeQrScanResult`. This is wired and works, but it's not on the
-  critical MVP path — direct mDNS discovery is enough.
-- **No audio.** As above. System audio capture requires API 29+ work
-  not yet present.
-- **Screen recording / DRM-protected content.** Android's MediaProjection
-  blocks DRM-protected surfaces by design. Netflix etc. will appear black
-  on the receiver. That's OS-level, not fixable in this app.
-
----
-
-## 8. Stop conditions for MVP
-
-You're done with MVP when **every** statement below is true:
-
-- [ ] **M1 merged.** Connect-page list shows real receivers; tapping a row connects.
-- [ ] **End-to-end live cast** verified with at least one real receiver: the user taps a receiver, taps Cast, grants consent, sees their screen on the receiver within ~5 seconds.
-- [ ] **Stop works.** Tapping Stop on the cast page returns the UI to Disconnected and the receiver to idle within ~2 seconds.
-- [ ] **Cancel works.** Tapping Cancel on the MediaProjection consent dialog returns the UI to ConnectView (state Disconnected), with the receiver still listed.
-- [ ] **No crashes** during a 5-minute cast on a mid-range device (Pixel 4a, Galaxy S10, etc.).
-- [ ] **APK builds green** with `cargo build -p android-sender --release && ./gradlew :app:assembleRelease`.
-- [ ] **`adb logcat` clean** during a cast: no panics, no `error!` lines, no `tracing::warn` from the GStreamer pipeline.
-
-M2-M5 are recommended polish; if any are deferred, document the deferral
-in the release notes ("status badges show static placeholder text — wired
-in next release").
-
----
-
-## 9. Cross-reference index
-
-This guide intersects with several other docs in `phases/`:
-
-| If you want… | Read… |
-|---|---|
-| The full Phase-8 wiring (every property, every callback) | [`PHASE-8-implementation-instructions.md`](./PHASE-8-implementation-instructions.md) (TOC) + the `PHASE-8-Section-*.md` series. |
-| The reasoning behind cluster ordering (F → A → B → C → D → E) | [`PHASE-8-bridge-migration-plan.md`](./PHASE-8-bridge-migration-plan.md). |
-| The original Phase-8 "what we're building" spec | [`PHASE-8-rust-bridge.md`](./PHASE-8-rust-bridge.md). |
-| Step-by-step UI sub-page guides (12-27) | `PHASE-{N}-reimplement-instructions.md`. |
-| Codec / encoder / RTMP work (TODO.codecs) | `senders/android/TODO.codecs/README.md`. |
-| Live phase-status snapshot | [`STATUS.md`](./STATUS.md). |
-
----
-
-## Slint-doc references used (M1-M5)
-
-All paths are relative to the repo root and verified against the live
-tree on the current branch.
-
-- `draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/globals.mdx` — Bridge as global singleton.
-- `draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/properties.mdx` — `in` vs `in-out` property direction.
-- `draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/repetition-and-data-models.mdx` — `for x in <expr>:` rendering.
-- `draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/functions-and-callbacks.mdx` — invoking a global callback from a TouchArea.
-- `draft/slint-ui/docs/astro/src/content/docs/guide/language/coding/structs-and-enums.mdx` — `StatusItem` struct field access.
-
-GStreamer-side and JNI-side claims are grounded in the live tree:
-
-- `senders/android/src/lib.rs` — Rust state machine + JNI surface.
-- `senders/android/app/src/main/java/org/fcast/android/sender/MainActivity.java` — Java capture pipeline.
-- `senders/android/app/jni/Android.mk` — GStreamer plugin bundle.
-- `sdk/mirroring_core/src/transmission.rs` — WhepSink + create_webrtcsink.
-- `sdk/mirroring_core/src/whep_signaller.rs` — WHEP server-side signalling.
+(Same paths previously verified during the Phase-8 split, see
+`PHASE-8-Section-0-preflight.md` for the verification recipe.)
