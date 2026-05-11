@@ -162,6 +162,24 @@ export global Bridge {
     in-out property <string> selected-receiver-id;
     in-out property <string> selected-receiver-name;
 
+    // ── Backup / reset (Phase 8 / Cluster D1) ───────────────────────────
+    callback export-settings();
+    callback import-settings();
+    callback reset-settings();
+    callback clear-cast-history();
+    callback clear-known-receivers();
+
+    // ── Cast history (Phase 8 / Cluster D2) ─────────────────────────────
+    in property <[CastHistoryEntry]> history: [];
+    in property <CastHistoryEntry> selected-history-entry;
+    callback selected-history-id-changed(string);
+    changed selected-history-id => {
+        Bridge.selected-history-id-changed(Bridge.selected-history-id);
+    }
+    callback clear-history();
+    callback delete-history-entry(string);
+    callback recast(string);                          // (entry-id)
+
     // ── Callbacks (Slint → Rust) ─────────────────────────────────────────
     callback connect-receiver(string);
     callback start-casting(scale-width: int, scale-height: int, max-framerate: int);

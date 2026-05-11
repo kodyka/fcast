@@ -16,19 +16,6 @@ import { TextButton } from "../components/buttons.slint";
 import { ConfirmDialog } from "../components/confirm_dialog.slint";
 
 export component CastHistoryPage inherits Rectangle {
-    in-out property <[CastHistoryEntry]> mock-history: [
-        { id: "h1", receiver: "Living Room TV",
-          started-at: "Today 19:42",     duration-s: 5400, status: "Completed" },
-        { id: "h2", receiver: "Office Display",
-          started-at: "Today 11:15",     duration-s: 600,  status: "Completed" },
-        { id: "h3", receiver: "Kitchen Chromecast",
-          started-at: "Yesterday 22:08", duration-s: 30,   status: "Cancelled" },
-        { id: "h4", receiver: "Living Room TV",
-          started-at: "Yesterday 20:33", duration-s: 7200, status: "Completed" },
-        { id: "h5", receiver: "Office Display",
-          started-at: "Mon 09:50",       duration-s: 0,    status: "Failed"    },
-    ];
-
     in-out property <bool> show-clear-confirm: false;
 
     width: 100%;
@@ -93,7 +80,7 @@ export component CastHistoryPage inherits Rectangle {
                 spacing: Theme.spacing-default;
                 padding: Theme.padding-screen;
 
-                if root.mock-history.length == 0: Rectangle {
+                if Bridge.history.length == 0: Rectangle {
                     height: 80px;
                     background: Theme.surface-card;
                     border-radius: Theme.radius-card;
@@ -105,7 +92,7 @@ export component CastHistoryPage inherits Rectangle {
                     }
                 }
 
-                for entry in root.mock-history: Rectangle {
+                for entry in Bridge.history: Rectangle {
                     height: 72px;
                     border-radius: Theme.radius-card;
                     background: row-ta.pressed
@@ -180,7 +167,7 @@ export component CastHistoryPage inherits Rectangle {
         confirm-label: @tr("Clear");
         destructive: true;
         confirmed => {
-            root.mock-history = [];
+            Bridge.clear-history();
             root.show-clear-confirm = false;
         }
         dismissed => {

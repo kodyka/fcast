@@ -1025,6 +1025,27 @@ impl Application {
     }
 }
 
+fn default_quick_actions() -> Vec<crate::QuickAction> {
+    let mut actions = vec![
+        crate::QuickAction { id: "settings".into(),   title: "Settings".into(),    enabled: true,  active: false, is_macro: false },
+        crate::QuickAction { id: "debug".into(),      title: "Debug".into(),       enabled: true,  active: false, is_macro: false },
+        crate::QuickAction { id: "codec-test".into(), title: "Codec test".into(),  enabled: true,  active: false, is_macro: false },
+        crate::QuickAction { id: "scan-qr".into(),    title: "Scan QR".into(),     enabled: true,  active: false, is_macro: false },
+        crate::QuickAction { id: "record".into(),     title: "Record".into(),      enabled: true,  active: false, is_macro: false },
+        crate::QuickAction { id: "pair".into(),       title: "Pair".into(),        enabled: true,  active: false, is_macro: false },
+        crate::QuickAction { id: "bitrate".into(),    title: "Bitrate".into(),     enabled: true,  active: false, is_macro: false },
+    ];
+    if cfg!(debug_assertions) {
+        actions.extend([
+            crate::QuickAction { id: "migrated-server".into(), title: "Migrated srv".into(), enabled: true, active: false, is_macro: false },
+            crate::QuickAction { id: "test-getinfo".into(),    title: "GetInfo".into(),      enabled: true, active: false, is_macro: false },
+            crate::QuickAction { id: "test-crossfade".into(),  title: "Crossfade".into(),    enabled: true, active: false, is_macro: false },
+            crate::QuickAction { id: "test-smoke".into(),      title: "Smoke Graph".into(),  enabled: true, active: false, is_macro: false },
+        ]);
+    }
+    actions
+}
+
 // TODO: handle errs
 #[cfg(target_os = "android")]
 #[unsafe(no_mangle)]
@@ -1039,22 +1060,56 @@ fn android_main(app: PlatformApp) {
 
     let ui = MainWindow::new().unwrap();
 
-
-    let mut actions = vec![
-        QuickAction { id: "scan-qr".into(), title: "Scan QR".into(), enabled: true, active: false, is_macro: false },
-    ];
     let show_debug = cfg!(debug_assertions);
     ui.global::<Bridge>().set_show_debug(show_debug);
-    if show_debug {
-        actions.extend([
-            QuickAction { id: "migrated-server".into(), title: "Start Server".into(), enabled: true, active: false, is_macro: false },
-            QuickAction { id: "test-getinfo".into(),    title: "GetInfo".into(),      enabled: true, active: false, is_macro: false },
-            QuickAction { id: "test-crossfade".into(),  title: "Crossfade".into(),    enabled: true, active: false, is_macro: false },
-            QuickAction { id: "test-smoke".into(),      title: "Smoke Graph".into(),  enabled: true, active: false, is_macro: false },
-        ]);
-    }
-    let model = std::rc::Rc::new(slint::VecModel::from(actions));
-    ui.global::<Bridge>().set_quick_actions(model.into());
+
+    let bar_actions = Arc::new(Mutex::new(default_quick_actions()));
+
+    let push_bar = {
+        let bar_actions = bar_actions.clone();
+        let ui_weak = ui.as_weak();
+        move || {
+            let snap = bar_actions.lock().unwrap().clone();
+            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                ui.global::<Bridge>().set_quick_actions(
+                    std::rc::Rc::new(slint::VecModel::from(snap)).into(),
+                );
+            });
+        }
+    };
+    push_bar();
+
+    let history: Arc<Mutex<Vec<crate::CastHistoryEntry>>> = Arc::new(Mutex::new(vec![
+        crate::CastHistoryEntry {
+            id: "h1".into(), receiver: "Living Room TV".into(),
+            started_at: "Today 12:34".into(), duration_s: 765,
+            status: "Completed".into(),
+        },
+        crate::CastHistoryEntry {
+            id: "h2".into(), receiver: "Bedroom TV".into(),
+            started_at: "Yesterday 22:10".into(), duration_s: 68,
+            status: "Cancelled".into(),
+        },
+        crate::CastHistoryEntry {
+            id: "h3".into(), receiver: "Office Mac".into(),
+            started_at: "Yesterday 09:00".into(), duration_s: 1920,
+            status: "Completed".into(),
+        },
+    ]));
+
+    let push_history = {
+        let history = history.clone();
+        let ui_weak = ui.as_weak();
+        move || {
+            let snap = history.lock().unwrap().clone();
+            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                ui.global::<Bridge>().set_history(
+                    std::rc::Rc::new(slint::VecModel::from(snap)).into(),
+                );
+            });
+        }
+    };
+    push_history();
 
     let runtime = tokio::runtime::Runtime::new().unwrap();
 

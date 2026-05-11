@@ -61,11 +61,11 @@ export component BackupResetPage inherits Rectangle {
     // callback based on the pending-action.
     function on-confirm() {
         if (root.pending-action == "reset-all") {
-            root.show-banner(@tr("Settings reset (placeholder)."));
+            Bridge.reset-settings();
         } else if (root.pending-action == "clear-history") {
-            root.show-banner(@tr("Cast history cleared (placeholder)."));
+            Bridge.clear-cast-history();
         } else if (root.pending-action == "clear-receivers") {
-            root.show-banner(@tr("Known receivers cleared (placeholder)."));
+            Bridge.clear-known-receivers();
         }
         root.pending-action = "";
     }
@@ -142,14 +142,14 @@ export component BackupResetPage inherits Rectangle {
                         title: @tr("Export settings to file");
                         value: "";
                         clicked => {
-                            root.show-banner(@tr("Exported to ~/fcast-backup.json (placeholder)."));
+                            Bridge.export-settings();
                         }
                     }
                     SettingsValueRow {
                         title: @tr("Import settings from file");
                         value: "";
                         clicked => {
-                            root.show-banner(@tr("Settings imported (placeholder)."));
+                            Bridge.import-settings();
                         }
                     }
                 }
