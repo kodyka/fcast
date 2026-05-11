@@ -798,7 +798,7 @@ feat(android): Phase 8 / C5 — debug log clear via Bridge.clear-log-entries
 
 ## 4.7 Exit criteria for Section 4
 
-- [ ] All 4 items wired (C1, [x] C2, C4, C5)
+- [x] All 4 items wired (C1 (done), C2, C4, C5)
 - [x] **B12 visually verified on-device:** the bar shows the same actions the user customised on the Quick-actions page
 - [x] No `mock-quick-actions`, `mock-bar-actions`, `mock-presets`, `mock-macros`, `mock-macro-edit-id` anywhere in `senders/android/ui/`
 - [ ] `Bridge.macro-edit-id` (no `mock-` prefix)

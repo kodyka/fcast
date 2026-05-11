@@ -8,7 +8,7 @@
 //
 // Real persistence (writing edited presets back to a global model) is
 // deferred to Phase 8. This page operates on a self-contained
-// `mock-presets` array; the edit page does NOT mutate it.
+// `Bridge.presets` array; the edit page does NOT mutate it.
 //
 // Slint docs ref:
 //   draft/slint-ui/docs/astro/src/content/docs/reference/std-widgets/views/scrollview.mdx
@@ -20,37 +20,9 @@ import { Theme } from "../theme.slint";
 import { TextButton, PrimaryButton } from "../components/buttons.slint";
 
 export component BitratePresetsPage inherits Rectangle {
-    // ── UI-only stub state ──────────────────────────────────────────────
-    in-out property <[BitratePreset]> mock-presets: [
-        { id: "low",  name: "Low",     bitrate-kbps: 1500,  active: false },
-        { id: "med",  name: "Medium",  bitrate-kbps: 4000,  active: true  },
-        { id: "high", name: "High",    bitrate-kbps: 8000,  active: false },
-        { id: "max",  name: "Maximum", bitrate-kbps: 15000, active: false },
-    ];
-
     width: 100%;
     height: 100%;
     background: Theme.surface-primary;
-
-    // Reassigns the entire array with one row marked active. Mutating an
-    // element field in place is NOT observed by Slint's reactive system —
-    // see "Gotcha 7" below.
-    function select(id: string) {
-        root.mock-presets = [
-            { id: root.mock-presets[0].id, name: root.mock-presets[0].name,
-              bitrate-kbps: root.mock-presets[0].bitrate-kbps,
-              active: root.mock-presets[0].id == id },
-            { id: root.mock-presets[1].id, name: root.mock-presets[1].name,
-              bitrate-kbps: root.mock-presets[1].bitrate-kbps,
-              active: root.mock-presets[1].id == id },
-            { id: root.mock-presets[2].id, name: root.mock-presets[2].name,
-              bitrate-kbps: root.mock-presets[2].bitrate-kbps,
-              active: root.mock-presets[2].id == id },
-            { id: root.mock-presets[3].id, name: root.mock-presets[3].name,
-              bitrate-kbps: root.mock-presets[3].bitrate-kbps,
-              active: root.mock-presets[3].id == id },
-        ];
-    }
 
     VerticalLayout {
         // ── Header ──────────────────────────────────────────────────────
@@ -80,7 +52,7 @@ export component BitratePresetsPage inherits Rectangle {
                 spacing: Theme.spacing-default;
                 padding: Theme.padding-screen;
 
-                for preset[i] in root.mock-presets: Rectangle {
+                for preset[i] in Bridge.presets: Rectangle {
                     height: 64px;
                     border-radius: Theme.radius-card;
                     background: preset.active
@@ -88,7 +60,7 @@ export component BitratePresetsPage inherits Rectangle {
                         : (ta.pressed ? Theme.surface-card.brighter(20%) : Theme.surface-card);
 
                     ta := TouchArea {
-                        clicked => { root.select(preset.id); }
+                        clicked => { Bridge.set-active-preset(preset.id); }
                     }
                     HorizontalLayout {
                         padding-left:  Theme.padding-screen;
@@ -113,12 +85,28 @@ export component BitratePresetsPage inherits Rectangle {
                             font-size: Theme.font-size-heading;
                             vertical-alignment: center;
                         }
+                        TextButton {
+                            label: @tr("Edit");
+                            clicked => {
+                                Bridge.selected-preset-id = preset.id;
+                                Bridge.active-panel = Panel.bitrate-preset-edit;
+                            }
+                        }
+                        TextButton {
+                            label: @tr("Delete");
+                            clicked => {
+                                Bridge.delete-preset(preset.id);
+                            }
+                        }
                     }
                 }
 
                 PrimaryButton {
                     label: @tr("Add preset");
-                    clicked => { Bridge.active-panel = Panel.bitrate-preset-edit; }
+                    clicked => {
+                        Bridge.selected-preset-id = "";
+                        Bridge.active-panel = Panel.bitrate-preset-edit;
+                    }
                 }
             }
         }

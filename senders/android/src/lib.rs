@@ -1419,7 +1419,6 @@ fn android_main(app: PlatformApp) {
             push_status(ui_handle.clone(), snap_now);
         }
     });
-
     fn enumerate_interfaces() -> Vec<NetworkInterface> {
         vec![
             NetworkInterface {
@@ -1445,16 +1444,13 @@ fn android_main(app: PlatformApp) {
             },
         ]
     }
-
     fn push_interfaces(ui_handle: slint::Weak<MainWindow>, list: Vec<NetworkInterface>) {
         let _ = ui_handle.upgrade_in_event_loop(move |ui| {
             let model: slint::ModelRc<NetworkInterface> = std::rc::Rc::new(slint::VecModel::from(list)).into();
             ui.global::<Bridge>().set_network_interfaces(model);
         });
     }
-
     push_interfaces(ui.as_weak(), enumerate_interfaces());
-
     let interfaces = std::sync::Arc::new(tokio::sync::Mutex::new(enumerate_interfaces()));
     let interfaces_for_callback = interfaces.clone();
     let ui_for_callback = ui.as_weak();
@@ -1470,10 +1466,8 @@ fn android_main(app: PlatformApp) {
                 push_interfaces(ui_handle, list.clone());
             });
         });
-
     let log_ring = log_ring::LogRing::new(ui.as_weak());
     let log_ring_for_clear = log_ring.clone();
-
     use tracing_subscriber::layer::SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;
     use tracing_subscriber::filter::LevelFilter;
@@ -1484,12 +1478,97 @@ fn android_main(app: PlatformApp) {
     // Without this filter, an active media pipeline can produce thousands
     // of TRACE events per second, each one mutating the ring and dirtying
     // the UI pusher — pointless for a human-readable debug log.
-    tracing_subscriber::registry()
+    //
+    // `try_init` (not `init`) so re-entries of `android_main` (Android can
+    // trigger on activity destroy/recreate) don't panic from
+    // `set_global_default()` being called twice. Mirrors `init_once` above.
+    if let Err(err) = tracing_subscriber::registry()
         .with(log_ring.clone().with_filter(LevelFilter::DEBUG))
-        .init();
-
+        .try_init()
+    {
+        debug!(?err, "tracing subscriber already initialised — re-entry of android_main");
+    }
     ui.global::<Bridge>().on_clear_log_entries(move || {
         log_ring_for_clear.clear();
+    });
+    // ── Bitrate presets (Phase 8 / Cluster C1) ──────────────────────────
+    // Canonical list lives Rust-side in `Arc<Mutex<Vec<BitratePreset>>>`.
+    // Each mutation handler locks, mutates, drops the guard, and re-pushes
+    // the whole list to `Bridge.presets` via `push_presets`.
+    let presets: Arc<Mutex<Vec<BitratePreset>>> = Arc::new(Mutex::new(vec![
+        BitratePreset { id: "low".into(),  name: "Low".into(),     bitrate_kbps: 1500,  active: false },
+        BitratePreset { id: "med".into(),  name: "Medium".into(),  bitrate_kbps: 4000,  active: true  },
+        BitratePreset { id: "high".into(), name: "High".into(),    bitrate_kbps: 8000,  active: false },
+        BitratePreset { id: "max".into(),  name: "Maximum".into(), bitrate_kbps: 15000, active: false },
+    ]));
+    // Monotonic id source for user-created presets. Never use `g.len()`:
+    // after a delete-then-add cycle len() can collide with a previously
+    // issued id.
+    let next_preset_id: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
+    let push_presets = {
+        let presets = presets.clone();
+        let ui_weak = ui.as_weak();
+        move || {
+            let snapshot = presets.lock().clone();
+            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                ui.global::<Bridge>().set_presets(
+                    std::rc::Rc::new(slint::VecModel::from(snapshot)).into(),
+                );
+            });
+        }
+    };
+    push_presets();
+    ui.global::<Bridge>().on_save_preset({
+        let presets = presets.clone();
+        let next_id = next_preset_id.clone();
+        let push    = push_presets.clone();
+        move |id, name, kbps| {
+            let mut g = presets.lock();
+            if id.is_empty() {
+                let new_id = format!("custom-{}", next_id.fetch_add(1, Ordering::Relaxed));
+                g.push(BitratePreset {
+                    id:           new_id.into(),
+                    name:         name.into(),
+                    bitrate_kbps: kbps,
+                    active:       false,
+                });
+            } else if let Some(p) = g.iter_mut().find(|p| p.id == id) {
+                p.name         = name.into();
+                p.bitrate_kbps = kbps;
+            }
+            drop(g);
+            push();
+        }
+    });
+    ui.global::<Bridge>().on_delete_preset({
+        let presets = presets.clone();
+        let push    = push_presets.clone();
+        move |id| {
+            let mut g = presets.lock();
+            g.retain(|p| p.id != id);
+            // If the deleted preset was the active one, promote the first
+            // remaining preset to active so the user is never left without
+            // a selection.
+            if !g.iter().any(|p| p.active) {
+                if let Some(first) = g.first_mut() {
+                    first.active = true;
+                }
+            }
+            drop(g);
+            push();
+        }
+    });
+    ui.global::<Bridge>().on_set_active_preset({
+        let presets = presets.clone();
+        let push    = push_presets.clone();
+        move |id| {
+            let mut g = presets.lock();
+            for p in g.iter_mut() {
+                p.active = p.id == id;
+            }
+            drop(g);
+            push();
+        }
     });
 
     ui.global::<Bridge>().on_connect_receiver({
