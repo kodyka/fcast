@@ -1236,17 +1236,27 @@ fn android_main(app: PlatformApp) {
 
     ui.global::<Bridge>().on_start_snapshot_countdown({
         let ui_handle = ui.as_weak();
+        // Monotonic generation counter. Each new countdown bumps it and
+        // captures the new value; the spawned timer only resets lifecycle
+        // if its captured generation is still current. This makes any
+        // older, still-sleeping timer a no-op when a newer countdown is
+        // triggered. Mirrors `Application::banner_generation`.
+        static SNAPSHOT_GEN: AtomicU64 = AtomicU64::new(0);
         move |seconds: i32| {
             let ui_handle = ui_handle.clone();
+            let gen = SNAPSHOT_GEN.fetch_add(1, Ordering::SeqCst) + 1;
             tokio::spawn(async move {
                 let _ = ui_handle.upgrade_in_event_loop(|ui| {
                     ui.global::<Bridge>().set_lifecycle(LifecycleMode::SnapshotCountdown);
                 });
                 tokio::time::sleep(std::time::Duration::from_secs(seconds.max(0) as u64)).await;
-                // Only reset to Normal if we are still in SnapshotCountdown. If
-                // the user cancelled (snapshot_countdown.slint) or engaged
-                // lock/stealth in the meantime, leave their lifecycle choice
-                // intact — otherwise the stale Rust timer would clobber it.
+                // Only reset to Normal if (a) no newer countdown has started
+                // (otherwise we'd cut the new one short) and (b) we are still
+                // in SnapshotCountdown (otherwise the user cancelled or
+                // engaged lock/stealth and we must not clobber their choice).
+                if SNAPSHOT_GEN.load(Ordering::SeqCst) != gen {
+                    return;
+                }
                 let _ = ui_handle.upgrade_in_event_loop(|ui| {
                     let bridge = ui.global::<Bridge>();
                     if bridge.get_lifecycle() == LifecycleMode::SnapshotCountdown {
