@@ -1,8 +1,10 @@
-// macros_page.slint — Macros list (UI-only).
+// macros_page.slint — Macros list (Phase 8 / Cluster C4).
 //
 // Reachable from FullSettingsPage's "Macros" row in AUTOMATION.
-// Tap a row → set Bridge.mock-macro-edit-id and open Panel.macro-edit.
-// Tap "Add macro" → set "" and open Panel.macro-edit (blank form).
+// Tap a row → set Bridge.macro-edit-id, call Bridge.load-draft-macro(id),
+// then open Panel.macro-edit.
+// Tap "Add macro" → set "" and call Bridge.load-draft-macro("") for a
+// blank draft, then open Panel.macro-edit.
 //
 // Slint docs ref:
 //   draft/slint-ui/docs/astro/src/content/docs/reference/std-widgets/views/scrollview.mdx
@@ -121,12 +123,14 @@ export component MacrosPage inherits Rectangle {
                                 vertical-alignment: center;
                                 font-size: Theme.font-size-label;
                             }
-                            // Toggle wired to a list-rebuild helper.
-                            // Inline empty stub here; full impl is parallel
-                            // to Phase 17's set-enabled. Kept short for
-                            // brevity — copy the Phase 17 pattern if you
-                            // want flippable enable from the list.
-                            TouchArea { }
+                            // Per-row enable toggle. Re-saves the macro
+                            // with the flipped flag — Rust's on_save_macro
+                            // finds-and-updates by id.
+                            TouchArea {
+                                clicked => {
+                                    Bridge.save-macro(macro.id, macro.name, macro.steps, !macro.enabled);
+                                }
+                            }
                         }
                     }
                 }

@@ -1,11 +1,12 @@
-// macro_edit_page.slint — Per-macro editor (UI-only).
+// macro_edit_page.slint — Per-macro editor (Phase 8 / Cluster C4).
 //
-// Reads Bridge.mock-macro-edit-id (set by MacrosPage). Empty string
-// means "new macro" — render blank form. Save returns to Panel.macros
-// (NOT Panel.none) — back-stack invariant from Phase 16. UI-only build:
-// neither Save nor Cancel persists across panel re-entries because
-// mock-macros lives on MacrosPage, not on Bridge. Phase 8 promotes
-// mock-macros to Bridge.macros and the round-trip becomes real.
+// Reads Bridge.macro-edit-id (set by MacrosPage). Empty string means
+// "new macro" — render blank form. Save returns to Panel.macros (NOT
+// Panel.none) — back-stack invariant from Phase 16. Draft state lives
+// on Bridge (draft-macro-name / draft-macro-enabled / draft-macro-steps)
+// and is reset via Bridge.load-draft-macro before entering this panel,
+// so Cancel discards in-flight edits and Save commits via
+// Bridge.save-macro.
 //
 // Slint docs ref:
 //   draft/slint-ui/docs/astro/src/content/docs/reference/std-widgets/views/lineedit.mdx
@@ -20,7 +21,8 @@ export component MacroEditPage inherits Rectangle {
     in-out property <bool>   show-add-step-picker: false;
 
     // Predefined catalogue of action ids that can become macro steps.
-    // Hardcoded for UI-only; Phase 8 takes the list from Bridge.quick-actions.
+    // Still hardcoded here; a future phase will source this from
+    // Bridge.quick-actions so macro steps stay in sync with the bar.
     property <[{action-id: string, label: string}]> available-actions: [
         { action-id: "scan-qr",        label: @tr("Scan QR") },
         { action-id: "audio",          label: @tr("Open Audio") },
@@ -194,9 +196,9 @@ export component MacroEditPage inherits Rectangle {
     // ── Add-step picker overlay ──────────────────────────────────────────
     //
     // Inline picker — reuses the controlled-component pattern from
-    // ConfirmDialog (Phase 19). Tapping an action appends a stub step
-    // (no-op in UI-only build, since the array-rebuild for append is
-    // also hardcoded; document and skip).
+    // ConfirmDialog (Phase 19). Tapping an action calls
+    // Bridge.draft-add-step(action-id); Rust appends to the draft list
+    // and pushes back via Bridge.draft-macro-steps.
     if root.show-add-step-picker: Rectangle {
         width: 100%;
         height: 100%;

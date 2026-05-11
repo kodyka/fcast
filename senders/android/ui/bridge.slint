@@ -159,9 +159,9 @@ export global Bridge {
     callback delete-macro(string);                            // (id)
     callback run-macro(string);                               // (macro-id)
 
-    in-out property <string>   macro-edit-id: "";   // "" means "new macro"
-    in-out property <string> draft-macro-name: "";
-    in-out property <bool> draft-macro-enabled: true;
+    in-out property <string>  macro-edit-id: "";   // "" means "new macro"
+    in-out property <string>  draft-macro-name: "";
+    in-out property <bool>    draft-macro-enabled: true;
     in property <[MacroStep]> draft-macro-steps: [];
     callback load-draft-macro(string);                        // (macro-id)
     callback draft-add-step(string);                          // (action-id)

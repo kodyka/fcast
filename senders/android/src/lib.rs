@@ -1084,7 +1084,7 @@ fn android_main(app: PlatformApp) {
     let model = std::rc::Rc::new(slint::VecModel::from(actions));
     ui.global::<Bridge>().set_quick_actions(model.into());
 
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::atomic::AtomicUsize;
     let macros: Arc<std::sync::Mutex<Vec<Macro>>> = Arc::new(std::sync::Mutex::new(vec![]));
     let draft_macro_steps: Arc<std::sync::Mutex<Vec<MacroStep>>> = Arc::new(std::sync::Mutex::new(vec![]));
     let next_macro_id = Arc::new(AtomicUsize::new(0));
@@ -1122,8 +1122,7 @@ fn android_main(app: PlatformApp) {
         let next_id = next_macro_id.clone();
         let push    = push_macros.clone();
         move |id, name, steps, enabled| {
-            let steps_vec: Vec<MacroStep> =
-                steps.iter().collect::<Vec<_>>().into_iter().collect();
+            let steps_vec: Vec<MacroStep> = steps.iter().collect();
             let mut g = macros.lock().unwrap();
             if id.is_empty() {
                 let new_id = format!("macro-{}", next_id.fetch_add(1, Ordering::Relaxed));
@@ -1183,22 +1182,23 @@ fn android_main(app: PlatformApp) {
         let push_draft = push_draft_steps.clone();
         let ui_weak = ui.as_weak();
         move |id| {
-            let mut draft_g = draft_macro_steps.lock().unwrap();
             let mut draft_name = "".to_string();
             let mut draft_enabled = true;
-            if id.is_empty() {
-                draft_g.clear();
-            } else {
-                let mg = macros.lock().unwrap();
-                if let Some(m) = mg.iter().find(|m| m.id == id) {
-                    *draft_g = m.steps.iter().collect();
-                    draft_name = m.name.to_string();
-                    draft_enabled = m.enabled;
-                } else {
+            {
+                let mut draft_g = draft_macro_steps.lock().unwrap();
+                if id.is_empty() {
                     draft_g.clear();
+                } else {
+                    let mg = macros.lock().unwrap();
+                    if let Some(m) = mg.iter().find(|m| m.id == id) {
+                        *draft_g = m.steps.iter().collect();
+                        draft_name = m.name.to_string();
+                        draft_enabled = m.enabled;
+                    } else {
+                        draft_g.clear();
+                    }
                 }
             }
-            drop(draft_g);
             let _ = ui_weak.upgrade_in_event_loop(move |ui| {
                 ui.global::<Bridge>().set_draft_macro_name(draft_name.into());
                 ui.global::<Bridge>().set_draft_macro_enabled(draft_enabled);
