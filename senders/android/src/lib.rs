@@ -1084,6 +1084,7 @@ fn android_main(app: PlatformApp) {
     let model = std::rc::Rc::new(slint::VecModel::from(actions));
     ui.global::<Bridge>().set_quick_actions(model.into());
 
+    use slint::Model;
     use std::sync::atomic::AtomicUsize;
     let macros: Arc<std::sync::Mutex<Vec<Macro>>> = Arc::new(std::sync::Mutex::new(vec![]));
     let draft_macro_steps: Arc<std::sync::Mutex<Vec<MacroStep>>> = Arc::new(std::sync::Mutex::new(vec![]));
