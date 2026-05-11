@@ -1118,8 +1118,10 @@ fn android_main(app: PlatformApp) {
     let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
 
     let ui_handle = ui.as_weak();
-    let snap = std::sync::Arc::new(tokio::sync::Mutex::new(StatusSnapshot::default()));
-
+    // NOTE: The shared `Arc<Mutex<StatusSnapshot>>` cache that producers
+    // (battery / thermal / network listeners) will update lands with
+    // Cluster B (Phase 8 Section 3). For now the ticker just rebuilds a
+    // hardcoded snapshot on every tick — no shared state needed yet.
     tokio::spawn(async move {
         let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
         loop {
