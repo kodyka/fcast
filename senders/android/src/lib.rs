@@ -25,14 +25,6 @@ use jni::{objects::{JByteBuffer, JObject, JString}, JavaVM};
 use mcore::SourceConfig;
 #[cfg(target_os = "android")]
 use std::net::Ipv6Addr;
-use std::sync::atomic::AtomicU64;
-#[cfg(target_os = "android")]
-use std::sync::atomic::{AtomicBool, Ordering};
-#[cfg(not(target_os = "android"))]
-use std::sync::atomic::Ordering;
-use tracing::{debug, error};
-#[cfg(target_os = "android")]
-use tracing::{info, warn};
 
 pub mod log_ring;
 
