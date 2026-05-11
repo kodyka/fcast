@@ -1141,7 +1141,7 @@ fn android_main(app: PlatformApp) {
     // frame. Subsequent mutations from callbacks use `push_bar()` which
     // hops through `upgrade_in_event_loop` because they only have a weak.
     {
-        let snapshot = bar_actions.lock().unwrap().clone();
+        let snapshot = bar_actions.lock().clone();
         ui.global::<Bridge>().set_quick_actions(
             std::rc::Rc::new(slint::VecModel::from(snapshot)).into(),
         );
@@ -1150,7 +1150,7 @@ fn android_main(app: PlatformApp) {
         let bar_actions = bar_actions.clone();
         let ui_weak = ui.as_weak();
         move || {
-            let snapshot = bar_actions.lock().unwrap().clone();
+            let snapshot = bar_actions.lock().clone();
             let _ = ui_weak.upgrade_in_event_loop(move |ui| {
                 ui.global::<Bridge>().set_quick_actions(
                     std::rc::Rc::new(slint::VecModel::from(snapshot)).into(),
@@ -1163,7 +1163,7 @@ fn android_main(app: PlatformApp) {
         let bar_actions = bar_actions.clone();
         let push        = push_bar.clone();
         move |from, to| {
-            let mut g = bar_actions.lock().unwrap();
+            let mut g = bar_actions.lock();
             if let (Ok(from_u), Ok(to_u)) = (usize::try_from(from), usize::try_from(to)) {
                 if from_u < g.len() && to_u < g.len() && from_u != to_u {
                     let item = g.remove(from_u);
@@ -1179,7 +1179,7 @@ fn android_main(app: PlatformApp) {
         let bar_actions = bar_actions.clone();
         let push        = push_bar.clone();
         move |idx, enabled| {
-            let mut g = bar_actions.lock().unwrap();
+            let mut g = bar_actions.lock();
             if let Ok(i) = usize::try_from(idx) {
                 if let Some(a) = g.get_mut(i) { a.enabled = enabled; }
             }
