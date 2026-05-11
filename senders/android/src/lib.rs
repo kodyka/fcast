@@ -1136,6 +1136,16 @@ fn android_main(app: PlatformApp) {
         ]);
     }
     let bar_actions: Arc<Mutex<Vec<QuickAction>>> = Arc::new(Mutex::new(actions));
+    // Initial push is synchronous — we still hold the strong `ui` handle,
+    // so the control bar is populated before `ui.run()` paints the first
+    // frame. Subsequent mutations from callbacks use `push_bar()` which
+    // hops through `upgrade_in_event_loop` because they only have a weak.
+    {
+        let snapshot = bar_actions.lock().unwrap().clone();
+        ui.global::<Bridge>().set_quick_actions(
+            std::rc::Rc::new(slint::VecModel::from(snapshot)).into(),
+        );
+    }
     let push_bar = {
         let bar_actions = bar_actions.clone();
         let ui_weak = ui.as_weak();
@@ -1148,7 +1158,6 @@ fn android_main(app: PlatformApp) {
             });
         }
     };
-    push_bar();
 
     ui.global::<Bridge>().on_move_bar_action({
         let bar_actions = bar_actions.clone();
