@@ -114,19 +114,16 @@ export component BitratePresetEditPage inherits Rectangle {
         }
     }
 
-    // Helper since Slint has no built-in dictionary lookup. Linear scan over a
-    // 4-row list is fine.
+    // Helper since Slint has no built-in dictionary lookup. Linear scan via
+    // the `for p[i] in list { if … return … }` pattern documented in
+    // guide/language/coding/repetition-and-data-models.mdx — works for any
+    // list length, unlike a hand-unrolled lookup capped at N rows.
     pure function preset-by-id(list: [BitratePreset], id: string) -> BitratePreset {
-        if list.length > 0 && list[0].id == id { return list[0]; }
-        if list.length > 1 && list[1].id == id { return list[1]; }
-        if list.length > 2 && list[2].id == id { return list[2]; }
-        if list.length > 3 && list[3].id == id { return list[3]; }
-        if list.length > 4 && list[4].id == id { return list[4]; }
-        if list.length > 5 && list[5].id == id { return list[5]; }
-        if list.length > 6 && list[6].id == id { return list[6]; }
-        if list.length > 7 && list[7].id == id { return list[7]; }
-        if list.length > 8 && list[8].id == id { return list[8]; }
-        if list.length > 9 && list[9].id == id { return list[9]; }
+        for p[i] in list {
+            if p.id == id {
+                return p;
+            }
+        }
         return { id: "", name: "", bitrate-kbps: 0, active: false };
     }
 }

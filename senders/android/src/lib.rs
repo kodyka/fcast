@@ -1359,7 +1359,28 @@ fn android_main(app: PlatformApp) {
             let mut g = presets.lock();
             g.retain(|p| p.id != id);
             // If the deleted preset was the active one, promote the first
-            // remaining pre
+            // remaining preset to active so the user is never left without
+            // a selection.
+            if !g.iter().any(|p| p.active) {
+                if let Some(first) = g.first_mut() {
+                    first.active = true;
+                }
+            }
+            drop(g);
+            push();
+        }
+    });
+    ui.global::<Bridge>().on_set_active_preset({
+        let presets = presets.clone();
+        let push    = push_presets.clone();
+        move |id| {
+            let mut g = presets.lock();
+            for p in g.iter_mut() {
+                p.active = p.id == id;
+            }
+            drop(g);
+            push();
+        }
     });
 
     ui.global::<Bridge>().on_connect_receiver({
