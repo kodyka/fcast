@@ -1084,6 +1084,90 @@ fn android_main(app: PlatformApp) {
     let model = std::rc::Rc::new(slint::VecModel::from(actions));
     ui.global::<Bridge>().set_quick_actions(model.into());
 
+    // ── Bitrate presets (Phase 8 / Cluster C1) ──────────────────────────
+    // Canonical list lives Rust-side in `Arc<Mutex<Vec<BitratePreset>>>`.
+    // Each mutation handler locks, mutates, drops the guard, and re-pushes
+    // the whole list to `Bridge.presets` via `push_presets`.
+    let presets: Arc<Mutex<Vec<BitratePreset>>> = Arc::new(Mutex::new(vec![
+        BitratePreset { id: "low".into(),  name: "Low".into(),     bitrate_kbps: 1500,  active: false },
+        BitratePreset { id: "med".into(),  name: "Medium".into(),  bitrate_kbps: 4000,  active: true  },
+        BitratePreset { id: "high".into(), name: "High".into(),    bitrate_kbps: 8000,  active: false },
+        BitratePreset { id: "max".into(),  name: "Maximum".into(), bitrate_kbps: 15000, active: false },
+    ]));
+
+    // Monotonic id source for user-created presets. Never use `g.len()`:
+    // after a delete-then-add cycle len() can collide with a previously
+    // issued id.
+    let next_preset_id: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
+
+    let push_presets = {
+        let presets = presets.clone();
+        let ui_weak = ui.as_weak();
+        move || {
+            let snapshot = presets.lock().clone();
+            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                ui.global::<Bridge>().set_presets(
+                    std::rc::Rc::new(slint::VecModel::from(snapshot)).into(),
+                );
+            });
+        }
+    };
+    push_presets();
+
+    ui.global::<Bridge>().on_save_preset({
+        let presets = presets.clone();
+        let next_id = next_preset_id.clone();
+        let push    = push_presets.clone();
+        move |id, name, kbps| {
+            let mut g = presets.lock();
+            if id.is_empty() {
+                let new_id = format!("custom-{}", next_id.fetch_add(1, Ordering::Relaxed));
+                g.push(BitratePreset {
+                    id:           new_id.into(),
+                    name:         name.into(),
+                    bitrate_kbps: kbps,
+                    active:       false,
+                });
+            } else if let Some(p) = g.iter_mut().find(|p| p.id == id) {
+                p.name         = name.into();
+                p.bitrate_kbps = kbps;
+            }
+            drop(g);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_delete_preset({
+        let presets = presets.clone();
+        let push    = push_presets.clone();
+        move |id| {
+            let mut g = presets.lock();
+            g.retain(|p| p.id != id);
+            // If the deleted preset was the active one, promote the first
+            // remaining preset to active so the bar always has a selection.
+            if !g.iter().any(|p| p.active) {
+                if let Some(first) = g.first_mut() {
+                    first.active = true;
+                }
+            }
+            drop(g);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_set_active_preset({
+        let presets = presets.clone();
+        let push    = push_presets.clone();
+        move |id| {
+            let mut g = presets.lock();
+            for p in g.iter_mut() {
+                p.active = p.id == id;
+            }
+            drop(g);
+            push();
+        }
+    });
+
     let runtime = tokio::runtime::Runtime::new().unwrap();
     // Establish tokio runtime context on the Slint UI thread so that
     // `tokio::spawn` works both during setup (e.g. `spawn_recording_ticker`)

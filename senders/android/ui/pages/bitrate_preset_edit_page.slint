@@ -1,8 +1,13 @@
-// bitrate_preset_edit_page.slint — Single-preset editor (UI-only).
+// bitrate_preset_edit_page.slint — Single-preset editor.
 //
 // Reachable from BitratePresetsPage's "Add preset" button (and, in a
-// future phase, from per-row edit affordances). Save and Cancel both
-// just return to the list — no persistence in this phase.
+// future phase, from per-row edit affordances). Cancel returns to the
+// list without persisting; Save calls `Bridge.save-preset(...)` and
+// returns to the list. When `Bridge.selected-preset-id == ""` the
+// callback creates a new preset (Rust assigns the id).
+//
+// Phase 8 / Cluster C1: persistence is owned by Rust via
+// `Bridge.save-preset`.
 //
 // Slint docs ref:
 //   draft/slint-ui/docs/astro/src/content/docs/reference/std-widgets/views/lineedit.mdx
@@ -18,9 +23,11 @@ import {
 } from "../components/settings_rows.slint";
 
 export component BitratePresetEditPage inherits Rectangle {
-    // ── UI-only stub state ──────────────────────────────────────────────
-    in-out property <string> mock-name:         "New preset";
-    in-out property <float>  mock-bitrate-kbps: 4000.0;
+    // ── Local draft state ───────────────────────────────────────────────
+    // Kept page-local so Cancel can drop the partial edits without
+    // touching Bridge.presets. Save flushes via `Bridge.save-preset`.
+    in-out property <string> draft-name:         "New preset";
+    in-out property <float>  draft-bitrate-kbps: 4000.0;
 
     width: 100%;
     height: 100%;
@@ -49,11 +56,16 @@ export component BitratePresetEditPage inherits Rectangle {
                 }
                 TextButton {
                     label: @tr("save-button" => "Save");
-                    // UI-only — no persistence to BitratePresetsPage's
-                    // mock-presets. Real persistence requires lifting the
-                    // model to a global / Bridge property; deferred to
-                    // Phase 8.
-                    clicked => { Bridge.active-panel = Panel.bitrate-presets; }
+                    clicked => {
+                        Bridge.save-preset(
+                            Bridge.selected-preset-id,
+                            root.draft-name,
+                            // Slider value is a float; the callback wants int.
+                            // Round to the nearest integer kbps.
+                            round(root.draft-bitrate-kbps),
+                        );
+                        Bridge.active-panel = Panel.bitrate-presets;
+                    }
                 }
             }
         }
@@ -73,7 +85,7 @@ export component BitratePresetEditPage inherits Rectangle {
                             padding-right: Theme.padding-screen;
                             LineEdit {
                                 placeholder-text: @tr("Preset name");
-                                text <=> root.mock-name;
+                                text <=> root.draft-name;
                                 horizontal-stretch: 1;
                             }
                         }
@@ -87,7 +99,7 @@ export component BitratePresetEditPage inherits Rectangle {
                         unit: " kbps";
                         minimum: 500;
                         maximum: 20000;
-                        value <=> root.mock-bitrate-kbps;
+                        value <=> root.draft-bitrate-kbps;
                         // Domain matches storage; `<=>` is safe.
                     }
                 }

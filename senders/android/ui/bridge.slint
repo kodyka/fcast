@@ -176,6 +176,10 @@ export global Bridge {
     in-out property <string> selected-receiver-id;
     in-out property <string> selected-receiver-name;
 
+    // ── Bitrate presets (Phase 8 / Cluster C1) ──────────────────────────
+    in property <[BitratePreset]> presets: [];
+    in-out property <string>      selected-preset-id: "";   // "" means "new preset"
+
     // ── Callbacks (Slint → Rust) ─────────────────────────────────────────
     callback connect-receiver(string);
     callback start-casting(scale-width: int, scale-height: int, max-framerate: int);
@@ -190,6 +194,11 @@ export global Bridge {
     callback start-snapshot-countdown(int);
     callback exit-lifecycle();
     callback set-wifi-aware(bool);
+
+    // ── Bitrate-preset mutations (Phase 8 / Cluster C1) ─────────────────
+    callback save-preset(string, string, int);   // (id, name, kbps); id="" → new
+    callback delete-preset(string);              // (id)
+    callback set-active-preset(string);          // (id)
 
     // ── Public functions (callable from Slint) ───────────────────────────
     public function change-state(to: AppState) {
