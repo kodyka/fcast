@@ -49,7 +49,7 @@ impl LogRing {
 impl<S: Subscriber> Layer<S> for LogRing {
     fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, S>) {
         let metadata = event.metadata();
-        if metadata.target().starts_with("fcast::log_ring") { return; }
+        if metadata.target().starts_with("fcastsender::log_ring") { return; }
 
         let mut visitor = LogEventVisitor::default();
         event.record(&mut visitor);
