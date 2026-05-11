@@ -1013,7 +1013,7 @@ impl DestinationNode {
     fn schedule_transition_due(&self, now: DateTime<Utc>) -> Option<State> {
         match self.state {
             State::Initial => {
-                if self.cue_time.map_or(true, |cue| now >= cue) {
+                if self.cue_time.is_none_or(|cue| now >= cue) {
                     Some(State::Starting)
                 } else {
                     None

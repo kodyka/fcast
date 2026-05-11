@@ -17,6 +17,7 @@
 
 import { Theme } from "../theme.slint";
 import { IconAndText } from "icon_and_text.slint";
+import { Bridge, StatusItem, StatusSeverity } from "../bridge.slint";
 
 // Internal sub-component — not exported. Two Text children inside a pill.
 component Badge inherits Rectangle {
@@ -43,11 +44,6 @@ component Badge inherits Rectangle {
 }
 
 export component StatusBadgesRow inherits Rectangle {
-    in-out property <int>    mock-battery-pct: 87;
-    in-out property <bool>   mock-charging:    false;
-    in-out property <string> mock-thermal:     "Nominal";
-    in-out property <string> mock-network:     "Wi-Fi";
-
     height: 28px;
     background: transparent;
 
@@ -56,26 +52,12 @@ export component StatusBadgesRow inherits Rectangle {
         spacing: 6px;
         padding-right: Theme.padding-screen;
 
-        Badge {
-            icon-glyph: "📶";
-            value: root.mock-network;
-        }
-
-        Badge {
-            icon-glyph: root.mock-thermal == "Critical" ? "🔥" : "🌡";
-            value: root.mock-thermal;
-            // Use the `*-fg` severity tokens — `Theme.error` / `Theme.warning`
-            // are dark *background* fills and would be illegible as text on
-            // the dark surface-overlay used by Badge.
-            fg: root.mock-thermal == "Critical" ? Theme.error-fg
-              : root.mock-thermal == "Serious"  ? Theme.warning-fg
-              :                                    Theme.text-secondary;
-        }
-
-        Badge {
-            icon-glyph: root.mock-charging ? "⚡" : "🔋";
-            value: @tr("{}%", root.mock-battery-pct);
-            fg: root.mock-battery-pct < 20 ? Theme.error-fg : Theme.text-secondary;
+        for item in Bridge.status-items: Badge {
+            icon-glyph: item.icon-glyph;
+            value: item.value;
+            fg: item.severity == StatusSeverity.error   ? Theme.error-fg
+              : item.severity == StatusSeverity.warning ? Theme.warning-fg
+              :                                            Theme.text-secondary;
         }
     }
 }

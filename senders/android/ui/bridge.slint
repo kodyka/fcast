@@ -104,6 +104,7 @@ export struct StatusItem {
     label:    string,
     value:    string,
     severity: StatusSeverity,
+    icon-glyph: string,
 }
 
 export struct ReceiverItem {
@@ -144,6 +145,19 @@ export global Bridge {
     in property <[string]> devices: [
         // "Device 1", "Device 2",
     ];
+    // ── Status overlay (Phase 8 / Cluster A1) ───────────────────────────
+    in property <[StatusItem]> status-items: [];
+    // ── Build / version (Phase 8 / Cluster A2) ──────────────────────────
+    in property <string> app-version: "";
+    // ── Network interfaces (Phase 8 / Cluster A3) ───────────────────────
+    in property <[NetworkInterface]> network-interfaces: [];
+    callback set-interface-enabled(string, bool);
+    // ── Recording (Phase 8 / Cluster A4) ────────────────────────────────
+    in property <RecordingState> recording-state:    RecordingState.idle;
+    in property <int>            recording-elapsed-s: 0;
+    // ── Debug log (Phase 8 / Cluster A5) ────────────────────────────────
+    in property <[LogEntry]> log-entries: [];
+    callback clear-log-entries();
     in-out property <AppState> app-state: AppState.Disconnected;
     in-out property <Panel>    active-panel: Panel.none;
     // ── Banner (Phase 8 / Cluster F1) ───────────────────────────────────
@@ -166,13 +180,14 @@ export global Bridge {
     in-out property <bool> camera-stabilization: true;
     in-out property <bool> camera-tap-to-focus: true;
     in-out property <float> camera-zoom-level: 1.0;
-    in property <RecordingState> recording-state: RecordingState.idle;
-    in property <int> recording-elapsed-s: 0;
     in-out property <bool> wifi-aware-enabled: false;
     in-out property <string>   selected-history-id: "";
     in-out property <bool>     show-debug: false;
     in-out property <string>   test-status: "";
     in property <[QuickAction]> quick-actions: [];
+    callback move-bar-action(int, int);
+    callback set-bar-action-enabled(int, bool);
+    callback save-bar-actions();
     in-out property <string> selected-receiver-id;
     in-out property <string> selected-receiver-name;
 

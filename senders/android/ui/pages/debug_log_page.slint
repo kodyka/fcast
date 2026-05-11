@@ -43,18 +43,6 @@ component FilterChip inherits Rectangle {
 
 export component DebugLogPage inherits Rectangle {
     // ── UI-only stub state ──────────────────────────────────────────────
-    in-out property <[LogEntry]> mock-log: [
-        { level: LogLevel.info,    timestamp: "12:34:56.012",
-          target: "fcast::discovery", message: "mDNS scan started" },
-        { level: LogLevel.debug,   timestamp: "12:34:56.087",
-          target: "fcast::discovery", message: "Resolved Living Room TV at 192.168.1.50" },
-        { level: LogLevel.warning, timestamp: "12:34:56.220",
-          target: "fcast::net",       message: "Reconnect attempt 1/3" },
-        { level: LogLevel.error,   timestamp: "12:34:56.510",
-          target: "fcast::encoder",   message: "Encoder negotiation failed: H264 not advertised" },
-        { level: LogLevel.trace,   timestamp: "12:34:56.612",
-          target: "slint",            message: "Layout pass 423 (12ms)" },
-    ];
     in-out property <int> mock-min-level-idx: 1; // 0=trace .. 4=error
 
     width: 100%;
@@ -128,7 +116,7 @@ export component DebugLogPage inherits Rectangle {
 
         // ── Body — virtualised log list ─────────────────────────────────
         ListView {
-            for entry in root.mock-log: Rectangle {
+            for entry in Bridge.log-entries: Rectangle {
                 // Filter rule: rows below min level collapse to zero
                 // height. ListView still allocates a slot but the visible
                 // height is 0 — the filter is logically O(N) but the
@@ -202,7 +190,7 @@ export component DebugLogPage inherits Rectangle {
                     label: @tr("Clear");
                     // No-op in UI-only build — Phase 8 will clear the
                     // Rust-side ring buffer.
-                    clicked => { root.mock-log = []; }
+                    clicked => { Bridge.clear-log-entries(); }
                 }
                 TextButton {
                     label: @tr("Copy all");
