@@ -1244,8 +1244,15 @@ fn android_main(app: PlatformApp) {
 
     use tracing_subscriber::layer::SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;
+    use tracing_subscriber::filter::LevelFilter;
+    // Cap the LogRing layer at DEBUG so the firehose of GStreamer `Fixme`
+    // / TRACE events forwarded by `tracing_gstreamer::integrate_events`
+    // (see `Application::run_event_loop`) never reaches the ring buffer.
+    // Without this filter, an active media pipeline can produce thousands
+    // of TRACE events per second, each one mutating the ring and dirtying
+    // the UI pusher — pointless for a human-readable debug log.
     tracing_subscriber::registry()
-        .with(log_ring.clone())
+        .with(log_ring.clone().with_filter(LevelFilter::DEBUG))
         .init();
 
     ui.global::<Bridge>().on_clear_log_entries(move || {
