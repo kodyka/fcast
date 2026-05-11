@@ -14,6 +14,8 @@ use tracing::{debug, error};
 #[cfg(target_os = "android")]
 use tracing::{info, warn};
 
+pub mod log_ring;
+
 pub mod migration;
 
 #[cfg(target_os = "android")]
@@ -507,16 +509,19 @@ fn build_status_items(receiver_name: &str, encoder: &str, network: &str) -> Vec<
             label: "Receiver".into(),
             value: receiver_name.into(),
             severity: crate::StatusSeverity::Info,
+            icon_glyph: "📺".into(),
         },
         crate::StatusItem {
             label: "Encoder".into(),
             value: encoder.into(),
             severity: crate::StatusSeverity::Info,
+            icon_glyph: "⚙️".into(),
         },
         crate::StatusItem {
             label: "Network".into(),
             value: network.into(),
             severity: crate::StatusSeverity::Info,
+            icon_glyph: "📶".into(),
         },
     ]
 }
@@ -1031,8 +1036,51 @@ fn android_main(app: PlatformApp) {
     let mut actions = vec![
         QuickAction { id: "scan-qr".into(), title: "Scan QR".into(), enabled: true, active: false, is_macro: false },
     ];
+    // Cached snapshot. Re-pushed in full whenever any signal changes.
+    #[derive(Clone, Default)]
+    struct StatusSnapshot {
+        network_label: String,
+        thermal_label: String,
+        battery_pct: i32,
+        charging: bool,
+    }
+
+    fn push_status(ui_handle: slint::Weak<MainWindow>, snap: StatusSnapshot) {
+        let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+            let bridge = ui.global::<Bridge>();
+            let items = vec![
+                StatusItem {
+                    label: "network".into(),
+                    value: snap.network_label.into(),
+                    severity: StatusSeverity::Info,
+                    icon_glyph: "📶".into(),
+                },
+                StatusItem {
+                    label: "thermal".into(),
+                    value: snap.thermal_label.clone().into(),
+                    severity: match snap.thermal_label.as_str() {
+                        "Critical" => StatusSeverity::Error,
+                        "Serious" => StatusSeverity::Warning,
+                        _ => StatusSeverity::Info,
+                    },
+                    icon_glyph: if snap.thermal_label == "Critical" { "🔥".into() } else { "🌡".into() },
+                },
+                StatusItem {
+                    label: "battery".into(),
+                    value: format!("{}%", snap.battery_pct).into(),
+                    severity: if snap.battery_pct < 20 { StatusSeverity::Error } else { StatusSeverity::Info },
+                    icon_glyph: if snap.charging { "⚡".into() } else { "🔋".into() },
+                },
+            ];
+            let model: slint::ModelRc<StatusItem> = std::rc::Rc::new(slint::VecModel::from(items)).into();
+            bridge.set_status_items(model);
+        });
+    }
+
     let show_debug = cfg!(debug_assertions);
     ui.global::<Bridge>().set_show_debug(show_debug);
+    ui.global::<Bridge>()
+        .set_app_version(env!("CARGO_PKG_VERSION").into());
     if show_debug {
         actions.extend([
             QuickAction { id: "migrated-server".into(), title: "Start Server".into(), enabled: true, active: false, is_macro: false },
@@ -1047,6 +1095,141 @@ fn android_main(app: PlatformApp) {
     let runtime = tokio::runtime::Runtime::new().unwrap();
 
     let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
+
+    let ui_handle = ui.as_weak();
+    let snap = std::sync::Arc::new(tokio::sync::Mutex::new(StatusSnapshot::default()));
+
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
+        loop {
+            tick.tick().await;
+            let snap_now = StatusSnapshot {
+                network_label: "Wi-Fi".into(),
+                thermal_label: "Nominal".into(),
+                battery_pct: 87,
+                charging: false,
+            };
+            push_status(ui_handle.clone(), snap_now);
+        }
+    });
+
+    fn enumerate_interfaces() -> Vec<NetworkInterface> {
+        vec![
+            NetworkInterface {
+                name: "wlan0".into(),
+                kind: "wifi".into(),
+                address_v4: "192.168.1.42".into(),
+                address_v6: "fe80::1234".into(),
+                enabled: true,
+            },
+            NetworkInterface {
+                name: "rmnet0".into(),
+                kind: "cellular".into(),
+                address_v4: "10.20.30.40".into(),
+                address_v6: "".into(),
+                enabled: false,
+            },
+            NetworkInterface {
+                name: "lo".into(),
+                kind: "loopback".into(),
+                address_v4: "127.0.0.1".into(),
+                address_v6: "::1".into(),
+                enabled: true,
+            },
+        ]
+    }
+
+    fn push_interfaces(ui_handle: slint::Weak<MainWindow>, list: Vec<NetworkInterface>) {
+        let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+            let model: slint::ModelRc<NetworkInterface> = std::rc::Rc::new(slint::VecModel::from(list)).into();
+            ui.global::<Bridge>().set_network_interfaces(model);
+        });
+    }
+
+    push_interfaces(ui.as_weak(), enumerate_interfaces());
+
+    let interfaces = std::sync::Arc::new(tokio::sync::Mutex::new(enumerate_interfaces()));
+    let interfaces_for_callback = interfaces.clone();
+    let ui_for_callback = ui.as_weak();
+    ui.global::<Bridge>()
+        .on_set_interface_enabled(move |name, value| {
+            let interfaces = interfaces_for_callback.clone();
+            let ui_handle = ui_for_callback.clone();
+            tokio::spawn(async move {
+                let mut list = interfaces.lock().await;
+                if let Some(iface) = list.iter_mut().find(|i| i.name == name.as_str()) {
+                    iface.enabled = value;
+                }
+                push_interfaces(ui_handle, list.clone());
+            });
+        });
+
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    struct RecordingTickerState {
+        started_at: Option<std::time::Instant>,
+        paused_for: std::time::Duration,
+        pause_started: Option<std::time::Instant>,
+        state: RecordingState,
+    }
+
+    impl Default for RecordingTickerState {
+        fn default() -> Self {
+            Self {
+                started_at: None,
+                paused_for: std::time::Duration::ZERO,
+                pause_started: None,
+                state: RecordingState::Idle,
+            }
+        }
+    }
+
+    fn elapsed_seconds(s: &RecordingTickerState) -> i32 {
+        let Some(started) = s.started_at else { return 0; };
+        let mut elapsed = started.elapsed();
+        elapsed = elapsed.saturating_sub(s.paused_for);
+        if let Some(pause_start) = s.pause_started {
+            elapsed = elapsed.saturating_sub(pause_start.elapsed());
+        }
+        elapsed.as_secs() as i32
+    }
+
+    fn spawn_recording_ticker(
+        ui_handle: slint::Weak<MainWindow>,
+        state: std::sync::Arc<tokio::sync::Mutex<RecordingTickerState>>,
+    ) {
+        tokio::spawn(async move {
+            let mut tick = tokio::time::interval(std::time::Duration::from_millis(500));
+            loop {
+                tick.tick().await;
+                let snap = *state.lock().await;
+                let secs = elapsed_seconds(&snap);
+                let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+                    let bridge = ui.global::<Bridge>();
+                    bridge.set_recording_state(snap.state);
+                    bridge.set_recording_elapsed_s(secs);
+                });
+                if snap.state == RecordingState::Idle && snap.started_at.is_none() {
+                    // Stay subscribed
+                }
+            }
+        });
+    }
+
+    let recording_state = std::sync::Arc::new(tokio::sync::Mutex::new(RecordingTickerState::default()));
+    spawn_recording_ticker(ui.as_weak(), recording_state);
+
+    let log_ring = log_ring::LogRing::new(ui.as_weak());
+    let log_ring_for_clear = log_ring.clone();
+
+    use tracing_subscriber::layer::SubscriberExt;
+    use tracing_subscriber::util::SubscriberInitExt;
+    tracing_subscriber::registry()
+        .with(log_ring.clone())
+        .init();
+
+    ui.global::<Bridge>().on_clear_log_entries(move || {
+        log_ring_for_clear.clear();
+    });
 
     ui.global::<Bridge>().on_connect_receiver({
         let event_tx = event_tx.clone();

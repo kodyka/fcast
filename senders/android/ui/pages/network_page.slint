@@ -136,11 +136,6 @@ component NetworkInterfaceRow inherits Rectangle {
 
 export component NetworkPage inherits Rectangle {
     // ── UI-only stub state ──────────────────────────────────────────────
-    in-out property <[NetworkInterface]> mock-interfaces: [
-        { name: "wlan0",  kind: "wifi",     address-v4: "192.168.1.42",  address-v6: "fe80::1234", enabled: true  },
-        { name: "rmnet0", kind: "cellular", address-v4: "10.20.30.40",   address-v6: "",           enabled: false },
-        { name: "lo",     kind: "loopback", address-v4: "127.0.0.1",     address-v6: "::1",        enabled: true  },
-    ];
     in-out property <bool> mock-wifi-aware-enabled: false;
     property <bool>        banner-visible:          false;
 
@@ -155,24 +150,6 @@ export component NetworkPage inherits Rectangle {
         triggered => { root.banner-visible = false; }
     }
 
-    // Helper: rebuild mock-interfaces with one row's enabled flipped.
-    // Same in-place-mutation caveat as Phase 16's preset selector.
-    function set-enabled(name: string, value: bool) {
-        root.mock-interfaces = [
-            { name: root.mock-interfaces[0].name, kind: root.mock-interfaces[0].kind,
-              address-v4: root.mock-interfaces[0].address-v4,
-              address-v6: root.mock-interfaces[0].address-v6,
-              enabled: root.mock-interfaces[0].name == name ? value : root.mock-interfaces[0].enabled },
-            { name: root.mock-interfaces[1].name, kind: root.mock-interfaces[1].kind,
-              address-v4: root.mock-interfaces[1].address-v4,
-              address-v6: root.mock-interfaces[1].address-v6,
-              enabled: root.mock-interfaces[1].name == name ? value : root.mock-interfaces[1].enabled },
-            { name: root.mock-interfaces[2].name, kind: root.mock-interfaces[2].kind,
-              address-v4: root.mock-interfaces[2].address-v4,
-              address-v6: root.mock-interfaces[2].address-v6,
-              enabled: root.mock-interfaces[2].name == name ? value : root.mock-interfaces[2].enabled },
-        ];
-    }
 
     VerticalLayout {
         // ── Header ──────────────────────────────────────────────────────
@@ -222,9 +199,9 @@ export component NetworkPage inherits Rectangle {
                     color: Theme.text-secondary;
                     font-size: Theme.font-size-label;
                 }
-                for iface in root.mock-interfaces: NetworkInterfaceRow {
+                for iface in Bridge.network-interfaces: NetworkInterfaceRow {
                     data: iface;
-                    toggle-enabled(value) => { root.set-enabled(iface.name, value); }
+                    toggle-enabled(value) => { Bridge.set-interface-enabled(iface.name, value); }
                 }
 
                 SettingsSection {

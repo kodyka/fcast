@@ -810,12 +810,12 @@ If you prefer one commit per cluster, group the five into "Phase 8 / Cluster A â
 
 ## 2.8 Exit criteria for Section 2
 
-- [x] All 5 items listed in this cluster have their Bridge declaration **and** their consumer migration **and** their Rust producer
-- [x] `cargo build` and `cargo clippy --all-targets -- -D warnings` are green
-- [x] No `mock-*` properties relating to status / version / interfaces / recording-state / log remain
-- [x] No `Slint Timer` driving recording elapsed counter (replaced by Rust ticker)
-- [x] Tracing subscriber `LogRing` initialised exactly once
-- [x] Smoke-test confirmed: `slint-viewer` shows no binding loops; on-device the status badges populate within ~5s of launch
+- [ ] All 5 items listed in this cluster have their Bridge declaration **and** their consumer migration **and** their Rust producer
+- [ ] `cargo build` and `cargo clippy --all-targets -- -D warnings` are green
+- [ ] No `mock-*` properties relating to status / version / interfaces / recording-state / log remain
+- [ ] No `Slint Timer` driving recording elapsed counter (replaced by Rust ticker)
+- [ ] Tracing subscriber `LogRing` initialised exactly once
+- [ ] Smoke-test confirmed: `slint-viewer` shows no binding loops; on-device the status badges populate within ~5s of launch
 
 You can now move to **Section 3 â€” Cluster B: single-page state with one or two callbacks** at [`PHASE-8-Section-3-cluster-B-single-page-state.md`](./PHASE-8-Section-3-cluster-B-single-page-state.md).
 

@@ -23,15 +23,13 @@ import {
 
 export component RecordingPage inherits Rectangle {
     // ── UI-only stub state ──────────────────────────────────────────────
-    in-out property <RecordingState> mock-state:        RecordingState.idle;
-    in-out property <int>             mock-elapsed-s:    0;
     in-out property <int>             mock-format-idx:   0;        // MP4 / MKV / WebM
     in-out property <int>             mock-folder-idx:   0;        // App / Movies / Custom
     in-out property <bool>            mock-record-audio: true;
     in-out property <int>             mock-disk-free-mb: 12480;
 
     // Pure-derived display strings.
-    property <string> elapsed-display: format-elapsed(root.mock-elapsed-s);
+    property <string> elapsed-display: format-elapsed(Bridge.recording-elapsed-s);
     property <string> disk-free-display:
         root.mock-disk-free-mb >= 1024
             ? "\{Math.round(root.mock-disk-free-mb / 102.4) / 10.0} GB"
@@ -40,13 +38,6 @@ export component RecordingPage inherits Rectangle {
     width: 100%;
     height: 100%;
     background: Theme.surface-primary;
-
-    // ── 1-second tick driving the elapsed counter ────────────────────────
-    Timer {
-        interval: 1s;
-        running: root.mock-state == RecordingState.recording;
-        triggered => { root.mock-elapsed-s += 1; }
-    }
 
     pure function pad2(n: int) -> string {
         return n < 10 ? "0\{n}" : "\{n}";
@@ -64,24 +55,20 @@ export component RecordingPage inherits Rectangle {
     // Centralised state transitions — keeps the button click handler
     // readable.
     function on-record-clicked() {
-        if (root.mock-state == RecordingState.idle) {
-            root.mock-state = RecordingState.recording;
-            root.mock-elapsed-s = 0;
-        } else if (root.mock-state == RecordingState.recording) {
-            root.mock-state = RecordingState.paused;
-        } else if (root.mock-state == RecordingState.paused) {
-            root.mock-state = RecordingState.recording;
+        if (Bridge.recording-state == RecordingState.idle) {
+            // Placeholder: Call a Bridge property / callback for start in B3
+        } else if (Bridge.recording-state == RecordingState.recording) {
+            // Placeholder: Call a Bridge property / callback for pause in B3
+        } else if (Bridge.recording-state == RecordingState.paused) {
+            // Placeholder: Call a Bridge property / callback for resume in B3
         }
         // RecordingState.finalizing is reached only via the Stop button.
     }
 
     function on-stop-clicked() {
-        if (root.mock-state == RecordingState.recording
-         || root.mock-state == RecordingState.paused) {
-            root.mock-state = RecordingState.finalizing;
-            // UI-only: finalize is instant.
-            root.mock-state = RecordingState.idle;
-            root.mock-elapsed-s = 0;
+        if (Bridge.recording-state == RecordingState.recording
+         || Bridge.recording-state == RecordingState.paused) {
+            // Placeholder: Call a Bridge property / callback for stop in B3
         }
     }
 
@@ -128,17 +115,17 @@ export component RecordingPage inherits Rectangle {
                             height: 96px;
                             border-radius: 48px;
                             background:
-                                root.mock-state == RecordingState.idle      ? #cc0000
-                                : root.mock-state == RecordingState.recording ? #cc0000
-                                : root.mock-state == RecordingState.paused    ? Theme.accent-active
+                                Bridge.recording-state == RecordingState.idle      ? #cc0000
+                                : Bridge.recording-state == RecordingState.recording ? #cc0000
+                                : Bridge.recording-state == RecordingState.paused    ? Theme.accent-active
                                 : Theme.surface-primary;
                             // Inner glyph: red dot (idle), white square (recording),
                             // chevron (paused), spinner placeholder (finalizing).
                             Rectangle {
-                                width: root.mock-state == RecordingState.recording ? 32px : 48px;
-                                height: root.mock-state == RecordingState.recording ? 32px : 48px;
+                                width: Bridge.recording-state == RecordingState.recording ? 32px : 48px;
+                                height: Bridge.recording-state == RecordingState.recording ? 32px : 48px;
                                 border-radius:
-                                    root.mock-state == RecordingState.recording
+                                    Bridge.recording-state == RecordingState.recording
                                         ? 4px       // square stop hint
                                         : 24px;     // dot
                                 background: white;
@@ -162,8 +149,8 @@ export component RecordingPage inherits Rectangle {
                             spacing: Theme.spacing-default;
                             DestructiveButton {
                                 label: @tr("Stop");
-                                enabled: root.mock-state == RecordingState.recording
-                                    || root.mock-state == RecordingState.paused;
+                                enabled: Bridge.recording-state == RecordingState.recording
+                                    || Bridge.recording-state == RecordingState.paused;
                                 clicked => { root.on-stop-clicked(); }
                             }
                         }
