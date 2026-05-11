@@ -1058,6 +1058,15 @@ impl Application {
     }
 }
 
+fn default_presets() -> Vec<crate::BitratePreset> {
+    vec![
+        crate::BitratePreset { id: "low".into(),  name: "Low".into(),     bitrate_kbps: 1500,  active: false },
+        crate::BitratePreset { id: "med".into(),  name: "Medium".into(),  bitrate_kbps: 4000,  active: true  },
+        crate::BitratePreset { id: "high".into(), name: "High".into(),    bitrate_kbps: 8000,  active: false },
+        crate::BitratePreset { id: "max".into(),  name: "Maximum".into(), bitrate_kbps: 15000, active: false },
+    ]
+}
+
 fn default_quick_actions() -> Vec<crate::QuickAction> {
     let mut actions = vec![
         crate::QuickAction { id: "settings".into(),   title: "Settings".into(),    enabled: true,  active: false, is_macro: false },
@@ -1235,6 +1244,34 @@ fn android_main(app: PlatformApp) {
     };
     push_history();
 
+    // ── Bitrate presets (Phase 8 / Cluster C1) — data + pusher ──────────
+    // Created here (above the D1 handlers) so `on_reset_settings` can
+    // restore the factory presets list. The C1 callback registrations
+    // (save / delete / set-active) live further down and capture these
+    // same handles by clone.
+    //
+    // The factory-default literal lives in `default_presets()` so init
+    // and reset share a single source of truth — same pattern as
+    // `default_quick_actions()`.
+    let presets: Arc<Mutex<Vec<BitratePreset>>> = Arc::new(Mutex::new(default_presets()));
+    // Monotonic id source for user-created presets. Never use `g.len()`:
+    // after a delete-then-add cycle len() can collide with a previously
+    // issued id.
+    let next_preset_id: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
+    let push_presets = {
+        let presets = presets.clone();
+        let ui_weak = ui.as_weak();
+        move || {
+            let snapshot = presets.lock().clone();
+            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                ui.global::<Bridge>().set_presets(
+                    std::rc::Rc::new(slint::VecModel::from(snapshot)).into(),
+                );
+            });
+        }
+    };
+    push_presets();
+
     // Create the tokio runtime *before* registering Slint callbacks that
     // call `tokio::spawn` (directly or via `Application::flash_banner`).
     // Slint callbacks run on the UI thread during `ui.run()`, which has no
@@ -1284,16 +1321,21 @@ fn android_main(app: PlatformApp) {
     ui.global::<Bridge>().on_reset_settings({
         let bar_actions  = bar_actions.clone();
         let history      = history.clone();
+        let presets      = presets.clone();
         let push_bar     = push_bar.clone();
         let push_history = push_history.clone();
+        let push_presets = push_presets.clone();
         let ui_weak      = ui.as_weak();
         move || {
-            // Reset Cluster-D models to factory defaults. Cluster-C
-            // (presets, macros) will be folded in once those handlers land.
+            // Reset every Cluster-C/D model owned by Rust to factory
+            // defaults. Macros (Cluster C4) are not yet wired here; fold
+            // them in once their handlers land.
             *bar_actions.lock() = default_quick_actions();
+            *presets.lock()     = default_presets();
             history.lock().clear();
 
             push_bar();
+            push_presets();
             push_history();
 
             // Phase 11: also clear DataStore / SharedPreferences via JNI.
@@ -1491,33 +1533,10 @@ fn android_main(app: PlatformApp) {
     ui.global::<Bridge>().on_clear_log_entries(move || {
         log_ring_for_clear.clear();
     });
-    // ── Bitrate presets (Phase 8 / Cluster C1) ──────────────────────────
-    // Canonical list lives Rust-side in `Arc<Mutex<Vec<BitratePreset>>>`.
-    // Each mutation handler locks, mutates, drops the guard, and re-pushes
-    // the whole list to `Bridge.presets` via `push_presets`.
-    let presets: Arc<Mutex<Vec<BitratePreset>>> = Arc::new(Mutex::new(vec![
-        BitratePreset { id: "low".into(),  name: "Low".into(),     bitrate_kbps: 1500,  active: false },
-        BitratePreset { id: "med".into(),  name: "Medium".into(),  bitrate_kbps: 4000,  active: true  },
-        BitratePreset { id: "high".into(), name: "High".into(),    bitrate_kbps: 8000,  active: false },
-        BitratePreset { id: "max".into(),  name: "Maximum".into(), bitrate_kbps: 15000, active: false },
-    ]));
-    // Monotonic id source for user-created presets. Never use `g.len()`:
-    // after a delete-then-add cycle len() can collide with a previously
-    // issued id.
-    let next_preset_id: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
-    let push_presets = {
-        let presets = presets.clone();
-        let ui_weak = ui.as_weak();
-        move || {
-            let snapshot = presets.lock().clone();
-            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
-                ui.global::<Bridge>().set_presets(
-                    std::rc::Rc::new(slint::VecModel::from(snapshot)).into(),
-                );
-            });
-        }
-    };
-    push_presets();
+    // ── Bitrate presets (Phase 8 / Cluster C1) — callbacks ──────────────
+    // The shared `presets` Arc + `push_presets` closure are declared
+    // above (next to `history`) so the D1 `on_reset_settings` handler
+    // can also restore the factory list.
     ui.global::<Bridge>().on_save_preset({
         let presets = presets.clone();
         let next_id = next_preset_id.clone();
