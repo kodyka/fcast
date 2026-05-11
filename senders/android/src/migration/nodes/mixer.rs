@@ -301,9 +301,9 @@ impl MixerNode {
 
     fn set_video_caps(capsfilter: &gst::Element, width: i32, height: i32) {
         let caps = gst::Caps::builder("video/x-raw")
-            .field("width", &width)
-            .field("height", &height)
-            .field("framerate", &gst::Fraction::new(30, 1))
+            .field("width", width)
+            .field("height", height)
+            .field("framerate", gst::Fraction::new(30, 1))
             .build();
         if capsfilter.has_property("caps") {
             capsfilter.set_property("caps", &caps);
@@ -312,8 +312,8 @@ impl MixerNode {
 
     fn set_audio_caps(capsfilter: &gst::Element, sample_rate: i32) {
         let caps = gst::Caps::builder("audio/x-raw")
-            .field("channels", &2i32)
-            .field("rate", &sample_rate)
+            .field("channels", 2i32)
+            .field("rate", sample_rate)
             .build();
         if capsfilter.has_property("caps") {
             capsfilter.set_property("caps", &caps);
@@ -913,7 +913,7 @@ impl MixerNode {
                 None => Some(State::Started),
             },
             State::Starting => {
-                if self.cue_time.map_or(true, |cue| now >= cue) {
+                if self.cue_time.is_none_or(|cue| now >= cue) {
                     Some(State::Started)
                 } else {
                     None

@@ -1,16 +1,10 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use fcast_sender_sdk::{context::CastContext, device, device::DeviceInfo};
-use gst::prelude::{BufferPoolExt, BufferPoolExtManual};
-use gst_video::{VideoColorimetry, VideoFrameExt};
-use jni::{
-    objects::{JByteBuffer, JObject, JString},
-    JavaVM,
-};
-use mcore::{transmission::WhepSink, DeviceEvent, Event, ShouldQuit, SourceConfig};
+use mcore::{transmission::WhepSink, DeviceEvent, Event, ShouldQuit};
 use parking_lot::{Condvar, Mutex};
 #[cfg(target_os = "android")]
 use serde_json::{json, Value};
-use std::{collections::HashMap, net::Ipv6Addr, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use std::sync::atomic::AtomicU64;
 #[cfg(target_os = "android")]
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -19,6 +13,20 @@ use std::sync::atomic::Ordering;
 use tracing::{debug, error};
 #[cfg(target_os = "android")]
 use tracing::{info, warn};
+#[cfg(target_os = "android")]
+use anyhow::bail;
+#[cfg(target_os = "android")]
+use gst::prelude::{BufferPoolExt, BufferPoolExtManual};
+#[cfg(target_os = "android")]
+use gst_video::{VideoColorimetry, VideoFrameExt};
+#[cfg(target_os = "android")]
+use jni::{objects::{JByteBuffer, JObject, JString}, JavaVM};
+#[cfg(target_os = "android")]
+use mcore::SourceConfig;
+#[cfg(target_os = "android")]
+use std::net::Ipv6Addr;
+
+pub mod log_ring;
 
 pub mod migration;
 
@@ -541,16 +549,19 @@ fn build_status_items(receiver_name: &str, encoder: &str, network: &str) -> Vec<
             label: "Receiver".into(),
             value: receiver_name.into(),
             severity: crate::StatusSeverity::Info,
+            icon_glyph: "📺".into(),
         },
         crate::StatusItem {
             label: "Encoder".into(),
             value: encoder.into(),
             severity: crate::StatusSeverity::Info,
+            icon_glyph: "⚙️".into(),
         },
         crate::StatusItem {
             label: "Network".into(),
             value: network.into(),
             severity: crate::StatusSeverity::Info,
+            icon_glyph: "📶".into(),
         },
     ]
 }
@@ -800,39 +811,33 @@ impl Application {
                 } else {
                     match event {
                         DeviceEvent::StateChanged(device_connection_state) => {
-                            match device_connection_state {
-                                device::DeviceConnectionState::Connected { local_addr, .. } => {
-                                    self.local_address = Some(local_addr);
+                            if let device::DeviceConnectionState::Connected { local_addr, .. } = device_connection_state {
+                                self.local_address = Some(local_addr);
 
-                                    self.ui_weak.upgrade_in_event_loop(|ui| {
-                                        ui.global::<Bridge>()
-                                            .invoke_change_state(AppState::SelectingSettings);
-                                    })?;
-                                }
-                                _ => (),
+                                self.ui_weak.upgrade_in_event_loop(|ui| {
+                                    ui.global::<Bridge>()
+                                        .invoke_change_state(AppState::SelectingSettings);
+                                })?;
                             }
                         }
                         DeviceEvent::SourceChanged(new_source) => {
                             if self.tx_sink.is_some() {
-                                match new_source {
-                                    fcast_sender_sdk::device::Source::Url { ref url, .. } => {
-                                        if Some(url) != self.our_source_url.as_ref() {
-                                            // At this point the receiver has stopped playing our stream
-                                            debug!(
-                                                ?new_source,
-                                                "The source on the receiver changed, disconnecting"
-                                            );
+                                if let fcast_sender_sdk::device::Source::Url { ref url, .. } = new_source {
+                                    if Some(url) != self.our_source_url.as_ref() {
+                                        // At this point the receiver has stopped playing our stream
+                                        debug!(
+                                            ?new_source,
+                                            "The source on the receiver changed, disconnecting"
+                                        );
 
-                                            self.ui_weak.upgrade_in_event_loop(|ui| {
-                                                // Phase 8 (deferred): clear Bridge.status-items here.
-                                                ui.global::<Bridge>()
-                                                    .invoke_change_state(AppState::Disconnected);
-                                            })?;
+                                        self.ui_weak.upgrade_in_event_loop(|ui| {
+                                            // Phase 8 (deferred): clear Bridge.status-items here.
+                                            ui.global::<Bridge>()
+                                                .invoke_change_state(AppState::Disconnected);
+                                        })?;
 
-                                            self.stop_cast(false).await?;
-                                        }
+                                        self.stop_cast(false).await?;
                                     }
-                                    _ => (),
                                 }
                             }
                         }
@@ -1071,8 +1076,51 @@ fn android_main(app: PlatformApp) {
     let mut actions = vec![
         QuickAction { id: "scan-qr".into(), title: "Scan QR".into(), enabled: true, active: false, is_macro: false },
     ];
+    // Cached snapshot. Re-pushed in full whenever any signal changes.
+    #[derive(Clone, Default)]
+    struct StatusSnapshot {
+        network_label: String,
+        thermal_label: String,
+        battery_pct: i32,
+        charging: bool,
+    }
+
+    fn push_status(ui_handle: slint::Weak<MainWindow>, snap: StatusSnapshot) {
+        let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+            let bridge = ui.global::<Bridge>();
+            let items = vec![
+                StatusItem {
+                    label: "network".into(),
+                    value: snap.network_label.into(),
+                    severity: StatusSeverity::Info,
+                    icon_glyph: "📶".into(),
+                },
+                StatusItem {
+                    label: "thermal".into(),
+                    value: snap.thermal_label.clone().into(),
+                    severity: match snap.thermal_label.as_str() {
+                        "Critical" => StatusSeverity::Error,
+                        "Serious" => StatusSeverity::Warning,
+                        _ => StatusSeverity::Info,
+                    },
+                    icon_glyph: if snap.thermal_label == "Critical" { "🔥".into() } else { "🌡".into() },
+                },
+                StatusItem {
+                    label: "battery".into(),
+                    value: format!("{}%", snap.battery_pct).into(),
+                    severity: if snap.battery_pct < 20 { StatusSeverity::Error } else { StatusSeverity::Info },
+                    icon_glyph: if snap.charging { "⚡".into() } else { "🔋".into() },
+                },
+            ];
+            let model: slint::ModelRc<StatusItem> = std::rc::Rc::new(slint::VecModel::from(items)).into();
+            bridge.set_status_items(model);
+        });
+    }
+
     let show_debug = cfg!(debug_assertions);
     ui.global::<Bridge>().set_show_debug(show_debug);
+    ui.global::<Bridge>()
+        .set_app_version(env!("CARGO_PKG_VERSION").into());
     if show_debug {
         actions.extend([
             QuickAction { id: "migrated-server".into(), title: "Start Server".into(), enabled: true, active: false, is_macro: false },
@@ -1085,14 +1133,109 @@ fn android_main(app: PlatformApp) {
     ui.global::<Bridge>().set_quick_actions(model.into());
 
     let runtime = tokio::runtime::Runtime::new().unwrap();
-    // Establish tokio runtime context on the Slint UI thread so that
-    // `tokio::spawn` works both during setup (e.g. `spawn_recording_ticker`)
-    // and from inside Slint callback closures (which execute on this thread
-    // during `ui.run()`). Without this guard, those `tokio::spawn` calls
-    // panic with "there is no reactor running".
+    // Enter the runtime context so bare `tokio::spawn` calls below (status
+    // ticker, recording ticker, and the per-toggle network interface task)
+    // can locate the reactor. Without this, `Runtime::new()` alone leaves
+    // `Handle::current()` unset on this thread and the spawns panic with
+    // "there is no reactor running, must be called from the context of a
+    // Tokio 1.x runtime". The guard lives until the end of `android_main`,
+    // covering both startup spawns and UI-thread callback spawns invoked
+    // from inside Slint closures during `ui.run()` (e.g.
+    // `spawn_recording_ticker` and per-toggle interface spawns).
     let _runtime_guard = runtime.enter();
 
     let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
+
+    let ui_handle = ui.as_weak();
+    // NOTE: The shared `Arc<Mutex<StatusSnapshot>>` cache that producers
+    // (battery / thermal / network listeners) will update lands with
+    // Cluster B (Phase 8 Section 3). For now the ticker just rebuilds a
+    // hardcoded snapshot on every tick — no shared state needed yet.
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
+        loop {
+            tick.tick().await;
+            let snap_now = StatusSnapshot {
+                network_label: "Wi-Fi".into(),
+                thermal_label: "Nominal".into(),
+                battery_pct: 87,
+                charging: false,
+            };
+            push_status(ui_handle.clone(), snap_now);
+        }
+    });
+
+    fn enumerate_interfaces() -> Vec<NetworkInterface> {
+        vec![
+            NetworkInterface {
+                name: "wlan0".into(),
+                kind: "wifi".into(),
+                address_v4: "192.168.1.42".into(),
+                address_v6: "fe80::1234".into(),
+                enabled: true,
+            },
+            NetworkInterface {
+                name: "rmnet0".into(),
+                kind: "cellular".into(),
+                address_v4: "10.20.30.40".into(),
+                address_v6: "".into(),
+                enabled: false,
+            },
+            NetworkInterface {
+                name: "lo".into(),
+                kind: "loopback".into(),
+                address_v4: "127.0.0.1".into(),
+                address_v6: "::1".into(),
+                enabled: true,
+            },
+        ]
+    }
+
+    fn push_interfaces(ui_handle: slint::Weak<MainWindow>, list: Vec<NetworkInterface>) {
+        let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+            let model: slint::ModelRc<NetworkInterface> = std::rc::Rc::new(slint::VecModel::from(list)).into();
+            ui.global::<Bridge>().set_network_interfaces(model);
+        });
+    }
+
+    push_interfaces(ui.as_weak(), enumerate_interfaces());
+
+    let interfaces = std::sync::Arc::new(tokio::sync::Mutex::new(enumerate_interfaces()));
+    let interfaces_for_callback = interfaces.clone();
+    let ui_for_callback = ui.as_weak();
+    ui.global::<Bridge>()
+        .on_set_interface_enabled(move |name, value| {
+            let interfaces = interfaces_for_callback.clone();
+            let ui_handle = ui_for_callback.clone();
+            tokio::spawn(async move {
+                let mut list = interfaces.lock().await;
+                if let Some(iface) = list.iter_mut().find(|i| i.name == name.as_str()) {
+                    iface.enabled = value;
+                }
+                push_interfaces(ui_handle, list.clone());
+            });
+        });
+
+    let log_ring = log_ring::LogRing::new(ui.as_weak());
+    let log_ring_for_clear = log_ring.clone();
+
+    use tracing_subscriber::layer::SubscriberExt;
+    use tracing_subscriber::util::SubscriberInitExt;
+    use tracing_subscriber::filter::LevelFilter;
+    use tracing_subscriber::Layer;
+    // Cap the LogRing layer at DEBUG so the firehose of GStreamer `Fixme`
+    // / TRACE events forwarded by `tracing_gstreamer::integrate_events`
+    // (see `Application::run_event_loop`) never reaches the ring buffer.
+    // Without this filter, an active media pipeline can produce thousands
+    // of TRACE events per second, each one mutating the ring and dirtying
+    // the UI pusher — pointless for a human-readable debug log.
+    tracing_subscriber::registry()
+        .with(log_ring.clone().with_filter(LevelFilter::DEBUG))
+        .init();
+
+    ui.global::<Bridge>().on_clear_log_entries(move || {
+        log_ring_for_clear.clear();
+    });
 
     ui.global::<Bridge>().on_connect_receiver({
         let event_tx = event_tx.clone();
