@@ -43,20 +43,6 @@ export component QuickActionButton inherits Rectangle {
 }
 
 export component CastControlBar inherits Rectangle {
-    // UI-only stub model. Phase 8 swaps for `Bridge.quick-actions` driven
-    // by Rust. The spec calls these out as the canonical Phase-7 set:
-    //   settings, debug, codec-test, scan-qr, migrated-server.
-    in-out property <[QuickAction]> mock-quick-actions: [
-        { id: "settings",        title: "Settings",       enabled: true, active: false },
-        { id: "debug",           title: "Debug",          enabled: true, active: false },
-        { id: "codec-test",      title: "Codec test",     enabled: true, active: false },
-        { id: "scan-qr",         title: "Scan QR",        enabled: true, active: false },
-        { id: "record",          title: "Record",         enabled: true, active: false },
-        { id: "pair",            title: "Pair",           enabled: true, active: false },
-        { id: "migrated-server", title: "Migrated srv",   enabled: true, active: false },
-        { id: "bitrate",         title: "Bitrate",        enabled: true, active: false },
-    ];
-
     height: Theme.control-bar-height;
     background: Theme.surface-bar;
 
@@ -65,7 +51,7 @@ export component CastControlBar inherits Rectangle {
         spacing: Theme.spacing-default;
         alignment: start;
 
-        for action in root.mock-quick-actions: QuickActionButton {
+        for action in Bridge.quick-actions: QuickActionButton {
             action: action;
             invoked(id) => {
                 // Panel-opening ids stay in Slint — no Rust round-trip.

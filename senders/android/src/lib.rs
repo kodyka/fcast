@@ -1074,7 +1074,13 @@ fn android_main(app: PlatformApp) {
 
 
     let mut actions = vec![
-        QuickAction { id: "scan-qr".into(), title: "Scan QR".into(), enabled: true, active: false, is_macro: false },
+        QuickAction { id: "settings".into(),   title: "Settings".into(),    enabled: true,  active: false, is_macro: false },
+        QuickAction { id: "debug".into(),      title: "Debug".into(),       enabled: true,  active: false, is_macro: false },
+        QuickAction { id: "codec-test".into(), title: "Codec test".into(),  enabled: true,  active: false, is_macro: false },
+        QuickAction { id: "scan-qr".into(),    title: "Scan QR".into(),     enabled: true,  active: false, is_macro: false },
+        QuickAction { id: "record".into(),     title: "Record".into(),      enabled: true,  active: false, is_macro: false },
+        QuickAction { id: "pair".into(),       title: "Pair".into(),        enabled: true,  active: false, is_macro: false },
+        QuickAction { id: "bitrate".into(),    title: "Bitrate".into(),     enabled: true,  active: false, is_macro: false },
     ];
     // Cached snapshot. Re-pushed in full whenever any signal changes.
     #[derive(Clone, Default)]
@@ -1123,14 +1129,66 @@ fn android_main(app: PlatformApp) {
         .set_app_version(env!("CARGO_PKG_VERSION").into());
     if show_debug {
         actions.extend([
-            QuickAction { id: "migrated-server".into(), title: "Start Server".into(), enabled: true, active: false, is_macro: false },
+            QuickAction { id: "migrated-server".into(), title: "Migrated srv".into(), enabled: true, active: false, is_macro: false },
             QuickAction { id: "test-getinfo".into(),    title: "GetInfo".into(),      enabled: true, active: false, is_macro: false },
             QuickAction { id: "test-crossfade".into(),  title: "Crossfade".into(),    enabled: true, active: false, is_macro: false },
             QuickAction { id: "test-smoke".into(),      title: "Smoke Graph".into(),  enabled: true, active: false, is_macro: false },
         ]);
     }
-    let model = std::rc::Rc::new(slint::VecModel::from(actions));
-    ui.global::<Bridge>().set_quick_actions(model.into());
+    let bar_actions: Arc<Mutex<Vec<QuickAction>>> = Arc::new(Mutex::new(actions));
+    let push_bar = {
+        let bar_actions = bar_actions.clone();
+        let ui_weak = ui.as_weak();
+        move || {
+            let snapshot = bar_actions.lock().unwrap().clone();
+            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                ui.global::<Bridge>().set_quick_actions(
+                    std::rc::Rc::new(slint::VecModel::from(snapshot)).into(),
+                );
+            });
+        }
+    };
+    push_bar();
+
+    ui.global::<Bridge>().on_move_bar_action({
+        let bar_actions = bar_actions.clone();
+        let push        = push_bar.clone();
+        move |from, to| {
+            let mut g = bar_actions.lock().unwrap();
+            if let (Ok(from_u), Ok(to_u)) = (usize::try_from(from), usize::try_from(to)) {
+                if from_u < g.len() && to_u < g.len() && from_u != to_u {
+                    let item = g.remove(from_u);
+                    g.insert(to_u, item);
+                }
+            }
+            drop(g);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_set_bar_action_enabled({
+        let bar_actions = bar_actions.clone();
+        let push        = push_bar.clone();
+        move |idx, enabled| {
+            let mut g = bar_actions.lock().unwrap();
+            if let Ok(i) = usize::try_from(idx) {
+                if let Some(a) = g.get_mut(i) { a.enabled = enabled; }
+            }
+            drop(g);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_save_bar_actions({
+        let _bar_actions = bar_actions.clone();
+        let push        = push_bar.clone();
+        move || {
+            // Phase 11: persist to DataStore via JNI here.
+            // For now, just re-push the in-memory state.
+            push();
+        }
+    });
+
 
     let runtime = tokio::runtime::Runtime::new().unwrap();
     // Enter the runtime context so bare `tokio::spawn` calls below (status
