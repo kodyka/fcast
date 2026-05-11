@@ -51,15 +51,6 @@ component PresetChip inherits Rectangle {
 }
 
 export component CameraPage inherits Rectangle {
-    // ── UI-only stub state ──────────────────────────────────────────────
-    in-out property <int>   mock-camera-idx:     1;    // 0 Front / 1 Back / 2 External
-    in-out property <int>   mock-resolution-idx: 2;    // 0 480p / 1 720p / 2 1080p / 3 4K
-    in-out property <int>   mock-framerate-idx:  1;    // 0 24 / 1 30 / 2 60 fps
-    in-out property <bool>  mock-mirror-front:   true;
-    in-out property <bool>  mock-stabilization:  true;
-    in-out property <bool>  mock-tap-to-focus:   true;
-    in-out property <float> mock-zoom-level:     1.0;  // 0.5 .. 5.0
-
     width: 100%;
     height: 100%;
     background: Theme.surface-primary;
@@ -97,23 +88,23 @@ export component CameraPage inherits Rectangle {
                     title: @tr("SOURCE");
                     SettingsValueRow {
                         title: @tr("Camera");
-                        value: [@tr("Front"), @tr("Back"), @tr("External")][root.mock-camera-idx];
+                        value: [@tr("Front"), @tr("Back"), @tr("External")][Bridge.camera-idx];
                         clicked => {
-                            root.mock-camera-idx = Math.mod(root.mock-camera-idx + 1, 3);
+                            Bridge.camera-idx = Math.mod(Bridge.camera-idx + 1, 3);
                         }
                     }
                     SettingsValueRow {
                         title: @tr("Resolution");
-                        value: ["480p", "720p", "1080p", "4K"][root.mock-resolution-idx];
+                        value: ["480p", "720p", "1080p", "4K"][Bridge.resolution-idx];
                         clicked => {
-                            root.mock-resolution-idx = Math.mod(root.mock-resolution-idx + 1, 4);
+                            Bridge.resolution-idx = Math.mod(Bridge.resolution-idx + 1, 4);
                         }
                     }
                     SettingsValueRow {
                         title: @tr("Framerate");
-                        value: ["24 fps", "30 fps", "60 fps"][root.mock-framerate-idx];
+                        value: ["24 fps", "30 fps", "60 fps"][Bridge.framerate-idx];
                         clicked => {
-                            root.mock-framerate-idx = Math.mod(root.mock-framerate-idx + 1, 3);
+                            Bridge.framerate-idx = Math.mod(Bridge.framerate-idx + 1, 3);
                         }
                     }
                 }
@@ -123,18 +114,18 @@ export component CameraPage inherits Rectangle {
                     title: @tr("IMAGE");
                     SettingsToggleRow {
                         title: @tr("Mirror front camera");
-                        checked: root.mock-mirror-front;
-                        toggled(checked) => { root.mock-mirror-front = checked; }
+                        checked: Bridge.camera-mirror-front;
+                        toggled(checked) => { Bridge.camera-mirror-front = checked; }
                     }
                     SettingsToggleRow {
                         title: @tr("Video stabilization");
-                        checked: root.mock-stabilization;
-                        toggled(checked) => { root.mock-stabilization = checked; }
+                        checked: Bridge.camera-stabilization;
+                        toggled(checked) => { Bridge.camera-stabilization = checked; }
                     }
                     SettingsToggleRow {
                         title: @tr("Tap to focus");
-                        checked: root.mock-tap-to-focus;
-                        toggled(checked) => { root.mock-tap-to-focus = checked; }
+                        checked: Bridge.camera-tap-to-focus;
+                        toggled(checked) => { Bridge.camera-tap-to-focus = checked; }
                     }
                 }
 
@@ -147,7 +138,7 @@ export component CameraPage inherits Rectangle {
                         minimum: 0.5;
                         maximum: 5.0;
                         show-fractional: true;
-                        value <=> root.mock-zoom-level;
+                        value <=> Bridge.camera-zoom-level;
                         // No unit conversion needed — slider domain matches
                         // storage domain. See gotcha below for when `<=>` is
                         // safe vs. when you must use the Phase-14 split form.
@@ -170,8 +161,8 @@ export component CameraPage inherits Rectangle {
                                 // by the Slint compiler (no implicit numeric
                                 // → string coercion).
                                 label: preset == 1.0 ? "1×" : "\{preset}×";
-                                active: root.mock-zoom-level == preset;
-                                clicked => { root.mock-zoom-level = preset; }
+                                active: Bridge.camera-zoom-level == preset;
+                                clicked => { Bridge.camera-zoom-level = preset; }
                             }
                         }
                     }

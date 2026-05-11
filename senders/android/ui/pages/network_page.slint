@@ -141,19 +141,10 @@ export component NetworkPage inherits Rectangle {
         { name: "rmnet0", kind: "cellular", address-v4: "10.20.30.40",   address-v6: "",           enabled: false },
         { name: "lo",     kind: "loopback", address-v4: "127.0.0.1",     address-v6: "::1",        enabled: true  },
     ];
-    in-out property <bool> mock-wifi-aware-enabled: false;
-    property <bool>        banner-visible:          false;
 
     width: 100%;
     height: 100%;
     background: Theme.surface-primary;
-
-    // Auto-hide banner timer. Re-arms whenever banner-visible flips to true.
-    Timer {
-        interval: 3s;
-        running: root.banner-visible;
-        triggered => { root.banner-visible = false; }
-    }
 
     // Helper: rebuild mock-interfaces with one row's enabled flipped.
     // Same in-place-mutation caveat as Phase 16's preset selector.
@@ -195,21 +186,6 @@ export component NetworkPage inherits Rectangle {
             }
         }
 
-        // ── Banner (animated visibility) ────────────────────────────────
-        if root.banner-visible: Rectangle {
-            height: 40px;
-            background: Theme.accent-active.darker(20%);
-            HorizontalLayout {
-                padding: Theme.padding-screen;
-                Text {
-                    text: @tr("Wi-Fi Aware enabled (placeholder — no permission requested).");
-                    color: Theme.text-primary;
-                    vertical-alignment: center;
-                    font-size: Theme.font-size-label;
-                }
-            }
-        }
-
         // ── Body ────────────────────────────────────────────────────────
         ScrollView {
             mouse-drag-pan-enabled: true;
@@ -231,13 +207,9 @@ export component NetworkPage inherits Rectangle {
                     title: @tr("WI-FI AWARE");
                     SettingsToggleRow {
                         title: @tr("Enable Wi-Fi Aware discovery");
-                        checked: root.mock-wifi-aware-enabled;
+                        checked: Bridge.wifi-aware-enabled;
                         toggled(checked) => {
-                            root.mock-wifi-aware-enabled = checked;
-                            // Show transient banner only on enable transitions.
-                            if (checked) {
-                                root.banner-visible = true;
-                            }
+                            Bridge.set-wifi-aware(checked);
                         }
                     }
                 }

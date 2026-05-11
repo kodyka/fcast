@@ -7,12 +7,6 @@ import {
 } from "../components/settings_rows.slint";
 
 export component AudioPage inherits Rectangle {
-    // UI-only stub state.
-    in-out property <bool>  mock-muted:         false;
-    in-out property <int>   mock-source-idx:    0;   // Mic / System / Both
-    in-out property <float> mock-input-gain:    0.7; // 0..1
-    in-out property <int>   mock-bitrate-idx:   1;   // 64 / 128 / 192 / 256 kbps
-
     width: 100%;
     height: 100%;
     background: Theme.surface-primary;
@@ -45,19 +39,19 @@ export component AudioPage inherits Rectangle {
                     title: @tr("INPUT");
                     SettingsValueRow {
                         title: @tr("Source");
-                        value: [@tr("Microphone"), @tr("System audio"), @tr("Both")][root.mock-source-idx];
-                        clicked => { root.mock-source-idx = Math.mod(root.mock-source-idx + 1, 3); }
+                        value: [@tr("Microphone"), @tr("System audio"), @tr("Both")][Bridge.audio-source-idx];
+                        clicked => { Bridge.audio-source-idx = Math.mod(Bridge.audio-source-idx + 1, 3); }
                     }
                     SettingsToggleRow {
                         title: @tr("Mute");
-                        checked: root.mock-muted;
-                        toggled(checked) => { root.mock-muted = checked; }
+                        checked: Bridge.audio-muted;
+                        toggled(checked) => { Bridge.audio-muted = checked; }
                     }
                     SettingsSliderRow {
                         title: @tr("Input gain");
-                        value: root.mock-input-gain * 100;
+                        value: Bridge.audio-input-gain * 100;
                         minimum: 0; maximum: 100; unit: "%";
-                        changed(v) => { root.mock-input-gain = v / 100; }
+                        changed(v) => { Bridge.audio-input-gain = v / 100; }
                     }
                 }
 
@@ -65,8 +59,8 @@ export component AudioPage inherits Rectangle {
                     title: @tr("ENCODING");
                     SettingsValueRow {
                         title: @tr("Bitrate");
-                        value: [@tr("64 kbps"), @tr("128 kbps"), @tr("192 kbps"), @tr("256 kbps")][root.mock-bitrate-idx];
-                        clicked => { root.mock-bitrate-idx = Math.mod(root.mock-bitrate-idx + 1, 4); }
+                        value: [@tr("64 kbps"), @tr("128 kbps"), @tr("192 kbps"), @tr("256 kbps")][Bridge.audio-bitrate-idx];
+                        clicked => { Bridge.audio-bitrate-idx = Math.mod(Bridge.audio-bitrate-idx + 1, 4); }
                     }
                     SettingsValueRow {
                         title: @tr("Codec");
