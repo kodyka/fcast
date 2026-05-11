@@ -1,5 +1,27 @@
 // main.slint — Thin root file compiled by slint_build::compile("ui/main.slint").
 //
+// =====================================================================
+// Bridge invariants (Phase 8 / Cluster E)
+// =====================================================================
+//
+// 1. Bridge.active-panel — Slint pages may write directly. Rust writes
+//    only through `open_panel(panel: Panel)` in lib.rs.
+//
+// 2. Bridge.lifecycle — Rust is the authoritative writer (set_lifecycle).
+//    Slint writes directly only from inside the LockOverlay /
+//    StealthOverlay / SnapshotCountdown exit paths. Settings rows that
+//    *engage* a lifecycle mode go through Bridge.engage-lock /
+//    engage-stealth / start-snapshot-countdown callbacks.
+//
+// 3. Bridge.app-state — Slint writes ONLY via Bridge.change-state(to).
+//    No Slint-side direct writes (`Bridge.app-state = ...`). Rust writes
+//    only via invoke_change_state, which calls change-state internally.
+//
+// Breaking any of these invariants will produce subtle bugs that race
+// with the UI thread. Treat changes to these properties' producers /
+// consumers as cross-cutting and review them as a unit.
+// =====================================================================
+//
 // Responsibilities:
 //   1. Import Bridge and AppState from bridge.slint for use by MainWindow,
 //      and re-export them so slint_build generates the Rust bindings and

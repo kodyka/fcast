@@ -692,11 +692,11 @@ feat(android): Phase 8 / B5 — Wi-Fi Aware toggle through Bridge
 
 ## 3.8 Exit criteria for Section 3
 
-- [ ] All 5 items wired (B1-B5)
-- [ ] No `Slint Timer` driving banner auto-hide on `network_page.slint`
-- [ ] `Bridge.snapshot-secs` (no longer `Bridge.mock-snapshot-secs`)
-- [ ] `cargo build` and `cargo clippy --all-targets -- -D warnings` are green
-- [ ] mock-* inventory dropped by ~17 lines
+- [x] All 5 items wired (B1-B5)
+- [x] No `Slint Timer` driving banner auto-hide on `network_page.slint`
+- [x] `Bridge.snapshot-secs` (no longer `Bridge.mock-snapshot-secs`)
+- [x] `cargo build` and `cargo clippy --all-targets -- -D warnings` are green
+- [x] mock-* inventory dropped by ~17 lines
 
 You can now move to **Section 4 — Cluster C: list mutations** at [`PHASE-8-Section-4-cluster-C-list-mutations.md`](./PHASE-8-Section-4-cluster-C-list-mutations.md).
 

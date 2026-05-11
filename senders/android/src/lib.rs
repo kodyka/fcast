@@ -22,6 +22,34 @@ use tracing::{info, warn};
 
 pub mod migration;
 
+#[derive(Default)]
+struct RecordingTickerState {
+    state: RecordingState,
+    started_at: Option<std::time::Instant>,
+    paused_for: std::time::Duration,
+    pause_started: Option<std::time::Instant>,
+}
+
+fn spawn_recording_ticker(
+    ui_handle: slint::Weak<MainWindow>,
+    state: Arc<tokio::sync::Mutex<RecordingTickerState>>,
+) {
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            let s = state.lock().await;
+            if s.state == RecordingState::Recording {
+                if let Some(started) = s.started_at {
+                    let elapsed = started.elapsed().saturating_sub(s.paused_for).as_secs() as i32;
+                    let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+                        ui.global::<Bridge>().set_recording_elapsed_s(elapsed);
+                    });
+                }
+            }
+        }
+    });
+}
+
 #[cfg(target_os = "android")]
 type PlatformApp = slint::android::AndroidApp;
 
@@ -1305,6 +1333,182 @@ fn android_main(app: PlatformApp) {
             event_tx
                 .send(Event::EndSession { disconnect: true })
                 .unwrap();
+        }
+    });
+
+    let recorder_state = Arc::new(tokio::sync::Mutex::new(RecordingTickerState::default()));
+
+    ui.global::<Bridge>().on_start_recording({
+        let recorder_state = recorder_state.clone();
+        let ui_handle = ui.as_weak();
+        move || {
+            let recorder_state = recorder_state.clone();
+            let ui_handle = ui_handle.clone();
+            tokio::spawn(async move {
+                let mut s = recorder_state.lock().await;
+                s.started_at = Some(std::time::Instant::now());
+                s.paused_for = std::time::Duration::ZERO;
+                s.pause_started = None;
+                s.state = RecordingState::Recording;
+                let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+                    ui.global::<Bridge>().set_recording_state(RecordingState::Recording);
+                    ui.global::<Bridge>().set_recording_elapsed_s(0);
+                });
+            });
+        }
+    });
+
+    ui.global::<Bridge>().on_pause_recording({
+        let recorder_state = recorder_state.clone();
+        let ui_handle = ui.as_weak();
+        move || {
+            let recorder_state = recorder_state.clone();
+            let ui_handle = ui_handle.clone();
+            tokio::spawn(async move {
+                let mut s = recorder_state.lock().await;
+                if s.state != RecordingState::Recording { return; }
+                s.pause_started = Some(std::time::Instant::now());
+                s.state = RecordingState::Paused;
+                let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+                    ui.global::<Bridge>().set_recording_state(RecordingState::Paused);
+                });
+            });
+        }
+    });
+
+    ui.global::<Bridge>().on_resume_recording({
+        let recorder_state = recorder_state.clone();
+        let ui_handle = ui.as_weak();
+        move || {
+            let recorder_state = recorder_state.clone();
+            let ui_handle = ui_handle.clone();
+            tokio::spawn(async move {
+                let mut s = recorder_state.lock().await;
+                if s.state != RecordingState::Paused { return; }
+                if let Some(started) = s.pause_started.take() {
+                    s.paused_for += started.elapsed();
+                }
+                s.state = RecordingState::Recording;
+                let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+                    ui.global::<Bridge>().set_recording_state(RecordingState::Recording);
+                });
+            });
+        }
+    });
+
+    ui.global::<Bridge>().on_stop_recording({
+        let recorder_state = recorder_state.clone();
+        let ui_handle = ui.as_weak();
+        move || {
+            let recorder_state = recorder_state.clone();
+            let ui_handle = ui_handle.clone();
+            tokio::spawn(async move {
+                {
+                    let mut s = recorder_state.lock().await;
+                    s.state = RecordingState::Finalizing;
+                }
+                let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+                    ui.global::<Bridge>().set_recording_state(RecordingState::Finalizing);
+                });
+
+                let mut s = recorder_state.lock().await;
+                s.started_at = None;
+                s.paused_for = std::time::Duration::ZERO;
+                s.pause_started = None;
+                s.state = RecordingState::Idle;
+                let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+                    let bridge = ui.global::<Bridge>();
+                    bridge.set_recording_state(RecordingState::Idle);
+                    bridge.set_recording_elapsed_s(0);
+                });
+            });
+        }
+    });
+
+    spawn_recording_ticker(ui.as_weak(), recorder_state.clone());
+
+    ui.global::<Bridge>().on_engage_lock({
+        let ui_handle = ui.as_weak();
+        move || {
+            let _ = ui_handle.upgrade_in_event_loop(|ui| {
+                ui.global::<Bridge>().set_lifecycle(LifecycleMode::LockScreen);
+            });
+        }
+    });
+
+    ui.global::<Bridge>().on_engage_stealth({
+        let ui_handle = ui.as_weak();
+        move || {
+            let _ = ui_handle.upgrade_in_event_loop(|ui| {
+                ui.global::<Bridge>().set_lifecycle(LifecycleMode::Stealth);
+            });
+        }
+    });
+
+    ui.global::<Bridge>().on_start_snapshot_countdown({
+        let ui_handle = ui.as_weak();
+        // Monotonic generation counter. Each new countdown bumps it and
+        // captures the new value; the spawned timer only resets lifecycle
+        // if its captured generation is still current. This makes any
+        // older, still-sleeping timer a no-op when a newer countdown is
+        // triggered. Mirrors `Application::banner_generation`.
+        static SNAPSHOT_GEN: AtomicU64 = AtomicU64::new(0);
+        move |seconds: i32| {
+            let ui_handle = ui_handle.clone();
+            let gen = SNAPSHOT_GEN.fetch_add(1, Ordering::SeqCst) + 1;
+            tokio::spawn(async move {
+                let _ = ui_handle.upgrade_in_event_loop(|ui| {
+                    ui.global::<Bridge>().set_lifecycle(LifecycleMode::SnapshotCountdown);
+                });
+                tokio::time::sleep(std::time::Duration::from_secs(seconds.max(0) as u64)).await;
+                // Only reset to Normal if (a) no newer countdown has started
+                // (otherwise we'd cut the new one short) and (b) we are still
+                // in SnapshotCountdown (otherwise the user cancelled or
+                // engaged lock/stealth and we must not clobber their choice).
+                if SNAPSHOT_GEN.load(Ordering::SeqCst) != gen {
+                    return;
+                }
+                let _ = ui_handle.upgrade_in_event_loop(|ui| {
+                    let bridge = ui.global::<Bridge>();
+                    if bridge.get_lifecycle() == LifecycleMode::SnapshotCountdown {
+                        bridge.set_lifecycle(LifecycleMode::Normal);
+                    }
+                });
+            });
+        }
+    });
+
+    ui.global::<Bridge>().on_exit_lifecycle({
+        let ui_handle = ui.as_weak();
+        move || {
+            let _ = ui_handle.upgrade_in_event_loop(|ui| {
+                ui.global::<Bridge>().set_lifecycle(LifecycleMode::Normal);
+            });
+        }
+    });
+
+    ui.global::<Bridge>().on_set_wifi_aware({
+        let ui_handle = ui.as_weak();
+        move |enabled| {
+            let ui_handle = ui_handle.clone();
+            tokio::spawn(async move {
+                let success = true;
+                let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+                    let bridge = ui.global::<Bridge>();
+                    bridge.set_wifi_aware_enabled(enabled && success);
+                });
+
+                Application::flash_banner(
+                    ui_handle,
+                    if enabled {
+                        "Wi-Fi Aware enabled (placeholder — no permission requested).".into()
+                    } else {
+                        "Wi-Fi Aware disabled.".into()
+                    },
+                    BannerSeverity::Info,
+                    std::time::Duration::from_secs(3),
+                );
+            });
         }
     });
 
