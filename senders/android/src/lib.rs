@@ -1085,6 +1085,12 @@ fn android_main(app: PlatformApp) {
     ui.global::<Bridge>().set_quick_actions(model.into());
 
     let runtime = tokio::runtime::Runtime::new().unwrap();
+    // Establish tokio runtime context on the Slint UI thread so that
+    // `tokio::spawn` works both during setup (e.g. `spawn_recording_ticker`)
+    // and from inside Slint callback closures (which execute on this thread
+    // during `ui.run()`). Without this guard, those `tokio::spawn` calls
+    // panic with "there is no reactor running".
+    let _runtime_guard = runtime.enter();
 
     let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
 
