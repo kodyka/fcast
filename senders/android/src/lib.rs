@@ -1179,12 +1179,11 @@ fn android_main(app: PlatformApp) {
     ui.global::<Bridge>().on_load_draft_macro({
         let macros = macros.clone();
         let draft_macro_steps = draft_macro_steps.clone();
-        let push_draft = push_draft_steps.clone();
         let ui_weak = ui.as_weak();
         move |id| {
             let mut draft_name = "".to_string();
             let mut draft_enabled = true;
-            {
+            let steps_snap: Vec<MacroStep> = {
                 let mut draft_g = draft_macro_steps.lock().unwrap();
                 if id.is_empty() {
                     draft_g.clear();
@@ -1198,12 +1197,21 @@ fn android_main(app: PlatformApp) {
                         draft_g.clear();
                     }
                 }
+                draft_g.clone()
+            };
+            // Slint callbacks run on the UI thread, so we can apply the
+            // draft state synchronously. This matters because callers
+            // (macros_page.slint) switch to Panel.macro-edit immediately
+            // after this callback returns — a deferred upgrade_in_event_loop
+            // would let MacroEditPage render one frame with stale values.
+            if let Some(ui) = ui_weak.upgrade() {
+                let bridge = ui.global::<Bridge>();
+                bridge.set_draft_macro_name(draft_name.into());
+                bridge.set_draft_macro_enabled(draft_enabled);
+                bridge.set_draft_macro_steps(
+                    std::rc::Rc::new(slint::VecModel::from(steps_snap)).into(),
+                );
             }
-            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
-                ui.global::<Bridge>().set_draft_macro_name(draft_name.into());
-                ui.global::<Bridge>().set_draft_macro_enabled(draft_enabled);
-            });
-            push_draft();
         }
     });
 
