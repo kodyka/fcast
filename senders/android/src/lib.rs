@@ -1089,16 +1089,23 @@ fn android_main(app: PlatformApp) {
     let draft_macro_steps: Arc<std::sync::Mutex<Vec<MacroStep>>> = Arc::new(std::sync::Mutex::new(vec![]));
     let next_macro_id = Arc::new(AtomicUsize::new(0));
 
+    // Both push_* helpers apply synchronously via `upgrade()` rather than
+    // `upgrade_in_event_loop()`. Every caller is a Slint callback (e.g.
+    // on_save_macro, on_draft_move_step) that already runs on the UI
+    // thread, so deferral is unnecessary — and would let the consumer
+    // page render one frame with stale data when a panel switch happens
+    // immediately after the callback (see on_load_draft_macro for the
+    // same rationale).
     let push_macros = {
         let macros = macros.clone();
         let ui_weak = ui.as_weak();
         move || {
             let snap = macros.lock().unwrap().clone();
-            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+            if let Some(ui) = ui_weak.upgrade() {
                 ui.global::<Bridge>().set_macros(
                     std::rc::Rc::new(slint::VecModel::from(snap)).into(),
                 );
-            });
+            }
         }
     };
     push_macros();
@@ -1108,11 +1115,11 @@ fn android_main(app: PlatformApp) {
         let ui_weak = ui.as_weak();
         move || {
             let snap = draft_macro_steps.lock().unwrap().clone();
-            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+            if let Some(ui) = ui_weak.upgrade() {
                 ui.global::<Bridge>().set_draft_macro_steps(
                     std::rc::Rc::new(slint::VecModel::from(snap)).into(),
                 );
-            });
+            }
         }
     };
     push_draft_steps();
