@@ -1319,19 +1319,27 @@ fn android_main(app: PlatformApp) {
     });
 
     ui.global::<Bridge>().on_reset_settings({
-        let bar_actions  = bar_actions.clone();
-        let history      = history.clone();
-        let presets      = presets.clone();
-        let push_bar     = push_bar.clone();
-        let push_history = push_history.clone();
-        let push_presets = push_presets.clone();
-        let ui_weak      = ui.as_weak();
+        let bar_actions    = bar_actions.clone();
+        let history        = history.clone();
+        let presets        = presets.clone();
+        let next_preset_id = next_preset_id.clone();
+        let push_bar       = push_bar.clone();
+        let push_history   = push_history.clone();
+        let push_presets   = push_presets.clone();
+        let ui_weak        = ui.as_weak();
         move || {
             // Reset every Cluster-C/D model owned by Rust to factory
             // defaults. Macros (Cluster C4) are not yet wired here; fold
             // them in once their handlers land.
+            //
+            // `next_preset_id` is also rewound so user-created preset
+            // ids restart at `custom-0` after a reset, matching the
+            // factory state. Without this, a freshly-reset device would
+            // still hand out `custom-N` for some N > 0 the moment the
+            // user added a preset.
             *bar_actions.lock() = default_quick_actions();
             *presets.lock()     = default_presets();
+            next_preset_id.store(0, Ordering::Relaxed);
             history.lock().clear();
 
             push_bar();
