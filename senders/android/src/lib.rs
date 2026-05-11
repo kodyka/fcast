@@ -1,16 +1,10 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use fcast_sender_sdk::{context::CastContext, device, device::DeviceInfo};
-use gst::prelude::{BufferPoolExt, BufferPoolExtManual};
-use gst_video::{VideoColorimetry, VideoFrameExt};
-use jni::{
-    objects::{JByteBuffer, JObject, JString},
-    JavaVM,
-};
-use mcore::{transmission::WhepSink, DeviceEvent, Event, ShouldQuit, SourceConfig};
+use mcore::{transmission::WhepSink, DeviceEvent, Event, ShouldQuit};
 use parking_lot::{Condvar, Mutex};
 #[cfg(target_os = "android")]
 use serde_json::{json, Value};
-use std::{collections::HashMap, net::Ipv6Addr, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use std::sync::atomic::AtomicU64;
 #[cfg(target_os = "android")]
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -772,39 +766,33 @@ impl Application {
                 } else {
                     match event {
                         DeviceEvent::StateChanged(device_connection_state) => {
-                            match device_connection_state {
-                                device::DeviceConnectionState::Connected { local_addr, .. } => {
-                                    self.local_address = Some(local_addr);
+                            if let device::DeviceConnectionState::Connected { local_addr, .. } = device_connection_state {
+                                self.local_address = Some(local_addr);
 
-                                    self.ui_weak.upgrade_in_event_loop(|ui| {
-                                        ui.global::<Bridge>()
-                                            .invoke_change_state(AppState::SelectingSettings);
-                                    })?;
-                                }
-                                _ => (),
+                                self.ui_weak.upgrade_in_event_loop(|ui| {
+                                    ui.global::<Bridge>()
+                                        .invoke_change_state(AppState::SelectingSettings);
+                                })?;
                             }
                         }
                         DeviceEvent::SourceChanged(new_source) => {
                             if self.tx_sink.is_some() {
-                                match new_source {
-                                    fcast_sender_sdk::device::Source::Url { ref url, .. } => {
-                                        if Some(url) != self.our_source_url.as_ref() {
-                                            // At this point the receiver has stopped playing our stream
-                                            debug!(
-                                                ?new_source,
-                                                "The source on the receiver changed, disconnecting"
-                                            );
+                                if let fcast_sender_sdk::device::Source::Url { ref url, .. } = new_source {
+                                    if Some(url) != self.our_source_url.as_ref() {
+                                        // At this point the receiver has stopped playing our stream
+                                        debug!(
+                                            ?new_source,
+                                            "The source on the receiver changed, disconnecting"
+                                        );
 
-                                            self.ui_weak.upgrade_in_event_loop(|ui| {
-                                                // Phase 8 (deferred): clear Bridge.status-items here.
-                                                ui.global::<Bridge>()
-                                                    .invoke_change_state(AppState::Disconnected);
-                                            })?;
+                                        self.ui_weak.upgrade_in_event_loop(|ui| {
+                                            // Phase 8 (deferred): clear Bridge.status-items here.
+                                            ui.global::<Bridge>()
+                                                .invoke_change_state(AppState::Disconnected);
+                                        })?;
 
-                                            self.stop_cast(false).await?;
-                                        }
+                                        self.stop_cast(false).await?;
                                     }
-                                    _ => (),
                                 }
                             }
                         }
