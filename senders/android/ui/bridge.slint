@@ -152,7 +152,22 @@ export global Bridge {
     in-out property <string>          banner-message:  "";
     in-out property <bool>            banner-visible:  false;
     in-out property <BannerSeverity>  banner-severity: BannerSeverity.info;
-    in-out property <string>   mock-macro-edit-id: "";   // "" means "new macro"
+
+    // ── Macros (Phase 8 / Cluster C4) ───────────────────────────────────
+    in property <[Macro]> macros: [];
+    callback save-macro(string, string, [MacroStep], bool);   // (id, name, steps, enabled); id="" → new
+    callback delete-macro(string);                            // (id)
+    callback run-macro(string);                               // (macro-id)
+
+    in-out property <string>   macro-edit-id: "";   // "" means "new macro"
+    in-out property <string> draft-macro-name: "";
+    in-out property <bool> draft-macro-enabled: true;
+    in property <[MacroStep]> draft-macro-steps: [];
+    callback load-draft-macro(string);                        // (macro-id)
+    callback draft-add-step(string);                          // (action-id)
+    callback draft-remove-step(int);                          // (step-idx)
+    callback draft-move-step(int, int);                       // (from-idx, to-idx)
+
     in-out property <LifecycleMode> lifecycle: LifecycleMode.normal;
     in-out property <int> snapshot-secs: 5;
     in-out property <int> audio-source-idx: 0;

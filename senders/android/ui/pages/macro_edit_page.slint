@@ -17,10 +17,6 @@ import { Theme } from "../theme.slint";
 import { TextButton, PrimaryButton, DestructiveButton } from "../components/buttons.slint";
 
 export component MacroEditPage inherits Rectangle {
-    // ── UI-only ephemeral edit state (page-local) ────────────────────────
-    in-out property <string> mock-name:    "";
-    in-out property <bool>   mock-enabled: true;
-    in-out property <[MacroStep]> mock-steps: [];
     in-out property <bool>   show-add-step-picker: false;
 
     // Predefined catalogue of action ids that can become macro steps.
@@ -46,7 +42,7 @@ export component MacroEditPage inherits Rectangle {
                 padding: Theme.padding-screen;
                 spacing: Theme.spacing-default;
                 Text {
-                    text: Bridge.mock-macro-edit-id == ""
+                    text: Bridge.macro-edit-id == ""
                         ? @tr("New macro")
                         : @tr("Edit macro");
                     color: Theme.text-primary;
@@ -60,9 +56,10 @@ export component MacroEditPage inherits Rectangle {
                 }
                 PrimaryButton {
                     label: @tr("save-button" => "Save");
-                    // UI-only: no real save. Phase 8 wires
-                    // Bridge.save-macro(mock-name, mock-steps, mock-enabled).
-                    clicked => { Bridge.active-panel = Panel.macros; }
+                    clicked => {
+                        Bridge.save-macro(Bridge.macro-edit-id, Bridge.draft-macro-name, Bridge.draft-macro-steps, Bridge.draft-macro-enabled);
+                        Bridge.active-panel = Panel.macros;
+                    }
                 }
             }
         }
@@ -80,7 +77,7 @@ export component MacroEditPage inherits Rectangle {
                     font-size: Theme.font-size-label;
                 }
                 LineEdit {
-                    text <=> root.mock-name;
+                    text <=> Bridge.draft-macro-name;
                     placeholder-text: @tr("Untitled macro");
                 }
 
@@ -100,8 +97,8 @@ export component MacroEditPage inherits Rectangle {
                             horizontal-stretch: 1;
                         }
                         Text {
-                            text: root.mock-enabled ? "On" : "Off";
-                            color: root.mock-enabled
+                            text: Bridge.draft-macro-enabled ? "On" : "Off";
+                            color: Bridge.draft-macro-enabled
                                 ? Theme.accent-active
                                 : Theme.text-secondary;
                             vertical-alignment: center;
@@ -109,7 +106,7 @@ export component MacroEditPage inherits Rectangle {
                             font-size: Theme.font-size-label;
                         }
                         TouchArea {
-                            clicked => { root.mock-enabled = !root.mock-enabled; }
+                            clicked => { Bridge.draft-macro-enabled = !Bridge.draft-macro-enabled; }
                         }
                     }
                 }
@@ -121,7 +118,7 @@ export component MacroEditPage inherits Rectangle {
                     font-size: Theme.font-size-label;
                 }
 
-                if root.mock-steps.length == 0: Rectangle {
+                if Bridge.draft-macro-steps.length == 0: Rectangle {
                     height: 64px;
                     background: Theme.surface-card;
                     border-radius: Theme.radius-card;
@@ -134,7 +131,7 @@ export component MacroEditPage inherits Rectangle {
                     }
                 }
 
-                for step[i] in root.mock-steps: Rectangle {
+                for step[i] in Bridge.draft-macro-steps: Rectangle {
                     height: 56px;
                     border-radius: Theme.radius-card;
                     background: Theme.surface-card;
@@ -150,30 +147,26 @@ export component MacroEditPage inherits Rectangle {
                             horizontal-stretch: 1;
                         }
 
-                        // Reorder buttons. Same hardcoded-swap caveat as
-                        // Phase 17. For UI-only build with up to ~5
-                        // steps, document the workaround:
-                        //   - Use a Bridge-side move-step(int, int) callback
-                        //     once Phase 8 lands.
-                        //   - For now, the up/down buttons are visually
-                        //     present but no-op.
                         Rectangle {
                             width: 32px; height: 32px;
                             opacity: i == 0 ? 0.3 : 1.0;
                             Text { text: "▲"; color: Theme.text-primary;
                                    horizontal-alignment: center;
                                    vertical-alignment: center; }
-                            TouchArea { enabled: i > 0; clicked => { } }
+                            TouchArea {
+                                enabled: i > 0;
+                                clicked => { Bridge.draft-move-step(i, i - 1); }
+                            }
                         }
                         Rectangle {
                             width: 32px; height: 32px;
-                            opacity: i == root.mock-steps.length - 1 ? 0.3 : 1.0;
+                            opacity: i == Bridge.draft-macro-steps.length - 1 ? 0.3 : 1.0;
                             Text { text: "▼"; color: Theme.text-primary;
                                    horizontal-alignment: center;
                                    vertical-alignment: center; }
                             TouchArea {
-                                enabled: i < root.mock-steps.length - 1;
-                                clicked => { }
+                                enabled: i < Bridge.draft-macro-steps.length - 1;
+                                clicked => { Bridge.draft-move-step(i, i + 1); }
                             }
                         }
 
@@ -184,11 +177,7 @@ export component MacroEditPage inherits Rectangle {
                                    horizontal-alignment: center;
                                    vertical-alignment: center; }
                             TouchArea {
-                                clicked => {
-                                    // Removal also requires hardcoded
-                                    // index rebuild in UI-only build.
-                                    // Stub no-op.
-                                }
+                                clicked => { Bridge.draft-remove-step(i); }
                             }
                         }
                     }
@@ -247,8 +236,7 @@ export component MacroEditPage inherits Rectangle {
                                 : transparent;
                             action-ta := TouchArea {
                                 clicked => {
-                                    // UI-only: spec defers append to
-                                    // Phase 8. Just dismiss the picker.
+                                    Bridge.draft-add-step(action.action-id);
                                     root.show-add-step-picker = false;
                                 }
                             }

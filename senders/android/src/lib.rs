@@ -1084,6 +1084,183 @@ fn android_main(app: PlatformApp) {
     let model = std::rc::Rc::new(slint::VecModel::from(actions));
     ui.global::<Bridge>().set_quick_actions(model.into());
 
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let macros: Arc<std::sync::Mutex<Vec<Macro>>> = Arc::new(std::sync::Mutex::new(vec![]));
+    let draft_macro_steps: Arc<std::sync::Mutex<Vec<MacroStep>>> = Arc::new(std::sync::Mutex::new(vec![]));
+    let next_macro_id = Arc::new(AtomicUsize::new(0));
+
+    let push_macros = {
+        let macros = macros.clone();
+        let ui_weak = ui.as_weak();
+        move || {
+            let snap = macros.lock().unwrap().clone();
+            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                ui.global::<Bridge>().set_macros(
+                    std::rc::Rc::new(slint::VecModel::from(snap)).into(),
+                );
+            });
+        }
+    };
+    push_macros();
+
+    let push_draft_steps = {
+        let draft_macro_steps = draft_macro_steps.clone();
+        let ui_weak = ui.as_weak();
+        move || {
+            let snap = draft_macro_steps.lock().unwrap().clone();
+            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                ui.global::<Bridge>().set_draft_macro_steps(
+                    std::rc::Rc::new(slint::VecModel::from(snap)).into(),
+                );
+            });
+        }
+    };
+    push_draft_steps();
+
+    ui.global::<Bridge>().on_save_macro({
+        let macros  = macros.clone();
+        let next_id = next_macro_id.clone();
+        let push    = push_macros.clone();
+        move |id, name, steps, enabled| {
+            let steps_vec: Vec<MacroStep> =
+                steps.iter().collect::<Vec<_>>().into_iter().collect();
+            let mut g = macros.lock().unwrap();
+            if id.is_empty() {
+                let new_id = format!("macro-{}", next_id.fetch_add(1, Ordering::Relaxed));
+                g.push(Macro {
+                    id:      new_id.into(),
+                    name:    name.into(),
+                    steps:   std::rc::Rc::new(slint::VecModel::from(steps_vec)).into(),
+                    enabled,
+                });
+            } else if let Some(m) = g.iter_mut().find(|m| m.id == id) {
+                m.name    = name.into();
+                m.enabled = enabled;
+                m.steps   = std::rc::Rc::new(slint::VecModel::from(steps_vec)).into();
+            }
+            drop(g);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_delete_macro({
+        let macros = macros.clone();
+        let push   = push_macros.clone();
+        move |id| {
+            macros.lock().unwrap().retain(|m| m.id != id);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_run_macro({
+        let macros = macros.clone();
+        let ui_weak = ui.as_weak();
+        move |id| {
+            let snap = macros.lock().unwrap().iter()
+                .find(|m| m.id == id).cloned();
+            let Some(m) = snap else {
+                Application::flash_banner(
+                    ui_weak.clone(),
+                    format!("Macro {} not found", id),
+                    BannerSeverity::Error,
+                    std::time::Duration::from_secs(3),
+                );
+                return;
+            };
+            // Phase 11: real macro engine (iterate m.steps, dispatch each via on_invoke_action).
+            Application::flash_banner(
+                ui_weak.clone(),
+                format!("Ran macro: {}", m.name),
+                BannerSeverity::Success,
+                std::time::Duration::from_secs(2),
+            );
+        }
+    });
+
+    ui.global::<Bridge>().on_load_draft_macro({
+        let macros = macros.clone();
+        let draft_macro_steps = draft_macro_steps.clone();
+        let push_draft = push_draft_steps.clone();
+        let ui_weak = ui.as_weak();
+        move |id| {
+            let mut draft_g = draft_macro_steps.lock().unwrap();
+            let mut draft_name = "".to_string();
+            let mut draft_enabled = true;
+            if id.is_empty() {
+                draft_g.clear();
+            } else {
+                let mg = macros.lock().unwrap();
+                if let Some(m) = mg.iter().find(|m| m.id == id) {
+                    *draft_g = m.steps.iter().collect();
+                    draft_name = m.name.to_string();
+                    draft_enabled = m.enabled;
+                } else {
+                    draft_g.clear();
+                }
+            }
+            drop(draft_g);
+            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                ui.global::<Bridge>().set_draft_macro_name(draft_name.into());
+                ui.global::<Bridge>().set_draft_macro_enabled(draft_enabled);
+            });
+            push_draft();
+        }
+    });
+
+    ui.global::<Bridge>().on_draft_add_step({
+        let draft_macro_steps = draft_macro_steps.clone();
+        let push = push_draft_steps.clone();
+        move |action_id| {
+            let mut g = draft_macro_steps.lock().unwrap();
+            let label = match action_id.as_str() {
+                "scan-qr" => "Scan QR",
+                "audio" => "Open Audio",
+                "camera" => "Open Camera",
+                "record" => "Start Recording",
+                "stop-recording" => "Stop Recording",
+                "stop-cast" => "Stop Cast",
+                _ => action_id.as_str(),
+            };
+            g.push(MacroStep {
+                action_id: action_id.clone(),
+                label: label.into(),
+            });
+            drop(g);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_draft_remove_step({
+        let draft_macro_steps = draft_macro_steps.clone();
+        let push = push_draft_steps.clone();
+        move |idx| {
+            let mut g = draft_macro_steps.lock().unwrap();
+            if let Ok(i) = usize::try_from(idx) {
+                if i < g.len() {
+                    g.remove(i);
+                }
+            }
+            drop(g);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_draft_move_step({
+        let draft_macro_steps = draft_macro_steps.clone();
+        let push = push_draft_steps.clone();
+        move |from, to| {
+            let mut g = draft_macro_steps.lock().unwrap();
+            if let (Ok(from_u), Ok(to_u)) = (usize::try_from(from), usize::try_from(to)) {
+                if from_u < g.len() && to_u < g.len() && from_u != to_u {
+                    let s = g.remove(from_u);
+                    g.insert(to_u, s);
+                }
+            }
+            drop(g);
+            push();
+        }
+    });
+
     let runtime = tokio::runtime::Runtime::new().unwrap();
     // Establish tokio runtime context on the Slint UI thread so that
     // `tokio::spawn` works both during setup (e.g. `spawn_recording_ticker`)
