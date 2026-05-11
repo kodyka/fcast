@@ -7,7 +7,7 @@ export component SnapshotCountdown inherits Rectangle {
     height: 100%;
     background: Theme.surface-overlay;
 
-    property <int> remaining: Bridge.mock-snapshot-secs;
+    property <int> remaining: Bridge.snapshot-secs;
 
     Timer {
         interval: 1s;

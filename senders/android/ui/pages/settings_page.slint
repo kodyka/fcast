@@ -115,19 +115,18 @@ export component FullSettingsPage inherits Rectangle {
                     SettingsValueRow {
                         title: @tr("Lock UI");
                         value: @tr("Enter");
-                        clicked => { Bridge.lifecycle = LifecycleMode.lock-screen; }
+                        clicked => { Bridge.engage-lock(); }
                     }
                     SettingsValueRow {
                         title: @tr("Stealth mode");
                         value: @tr("Enter");
-                        clicked => { Bridge.lifecycle = LifecycleMode.stealth; }
+                        clicked => { Bridge.engage-stealth(); }
                     }
                     SettingsValueRow {
                         title: @tr("Cast with countdown");
-                        value: @tr("start-cast-button" => "Start");
+                        value: @tr("{}s", Bridge.snapshot-secs);
                         clicked => {
-                            Bridge.mock-snapshot-secs = 5;
-                            Bridge.lifecycle = LifecycleMode.snapshot-countdown;
+                            Bridge.start-snapshot-countdown(Bridge.snapshot-secs);
                         }
                     }
                 }

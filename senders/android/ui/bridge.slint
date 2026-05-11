@@ -168,7 +168,19 @@ export global Bridge {
     in-out property <BannerSeverity>  banner-severity: BannerSeverity.info;
     in-out property <string>   mock-macro-edit-id: "";   // "" means "new macro"
     in-out property <LifecycleMode> lifecycle: LifecycleMode.normal;
-    in-out property <int> mock-snapshot-secs: 5;
+    in-out property <int> snapshot-secs: 5;
+    in-out property <int> audio-source-idx: 0;
+    in-out property <bool> audio-muted: false;
+    in-out property <float> audio-input-gain: 0.7;
+    in-out property <int> audio-bitrate-idx: 1;
+    in-out property <int> camera-idx: 1;
+    in-out property <int> resolution-idx: 2;
+    in-out property <int> framerate-idx: 1;
+    in-out property <bool> camera-mirror-front: true;
+    in-out property <bool> camera-stabilization: true;
+    in-out property <bool> camera-tap-to-focus: true;
+    in-out property <float> camera-zoom-level: 1.0;
+    in-out property <bool> wifi-aware-enabled: false;
     in-out property <string>   selected-history-id: "";
     in-out property <bool>     show-debug: false;
     in-out property <string>   test-status: "";
@@ -181,6 +193,15 @@ export global Bridge {
     callback start-casting(scale-width: int, scale-height: int, max-framerate: int);
     callback stop-casting();
     callback invoke-action(string);
+    callback start-recording();
+    callback pause-recording();
+    callback resume-recording();
+    callback stop-recording();
+    callback engage-lock();
+    callback engage-stealth();
+    callback start-snapshot-countdown(int);
+    callback exit-lifecycle();
+    callback set-wifi-aware(bool);
 
     // ── Public functions (callable from Slint) ───────────────────────────
     public function change-state(to: AppState) {

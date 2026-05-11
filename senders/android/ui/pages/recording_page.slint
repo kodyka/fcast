@@ -56,19 +56,18 @@ export component RecordingPage inherits Rectangle {
     // readable.
     function on-record-clicked() {
         if (Bridge.recording-state == RecordingState.idle) {
-            // Placeholder: Call a Bridge property / callback for start in B3
+            Bridge.start-recording();
         } else if (Bridge.recording-state == RecordingState.recording) {
-            // Placeholder: Call a Bridge property / callback for pause in B3
+            Bridge.pause-recording();
         } else if (Bridge.recording-state == RecordingState.paused) {
-            // Placeholder: Call a Bridge property / callback for resume in B3
+            Bridge.resume-recording();
         }
-        // RecordingState.finalizing is reached only via the Stop button.
     }
 
     function on-stop-clicked() {
         if (Bridge.recording-state == RecordingState.recording
          || Bridge.recording-state == RecordingState.paused) {
-            // Placeholder: Call a Bridge property / callback for stop in B3
+            Bridge.stop-recording();
         }
     }
 

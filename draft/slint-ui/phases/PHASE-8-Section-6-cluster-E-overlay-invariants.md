@@ -220,11 +220,11 @@ docs(slint): document Panel / LifecycleMode / AppState invariants (Phase 8 / Clu
 
 ## 6.9 Exit criteria for Section 6
 
-- [ ] Top-of-file comment on `main.slint` (or dedicated `PANEL-INVARIANTS.md`) names the three invariants
-- [ ] `set_active_panel` calls in `lib.rs` go through `open_panel(...)` (or there are zero such calls)
-- [ ] `set_lifecycle` calls match exactly the lifecycle callback handler set
-- [ ] No Slint-side direct writes to `Bridge.app-state` outside the `change-state(...)` function body
-- [ ] No code-side regressions (Cluster E is documentation only)
+- [x] Top-of-file comment on `main.slint` (or dedicated `PANEL-INVARIANTS.md`) names the three invariants
+- [x] `set_active_panel` calls in `lib.rs` go through `open_panel(...)` (or there are zero such calls)
+- [x] `set_lifecycle` calls match exactly the lifecycle callback handler set
+- [x] No Slint-side direct writes to `Bridge.app-state` outside the `change-state(...)` function body
+- [x] No code-side regressions (Cluster E is documentation only)
 
 You can now move to **Section 7 — verification** at [`PHASE-8-Section-7-verification.md`](./PHASE-8-Section-7-verification.md).
 
