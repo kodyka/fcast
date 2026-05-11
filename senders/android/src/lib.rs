@@ -1074,7 +1074,13 @@ fn android_main(app: PlatformApp) {
 
 
     let mut actions = vec![
-        QuickAction { id: "scan-qr".into(), title: "Scan QR".into(), enabled: true, active: false, is_macro: false },
+        QuickAction { id: "settings".into(),   title: "Settings".into(),    enabled: true,  active: false, is_macro: false },
+        QuickAction { id: "debug".into(),      title: "Debug".into(),       enabled: true,  active: false, is_macro: false },
+        QuickAction { id: "codec-test".into(), title: "Codec test".into(),  enabled: true,  active: false, is_macro: false },
+        QuickAction { id: "scan-qr".into(),    title: "Scan QR".into(),     enabled: true,  active: false, is_macro: false },
+        QuickAction { id: "record".into(),     title: "Record".into(),      enabled: true,  active: false, is_macro: false },
+        QuickAction { id: "pair".into(),       title: "Pair".into(),        enabled: true,  active: false, is_macro: false },
+        QuickAction { id: "bitrate".into(),    title: "Bitrate".into(),     enabled: true,  active: false, is_macro: false },
     ];
     // Cached snapshot. Re-pushed in full whenever any signal changes.
     #[derive(Clone, Default)]
@@ -1123,14 +1129,75 @@ fn android_main(app: PlatformApp) {
         .set_app_version(env!("CARGO_PKG_VERSION").into());
     if show_debug {
         actions.extend([
-            QuickAction { id: "migrated-server".into(), title: "Start Server".into(), enabled: true, active: false, is_macro: false },
+            QuickAction { id: "migrated-server".into(), title: "Migrated srv".into(), enabled: true, active: false, is_macro: false },
             QuickAction { id: "test-getinfo".into(),    title: "GetInfo".into(),      enabled: true, active: false, is_macro: false },
             QuickAction { id: "test-crossfade".into(),  title: "Crossfade".into(),    enabled: true, active: false, is_macro: false },
             QuickAction { id: "test-smoke".into(),      title: "Smoke Graph".into(),  enabled: true, active: false, is_macro: false },
         ]);
     }
-    let model = std::rc::Rc::new(slint::VecModel::from(actions));
-    ui.global::<Bridge>().set_quick_actions(model.into());
+    let bar_actions: Arc<Mutex<Vec<QuickAction>>> = Arc::new(Mutex::new(actions));
+    // Initial push is synchronous — we still hold the strong `ui` handle,
+    // so the control bar is populated before `ui.run()` paints the first
+    // frame. Subsequent mutations from callbacks use `push_bar()` which
+    // hops through `upgrade_in_event_loop` because they only have a weak.
+    {
+        let snapshot = bar_actions.lock().clone();
+        ui.global::<Bridge>().set_quick_actions(
+            std::rc::Rc::new(slint::VecModel::from(snapshot)).into(),
+        );
+    }
+    let push_bar = {
+        let bar_actions = bar_actions.clone();
+        let ui_weak = ui.as_weak();
+        move || {
+            let snapshot = bar_actions.lock().clone();
+            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                ui.global::<Bridge>().set_quick_actions(
+                    std::rc::Rc::new(slint::VecModel::from(snapshot)).into(),
+                );
+            });
+        }
+    };
+
+    ui.global::<Bridge>().on_move_bar_action({
+        let bar_actions = bar_actions.clone();
+        let push        = push_bar.clone();
+        move |from, to| {
+            let mut g = bar_actions.lock();
+            if let (Ok(from_u), Ok(to_u)) = (usize::try_from(from), usize::try_from(to)) {
+                if from_u < g.len() && to_u < g.len() && from_u != to_u {
+                    let item = g.remove(from_u);
+                    g.insert(to_u, item);
+                }
+            }
+            drop(g);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_set_bar_action_enabled({
+        let bar_actions = bar_actions.clone();
+        let push        = push_bar.clone();
+        move |idx, enabled| {
+            let mut g = bar_actions.lock();
+            if let Ok(i) = usize::try_from(idx) {
+                if let Some(a) = g.get_mut(i) { a.enabled = enabled; }
+            }
+            drop(g);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_save_bar_actions({
+        let _bar_actions = bar_actions.clone();
+        let push        = push_bar.clone();
+        move || {
+            // Phase 11: persist to DataStore via JNI here.
+            // For now, just re-push the in-memory state.
+            push();
+        }
+    });
+
 
     let runtime = tokio::runtime::Runtime::new().unwrap();
     // Enter the runtime context so bare `tokio::spawn` calls below (status
@@ -1164,7 +1231,6 @@ fn android_main(app: PlatformApp) {
             push_status(ui_handle.clone(), snap_now);
         }
     });
-
     fn enumerate_interfaces() -> Vec<NetworkInterface> {
         vec![
             NetworkInterface {
@@ -1190,16 +1256,13 @@ fn android_main(app: PlatformApp) {
             },
         ]
     }
-
     fn push_interfaces(ui_handle: slint::Weak<MainWindow>, list: Vec<NetworkInterface>) {
         let _ = ui_handle.upgrade_in_event_loop(move |ui| {
             let model: slint::ModelRc<NetworkInterface> = std::rc::Rc::new(slint::VecModel::from(list)).into();
             ui.global::<Bridge>().set_network_interfaces(model);
         });
     }
-
     push_interfaces(ui.as_weak(), enumerate_interfaces());
-
     let interfaces = std::sync::Arc::new(tokio::sync::Mutex::new(enumerate_interfaces()));
     let interfaces_for_callback = interfaces.clone();
     let ui_for_callback = ui.as_weak();
@@ -1215,10 +1278,8 @@ fn android_main(app: PlatformApp) {
                 push_interfaces(ui_handle, list.clone());
             });
         });
-
     let log_ring = log_ring::LogRing::new(ui.as_weak());
     let log_ring_for_clear = log_ring.clone();
-
     use tracing_subscriber::layer::SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;
     use tracing_subscriber::filter::LevelFilter;
@@ -1229,12 +1290,97 @@ fn android_main(app: PlatformApp) {
     // Without this filter, an active media pipeline can produce thousands
     // of TRACE events per second, each one mutating the ring and dirtying
     // the UI pusher — pointless for a human-readable debug log.
-    tracing_subscriber::registry()
+    //
+    // `try_init` (not `init`) so re-entries of `android_main` (Android can
+    // trigger on activity destroy/recreate) don't panic from
+    // `set_global_default()` being called twice. Mirrors `init_once` above.
+    if let Err(err) = tracing_subscriber::registry()
         .with(log_ring.clone().with_filter(LevelFilter::DEBUG))
-        .init();
-
+        .try_init()
+    {
+        debug!(?err, "tracing subscriber already initialised — re-entry of android_main");
+    }
     ui.global::<Bridge>().on_clear_log_entries(move || {
         log_ring_for_clear.clear();
+    });
+    // ── Bitrate presets (Phase 8 / Cluster C1) ──────────────────────────
+    // Canonical list lives Rust-side in `Arc<Mutex<Vec<BitratePreset>>>`.
+    // Each mutation handler locks, mutates, drops the guard, and re-pushes
+    // the whole list to `Bridge.presets` via `push_presets`.
+    let presets: Arc<Mutex<Vec<BitratePreset>>> = Arc::new(Mutex::new(vec![
+        BitratePreset { id: "low".into(),  name: "Low".into(),     bitrate_kbps: 1500,  active: false },
+        BitratePreset { id: "med".into(),  name: "Medium".into(),  bitrate_kbps: 4000,  active: true  },
+        BitratePreset { id: "high".into(), name: "High".into(),    bitrate_kbps: 8000,  active: false },
+        BitratePreset { id: "max".into(),  name: "Maximum".into(), bitrate_kbps: 15000, active: false },
+    ]));
+    // Monotonic id source for user-created presets. Never use `g.len()`:
+    // after a delete-then-add cycle len() can collide with a previously
+    // issued id.
+    let next_preset_id: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
+    let push_presets = {
+        let presets = presets.clone();
+        let ui_weak = ui.as_weak();
+        move || {
+            let snapshot = presets.lock().clone();
+            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                ui.global::<Bridge>().set_presets(
+                    std::rc::Rc::new(slint::VecModel::from(snapshot)).into(),
+                );
+            });
+        }
+    };
+    push_presets();
+    ui.global::<Bridge>().on_save_preset({
+        let presets = presets.clone();
+        let next_id = next_preset_id.clone();
+        let push    = push_presets.clone();
+        move |id, name, kbps| {
+            let mut g = presets.lock();
+            if id.is_empty() {
+                let new_id = format!("custom-{}", next_id.fetch_add(1, Ordering::Relaxed));
+                g.push(BitratePreset {
+                    id:           new_id.into(),
+                    name:         name.into(),
+                    bitrate_kbps: kbps,
+                    active:       false,
+                });
+            } else if let Some(p) = g.iter_mut().find(|p| p.id == id) {
+                p.name         = name.into();
+                p.bitrate_kbps = kbps;
+            }
+            drop(g);
+            push();
+        }
+    });
+    ui.global::<Bridge>().on_delete_preset({
+        let presets = presets.clone();
+        let push    = push_presets.clone();
+        move |id| {
+            let mut g = presets.lock();
+            g.retain(|p| p.id != id);
+            // If the deleted preset was the active one, promote the first
+            // remaining preset to active so the user is never left without
+            // a selection.
+            if !g.iter().any(|p| p.active) {
+                if let Some(first) = g.first_mut() {
+                    first.active = true;
+                }
+            }
+            drop(g);
+            push();
+        }
+    });
+    ui.global::<Bridge>().on_set_active_preset({
+        let presets = presets.clone();
+        let push    = push_presets.clone();
+        move |id| {
+            let mut g = presets.lock();
+            for p in g.iter_mut() {
+                p.active = p.id == id;
+            }
+            drop(g);
+            push();
+        }
     });
 
     ui.global::<Bridge>().on_connect_receiver({

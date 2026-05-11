@@ -185,8 +185,18 @@ export global Bridge {
     in-out property <bool>     show-debug: false;
     in-out property <string>   test-status: "";
     in property <[QuickAction]> quick-actions: [];
+    callback move-bar-action(int, int);
+    callback set-bar-action-enabled(int, bool);
+    callback save-bar-actions();
     in-out property <string> selected-receiver-id;
     in-out property <string> selected-receiver-name;
+
+    // ── Bitrate presets (Phase 8 / Cluster C1) ──────────────────────────
+    in property <[BitratePreset]> presets: [];
+    in-out property <string>      selected-preset-id: "";   // for the edit-page route-back
+    callback save-preset(string, string, int);              // (id, name, kbps); id="" → new
+    callback delete-preset(string);                         // (id)
+    callback set-active-preset(string);                     // (id)
 
     // ── Callbacks (Slint → Rust) ─────────────────────────────────────────
     callback connect-receiver(string);
