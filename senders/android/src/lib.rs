@@ -1111,6 +1111,17 @@ fn android_main(app: PlatformApp) {
     };
     push_history();
 
+    // Create the tokio runtime *before* registering Slint callbacks that
+    // call `tokio::spawn` (directly or via `Application::flash_banner`).
+    // Slint callbacks run on the UI thread during `ui.run()`, which has no
+    // tokio context by default — `tokio::spawn` would panic with "there is
+    // no reactor running". The `_runtime_guard` registers this thread as a
+    // runtime context for the lifetime of the guard. It MUST be dropped
+    // before `runtime.block_on(...)` later in this function, otherwise
+    // `block_on` panics ("Cannot start a runtime from within a runtime").
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _runtime_guard = runtime.enter();
+
     // ── Phase 8 / Cluster D1 — Backup / reset handlers ──────────────────
     ui.global::<Bridge>().on_export_settings({
         let ui_weak = ui.as_weak();
@@ -1258,8 +1269,6 @@ fn android_main(app: PlatformApp) {
         }
     });
 
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-
     let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
 
     ui.global::<Bridge>().on_connect_receiver({
@@ -1361,6 +1370,10 @@ fn android_main(app: PlatformApp) {
     });
 
     ui.run().unwrap();
+
+    // Drop the runtime context guard before `block_on`, which panics if
+    // called from within a tokio runtime context.
+    drop(_runtime_guard);
 
     runtime.block_on(async move {
         if let Err(err) = event_tx.send(Event::Quit) {
