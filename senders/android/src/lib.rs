@@ -1069,7 +1069,7 @@ fn android_main(app: PlatformApp) {
         let bar_actions = bar_actions.clone();
         let ui_weak = ui.as_weak();
         move || {
-            let snap = bar_actions.lock().unwrap().clone();
+            let snap = bar_actions.lock().clone();
             let _ = ui_weak.upgrade_in_event_loop(move |ui| {
                 ui.global::<Bridge>().set_quick_actions(
                     std::rc::Rc::new(slint::VecModel::from(snap)).into(),
@@ -1101,7 +1101,7 @@ fn android_main(app: PlatformApp) {
         let history = history.clone();
         let ui_weak = ui.as_weak();
         move || {
-            let snap = history.lock().unwrap().clone();
+            let snap = history.lock().clone();
             let _ = ui_weak.upgrade_in_event_loop(move |ui| {
                 ui.global::<Bridge>().set_history(
                     std::rc::Rc::new(slint::VecModel::from(snap)).into(),
@@ -1166,8 +1166,8 @@ fn android_main(app: PlatformApp) {
         move || {
             // Reset Cluster-D models to factory defaults. Cluster-C
             // (presets, macros) will be folded in once those handlers land.
-            *bar_actions.lock().unwrap() = default_quick_actions();
-            history.lock().unwrap().clear();
+            *bar_actions.lock() = default_quick_actions();
+            history.lock().clear();
 
             push_bar();
             push_history();
@@ -1188,7 +1188,7 @@ fn android_main(app: PlatformApp) {
         let push_history = push_history.clone();
         let ui_weak      = ui.as_weak();
         move || {
-            history.lock().unwrap().clear();
+            history.lock().clear();
             push_history();
 
             Application::flash_banner(
@@ -1218,7 +1218,7 @@ fn android_main(app: PlatformApp) {
         let history      = history.clone();
         let push_history = push_history.clone();
         move || {
-            history.lock().unwrap().clear();
+            history.lock().clear();
             push_history();
         }
     });
@@ -1228,7 +1228,7 @@ fn android_main(app: PlatformApp) {
         let push_history = push_history.clone();
         move |id| {
             let id = id.to_string();
-            history.lock().unwrap().retain(|e| e.id != id);
+            history.lock().retain(|e| e.id != id);
             push_history();
         }
     });
@@ -1238,7 +1238,7 @@ fn android_main(app: PlatformApp) {
         let ui_weak = ui.as_weak();
         move |id| {
             let id = id.to_string();
-            let entry_opt = history.lock().unwrap().iter()
+            let entry_opt = history.lock().iter()
                 .find(|e| e.id == id).cloned();
             let Some(entry) = entry_opt else { return; };
             // Phase 11: trigger reconnection + start_casting with the same receiver.
@@ -1260,7 +1260,7 @@ fn android_main(app: PlatformApp) {
         let ui_weak = ui.as_weak();
         move |id: slint::SharedString| {
             let id = id.to_string();
-            let entry = history.lock().unwrap().iter()
+            let entry = history.lock().iter()
                 .find(|e| e.id == id).cloned();
             let Some(entry) = entry else { return; };
             let _ = ui_weak.upgrade_in_event_loop(move |ui| {
