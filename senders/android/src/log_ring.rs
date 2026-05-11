@@ -27,8 +27,18 @@ impl LogRing {
     }
 
     pub fn clear(&self) {
-        if let Ok(mut q) = self.entries.try_lock() {
-            q.clear();
+        // `clear` is user-initiated from the Slint UI thread (the "Clear"
+        // button in `debug_log_page.slint`). It is not re-entrant with
+        // tracing, so a blocking `lock()` is safe and guarantees the user's
+        // click actually empties the ring — unlike `try_lock()`, which would
+        // silently no-op under contention with a concurrent `on_event`. The
+        // guard is dropped before `push_to_ui` so the subsequent snapshot
+        // re-lock cannot deadlock against ourselves. Poisoning is treated as
+        // a best-effort: clear the inner queue even if a previous panic
+        // poisoned the mutex.
+        match self.entries.lock() {
+            Ok(mut q) => q.clear(),
+            Err(poisoned) => poisoned.into_inner().clear(),
         }
         self.push_to_ui();
     }
