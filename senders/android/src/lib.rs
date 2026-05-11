@@ -1243,8 +1243,15 @@ fn android_main(app: PlatformApp) {
                     ui.global::<Bridge>().set_lifecycle(LifecycleMode::SnapshotCountdown);
                 });
                 tokio::time::sleep(std::time::Duration::from_secs(seconds.max(0) as u64)).await;
+                // Only reset to Normal if we are still in SnapshotCountdown. If
+                // the user cancelled (snapshot_countdown.slint) or engaged
+                // lock/stealth in the meantime, leave their lifecycle choice
+                // intact — otherwise the stale Rust timer would clobber it.
                 let _ = ui_handle.upgrade_in_event_loop(|ui| {
-                    ui.global::<Bridge>().set_lifecycle(LifecycleMode::Normal);
+                    let bridge = ui.global::<Bridge>();
+                    if bridge.get_lifecycle() == LifecycleMode::SnapshotCountdown {
+                        bridge.set_lifecycle(LifecycleMode::Normal);
+                    }
                 });
             });
         }
