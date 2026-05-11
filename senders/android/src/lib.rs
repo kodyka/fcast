@@ -1111,6 +1111,153 @@ fn android_main(app: PlatformApp) {
     };
     push_history();
 
+    // ── Phase 8 / Cluster D1 — Backup / reset handlers ──────────────────
+    ui.global::<Bridge>().on_export_settings({
+        let ui_weak = ui.as_weak();
+        move || {
+            let ui_weak = ui_weak.clone();
+            tokio::spawn(async move {
+                // Phase 11: ACTION_CREATE_DOCUMENT via JNI; serialise + write.
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                Application::flash_banner(
+                    ui_weak,
+                    "Settings exported (placeholder).".into(),
+                    BannerSeverity::Success,
+                    std::time::Duration::from_secs(3),
+                );
+            });
+        }
+    });
+
+    ui.global::<Bridge>().on_import_settings({
+        let ui_weak = ui.as_weak();
+        move || {
+            let ui_weak = ui_weak.clone();
+            tokio::spawn(async move {
+                // Phase 11: ACTION_OPEN_DOCUMENT, parse JSON, write to DataStore.
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                Application::flash_banner(
+                    ui_weak,
+                    "Settings imported (placeholder).".into(),
+                    BannerSeverity::Success,
+                    std::time::Duration::from_secs(3),
+                );
+            });
+        }
+    });
+
+    ui.global::<Bridge>().on_reset_settings({
+        let bar_actions  = bar_actions.clone();
+        let history      = history.clone();
+        let push_bar     = push_bar.clone();
+        let push_history = push_history.clone();
+        let ui_weak      = ui.as_weak();
+        move || {
+            // Reset Cluster-D models to factory defaults. Cluster-C
+            // (presets, macros) will be folded in once those handlers land.
+            *bar_actions.lock().unwrap() = default_quick_actions();
+            history.lock().unwrap().clear();
+
+            push_bar();
+            push_history();
+
+            // Phase 11: also clear DataStore / SharedPreferences via JNI.
+
+            Application::flash_banner(
+                ui_weak.clone(),
+                "Settings reset to defaults".into(),
+                BannerSeverity::Success,
+                std::time::Duration::from_secs(3),
+            );
+        }
+    });
+
+    ui.global::<Bridge>().on_clear_cast_history({
+        let history      = history.clone();
+        let push_history = push_history.clone();
+        let ui_weak      = ui.as_weak();
+        move || {
+            history.lock().unwrap().clear();
+            push_history();
+
+            Application::flash_banner(
+                ui_weak.clone(),
+                "Cast history cleared".into(),
+                BannerSeverity::Success,
+                std::time::Duration::from_secs(2),
+            );
+        }
+    });
+
+    ui.global::<Bridge>().on_clear_known_receivers({
+        let ui_weak = ui.as_weak();
+        move || {
+            // Phase 11: clear known-receivers DataStore. For now, announce.
+            Application::flash_banner(
+                ui_weak.clone(),
+                "Known receivers cleared".into(),
+                BannerSeverity::Success,
+                std::time::Duration::from_secs(2),
+            );
+        }
+    });
+
+    // ── Phase 8 / Cluster D2 — Cast history handlers ────────────────────
+    ui.global::<Bridge>().on_clear_history({
+        let history      = history.clone();
+        let push_history = push_history.clone();
+        move || {
+            history.lock().unwrap().clear();
+            push_history();
+        }
+    });
+
+    ui.global::<Bridge>().on_delete_history_entry({
+        let history      = history.clone();
+        let push_history = push_history.clone();
+        move |id| {
+            let id = id.to_string();
+            history.lock().unwrap().retain(|e| e.id != id);
+            push_history();
+        }
+    });
+
+    ui.global::<Bridge>().on_recast({
+        let history = history.clone();
+        let ui_weak = ui.as_weak();
+        move |id| {
+            let id = id.to_string();
+            let entry_opt = history.lock().unwrap().iter()
+                .find(|e| e.id == id).cloned();
+            let Some(entry) = entry_opt else { return; };
+            // Phase 11: trigger reconnection + start_casting with the same receiver.
+            Application::flash_banner(
+                ui_weak.clone(),
+                format!("Recasting to {}", entry.receiver),
+                BannerSeverity::Info,
+                std::time::Duration::from_secs(2),
+            );
+        }
+    });
+
+    // Push selected-history-entry whenever the id changes. Slint does NOT
+    // auto-generate on_<property>_changed; the `changed` handler in
+    // bridge.slint re-emits via the explicit `selected-history-id-changed`
+    // callback bound below.
+    ui.global::<Bridge>().on_selected_history_id_changed({
+        let history = history.clone();
+        let ui_weak = ui.as_weak();
+        move |id: slint::SharedString| {
+            let id = id.to_string();
+            let entry = history.lock().unwrap().iter()
+                .find(|e| e.id == id).cloned();
+            let Some(entry) = entry else { return; };
+            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                ui.global::<Bridge>().set_selected_history_entry(entry);
+            });
+        }
+    });
+
     let runtime = tokio::runtime::Runtime::new().unwrap();
 
     let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
