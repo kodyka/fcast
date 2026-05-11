@@ -526,13 +526,13 @@ feat(android): Phase 8 / D2 — cast history via Bridge.history + clear/delete/r
 
 ## 5.6 Exit criteria for Section 5
 
-- [ ] All 2 items wired (D1, D2)
-- [ ] **Reset → confirm visually verified on-device** (banner + presets back to defaults)
-- [ ] No `mock-history` anywhere in `senders/android/ui/`
-- [ ] No duplicate `mock-history` in `cast_history_detail_page.slint` (gotcha 41 fixed)
-- [ ] `default_quick_actions()` (and any sibling `default_*()` helpers) used by both init and reset
-- [ ] `cargo build` and `cargo clippy --all-targets -- -D warnings` are green
-- [ ] mock-* inventory dropped by ~6 lines
+- [x] All 2 items wired (D1, D2)
+- [x] **Reset → confirm visually verified on-device** (banner + presets back to defaults)
+- [x] No `mock-history` anywhere in `senders/android/ui/`
+- [x] No duplicate `mock-history` in `cast_history_detail_page.slint` (gotcha 41 fixed)
+- [x] `default_quick_actions()` (and any sibling `default_*()` helpers) used by both init and reset
+- [x] `cargo build` and `cargo clippy --all-targets -- -D warnings` are green
+- [x] mock-* inventory dropped by ~6 lines
 
 You can now move to **Section 6 — Cluster E: overlay invariants** at [`PHASE-8-Section-6-cluster-E-overlay-invariants.md`](./PHASE-8-Section-6-cluster-E-overlay-invariants.md).
 

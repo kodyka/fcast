@@ -13,40 +13,9 @@ import { Theme } from "../theme.slint";
 import { TextButton, PrimaryButton } from "../components/buttons.slint";
 
 export component CastHistoryDetailPage inherits Rectangle {
-    // The detail page needs read access to the same model as the list.
-    // Slint can't share a page-local property between two siblings;
-    // either (a) duplicate the initialiser here, or (b) promote
-    // mock-history to Bridge. The spec's "no persistence" wording
-    // suggests (a) for the UI-only build. Promote to Bridge later.
-    in-out property <[CastHistoryEntry]> mock-history: [
-        { id: "h1", receiver: "Living Room TV",
-          started-at: "Today 19:42",     duration-s: 5400, status: "Completed" },
-        { id: "h2", receiver: "Office Display",
-          started-at: "Today 11:15",     duration-s: 600,  status: "Completed" },
-        { id: "h3", receiver: "Kitchen Chromecast",
-          started-at: "Yesterday 22:08", duration-s: 30,   status: "Cancelled" },
-        { id: "h4", receiver: "Living Room TV",
-          started-at: "Yesterday 20:33", duration-s: 7200, status: "Completed" },
-        { id: "h5", receiver: "Office Display",
-          started-at: "Mon 09:50",       duration-s: 0,    status: "Failed"    },
-    ];
-
     width: 100%;
     height: 100%;
     background: Theme.surface-primary;
-
-    // ── Lookup helper. Hardcoded for the 5-row stub model — generalise
-    // when promoting mock-history to Bridge.
-    pure function find-entry(id: string) -> CastHistoryEntry {
-        return root.mock-history[0].id == id  ? root.mock-history[0] :
-               root.mock-history[1].id == id  ? root.mock-history[1] :
-               root.mock-history[2].id == id  ? root.mock-history[2] :
-               root.mock-history[3].id == id  ? root.mock-history[3] :
-               root.mock-history[4].id == id  ? root.mock-history[4] :
-                                                  { id: "", receiver: "(unknown)",
-                                                    started-at: "", duration-s: 0,
-                                                    status: "" };
-    }
 
     pure function format-duration(total-s: int) -> string {
         return (Math.floor(total-s / 3600) < 10 ? "0\{Math.floor(total-s / 3600)}" : "\{Math.floor(total-s / 3600)}") + ":"
@@ -67,7 +36,7 @@ export component CastHistoryDetailPage inherits Rectangle {
     }
 
     // The currently-selected entry, derived reactively from Bridge property.
-    property <CastHistoryEntry> entry: root.find-entry(Bridge.selected-history-id);
+    property <CastHistoryEntry> entry: Bridge.selected-history-entry;
 
     VerticalLayout {
         Rectangle {
@@ -191,9 +160,15 @@ export component CastHistoryDetailPage inherits Rectangle {
                 // Footer action.
                 PrimaryButton {
                     label: @tr("Cast again to {}", root.entry.receiver);
-                    // UI-only: no real re-cast. Phase 8 wires
-                    // Bridge.invoke-action("cast-to:<receiver-id>").
-                    clicked => { }
+                    clicked => { Bridge.recast(root.entry.id); }
+                }
+
+                TextButton {
+                    label: @tr("Delete entry");
+                    clicked => {
+                        Bridge.delete-history-entry(root.entry.id);
+                        Bridge.active-panel = Panel.cast-history;
+                    }
                 }
             }
         }

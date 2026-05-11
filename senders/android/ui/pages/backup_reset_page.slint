@@ -20,11 +20,6 @@ import {
 import { ConfirmDialog } from "../components/confirm_dialog.slint";
 
 export component BackupResetPage inherits Rectangle {
-    // ── Banner state (auto-hide via Timer, same pattern as Phase 22) ────
-    property <bool>   banner-visible: false;
-    property <string> banner-message: "";
-    property <int>    banner-ticks: 0;
-
     // ── Dialog state ────────────────────────────────────────────────────
     //
     // pending-action is one of:
@@ -38,34 +33,21 @@ export component BackupResetPage inherits Rectangle {
     height: 100%;
     background: Theme.surface-primary;
 
-    // Banner auto-hide.
-    Timer {
-        interval: 100ms;
-        running: root.banner-ticks > 0;
-        triggered => {
-            root.banner-ticks -= 1;
-            if (root.banner-ticks == 0) {
-                root.banner-visible = false;
-            }
-        }
-    }
-
-    // Helper: show a banner with the given message.
-    function show-banner(message: string) {
-        root.banner-message = message;
-        root.banner-visible = true;
-        root.banner-ticks = 30; // 3 seconds / 100ms
-    }
+    // Banner feedback is provided by the global `InfoBanner` overlay
+    // mounted in main.slint, driven by `Application::flash_banner` in
+    // lib.rs whenever Bridge.export-settings / import-settings /
+    // reset-settings / clear-cast-history / clear-known-receivers fires.
+    // No page-local banner state needed.
 
     // Helper: confirm-dispatch — dispatched by the dialog's confirmed()
     // callback based on the pending-action.
     function on-confirm() {
         if (root.pending-action == "reset-all") {
-            root.show-banner(@tr("Settings reset (placeholder)."));
+            Bridge.reset-settings();
         } else if (root.pending-action == "clear-history") {
-            root.show-banner(@tr("Cast history cleared (placeholder)."));
+            Bridge.clear-cast-history();
         } else if (root.pending-action == "clear-receivers") {
-            root.show-banner(@tr("Known receivers cleared (placeholder)."));
+            Bridge.clear-known-receivers();
         }
         root.pending-action = "";
     }
@@ -114,21 +96,6 @@ export component BackupResetPage inherits Rectangle {
             }
         }
 
-        // ── Banner ──────────────────────────────────────────────────────
-        if root.banner-visible: Rectangle {
-            height: 40px;
-            background: Theme.accent-active.darker(20%);
-            HorizontalLayout {
-                padding: Theme.padding-screen;
-                Text {
-                    text: root.banner-message;
-                    color: Theme.text-primary;
-                    vertical-alignment: center;
-                    font-size: Theme.font-size-label;
-                }
-            }
-        }
-
         ScrollView {
             mouse-drag-pan-enabled: true;
             VerticalLayout {
@@ -142,14 +109,14 @@ export component BackupResetPage inherits Rectangle {
                         title: @tr("Export settings to file");
                         value: "";
                         clicked => {
-                            root.show-banner(@tr("Exported to ~/fcast-backup.json (placeholder)."));
+                            Bridge.export-settings();
                         }
                     }
                     SettingsValueRow {
                         title: @tr("Import settings from file");
                         value: "";
                         clicked => {
-                            root.show-banner(@tr("Settings imported (placeholder)."));
+                            Bridge.import-settings();
                         }
                     }
                 }
