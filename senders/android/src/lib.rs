@@ -1230,6 +1230,199 @@ fn android_main(app: PlatformApp) {
         },
     ]));
 
+    use slint::Model;
+    use std::sync::atomic::AtomicUsize;
+    let macros: Arc<std::sync::Mutex<Vec<Macro>>> = Arc::new(std::sync::Mutex::new(vec![]));
+    let draft_macro_steps: Arc<std::sync::Mutex<Vec<MacroStep>>> = Arc::new(std::sync::Mutex::new(vec![]));
+    let next_macro_id = Arc::new(AtomicUsize::new(0));
+
+    // Both push_* helpers apply synchronously via `upgrade()` rather than
+    // `upgrade_in_event_loop()`. Every caller is a Slint callback (e.g.
+    // on_save_macro, on_draft_move_step) that already runs on the UI
+    // thread, so deferral is unnecessary — and would let the consumer
+    // page render one frame with stale data when a panel switch happens
+    // immediately after the callback (see on_load_draft_macro for the
+    // same rationale).
+    let push_macros = {
+        let macros = macros.clone();
+        let ui_weak = ui.as_weak();
+        move || {
+            let snap = macros.lock().unwrap().clone();
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.global::<Bridge>().set_macros(
+                    std::rc::Rc::new(slint::VecModel::from(snap)).into(),
+                );
+            }
+        }
+    };
+    push_macros();
+
+    let push_draft_steps = {
+        let draft_macro_steps = draft_macro_steps.clone();
+        let ui_weak = ui.as_weak();
+        move || {
+            let snap = draft_macro_steps.lock().unwrap().clone();
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.global::<Bridge>().set_draft_macro_steps(
+                    std::rc::Rc::new(slint::VecModel::from(snap)).into(),
+                );
+            }
+        }
+    };
+    push_draft_steps();
+
+    ui.global::<Bridge>().on_save_macro({
+        let macros  = macros.clone();
+        let next_id = next_macro_id.clone();
+        let push    = push_macros.clone();
+        move |id, name, steps, enabled| {
+            let steps_vec: Vec<MacroStep> = steps.iter().collect();
+            let mut g = macros.lock().unwrap();
+            if id.is_empty() {
+                let new_id = format!("macro-{}", next_id.fetch_add(1, Ordering::Relaxed));
+                g.push(Macro {
+                    id:      new_id.into(),
+                    name:    name.into(),
+                    steps:   std::rc::Rc::new(slint::VecModel::from(steps_vec)).into(),
+                    enabled,
+                });
+            } else if let Some(m) = g.iter_mut().find(|m| m.id == id) {
+                m.name    = name.into();
+                m.enabled = enabled;
+                m.steps   = std::rc::Rc::new(slint::VecModel::from(steps_vec)).into();
+            }
+            drop(g);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_delete_macro({
+        let macros = macros.clone();
+        let push   = push_macros.clone();
+        move |id| {
+            macros.lock().unwrap().retain(|m| m.id != id);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_run_macro({
+        let macros = macros.clone();
+        let ui_weak = ui.as_weak();
+        move |id| {
+            let snap = macros.lock().unwrap().iter()
+                .find(|m| m.id == id).cloned();
+            let Some(m) = snap else {
+                Application::flash_banner(
+                    ui_weak.clone(),
+                    format!("Macro {} not found", id),
+                    BannerSeverity::Error,
+                    std::time::Duration::from_secs(3),
+                );
+                return;
+            };
+            // Phase 11: real macro engine (iterate m.steps, dispatch each via on_invoke_action).
+            Application::flash_banner(
+                ui_weak.clone(),
+                format!("Ran macro: {}", m.name),
+                BannerSeverity::Success,
+                std::time::Duration::from_secs(2),
+            );
+        }
+    });
+
+    ui.global::<Bridge>().on_load_draft_macro({
+        let macros = macros.clone();
+        let draft_macro_steps = draft_macro_steps.clone();
+        let ui_weak = ui.as_weak();
+        move |id| {
+            let mut draft_name = "".to_string();
+            let mut draft_enabled = true;
+            let steps_snap: Vec<MacroStep> = {
+                let mut draft_g = draft_macro_steps.lock().unwrap();
+                if id.is_empty() {
+                    draft_g.clear();
+                } else {
+                    let mg = macros.lock().unwrap();
+                    if let Some(m) = mg.iter().find(|m| m.id == id) {
+                        *draft_g = m.steps.iter().collect();
+                        draft_name = m.name.to_string();
+                        draft_enabled = m.enabled;
+                    } else {
+                        draft_g.clear();
+                    }
+                }
+                draft_g.clone()
+            };
+            // Slint callbacks run on the UI thread, so we can apply the
+            // draft state synchronously. This matters because callers
+            // (macros_page.slint) switch to Panel.macro-edit immediately
+            // after this callback returns — a deferred upgrade_in_event_loop
+            // would let MacroEditPage render one frame with stale values.
+            if let Some(ui) = ui_weak.upgrade() {
+                let bridge = ui.global::<Bridge>();
+                bridge.set_draft_macro_name(draft_name.into());
+                bridge.set_draft_macro_enabled(draft_enabled);
+                bridge.set_draft_macro_steps(
+                    std::rc::Rc::new(slint::VecModel::from(steps_snap)).into(),
+                );
+            }
+        }
+    });
+
+    ui.global::<Bridge>().on_draft_add_step({
+        let draft_macro_steps = draft_macro_steps.clone();
+        let push = push_draft_steps.clone();
+        move |action_id| {
+            let mut g = draft_macro_steps.lock().unwrap();
+            let label = match action_id.as_str() {
+                "scan-qr" => "Scan QR",
+                "audio" => "Open Audio",
+                "camera" => "Open Camera",
+                "record" => "Start Recording",
+                "stop-recording" => "Stop Recording",
+                "stop-cast" => "Stop Cast",
+                _ => action_id.as_str(),
+            };
+            g.push(MacroStep {
+                action_id: action_id.clone(),
+                label: label.into(),
+            });
+            drop(g);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_draft_remove_step({
+        let draft_macro_steps = draft_macro_steps.clone();
+        let push = push_draft_steps.clone();
+        move |idx| {
+            let mut g = draft_macro_steps.lock().unwrap();
+            if let Ok(i) = usize::try_from(idx) {
+                if i < g.len() {
+                    g.remove(i);
+                }
+            }
+            drop(g);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_draft_move_step({
+        let draft_macro_steps = draft_macro_steps.clone();
+        let push = push_draft_steps.clone();
+        move |from, to| {
+            let mut g = draft_macro_steps.lock().unwrap();
+            if let (Ok(from_u), Ok(to_u)) = (usize::try_from(from), usize::try_from(to)) {
+                if from_u < g.len() && to_u < g.len() && from_u != to_u {
+                    let s = g.remove(from_u);
+                    g.insert(to_u, s);
+                }
+            }
+            drop(g);
+            push();
+        }
+    });
+
     let push_history = {
         let history = history.clone();
         let ui_weak = ui.as_weak();
@@ -1323,28 +1516,34 @@ fn android_main(app: PlatformApp) {
         let history        = history.clone();
         let presets        = presets.clone();
         let next_preset_id = next_preset_id.clone();
+        let macros         = macros.clone();
+        let next_macro_id  = next_macro_id.clone();
         let push_bar       = push_bar.clone();
         let push_history   = push_history.clone();
         let push_presets   = push_presets.clone();
+        let push_macros    = push_macros.clone();
         let ui_weak        = ui.as_weak();
         move || {
             // Reset every Cluster-C/D model owned by Rust to factory
-            // defaults. Macros (Cluster C4) are not yet wired here; fold
-            // them in once their handlers land.
+            // defaults.
             //
-            // `next_preset_id` is also rewound so user-created preset
-            // ids restart at `custom-0` after a reset, matching the
-            // factory state. Without this, a freshly-reset device would
-            // still hand out `custom-N` for some N > 0 the moment the
-            // user added a preset.
+            // `next_preset_id` / `next_macro_id` are also rewound so
+            // user-created ids restart at `custom-0` / `macro-0` after
+            // a reset, matching the factory state. Without this, a
+            // freshly-reset device would still hand out `custom-N` /
+            // `macro-N` for some N > 0 the moment the user added an
+            // entry.
             *bar_actions.lock() = default_quick_actions();
             *presets.lock()     = default_presets();
             next_preset_id.store(0, Ordering::Relaxed);
             history.lock().clear();
+            macros.lock().unwrap().clear();
+            next_macro_id.store(0, Ordering::Relaxed);
 
             push_bar();
             push_presets();
             push_history();
+            push_macros();
 
             // Phase 11: also clear DataStore / SharedPreferences via JNI.
 

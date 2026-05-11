@@ -1,8 +1,10 @@
-// macros_page.slint — Macros list (UI-only).
+// macros_page.slint — Macros list (Phase 8 / Cluster C4).
 //
 // Reachable from FullSettingsPage's "Macros" row in AUTOMATION.
-// Tap a row → set Bridge.mock-macro-edit-id and open Panel.macro-edit.
-// Tap "Add macro" → set "" and open Panel.macro-edit (blank form).
+// Tap a row → set Bridge.macro-edit-id, call Bridge.load-draft-macro(id),
+// then open Panel.macro-edit.
+// Tap "Add macro" → set "" and call Bridge.load-draft-macro("") for a
+// blank draft, then open Panel.macro-edit.
 //
 // Slint docs ref:
 //   draft/slint-ui/docs/astro/src/content/docs/reference/std-widgets/views/scrollview.mdx
@@ -14,28 +16,6 @@ import { Theme } from "../theme.slint";
 import { TextButton, PrimaryButton } from "../components/buttons.slint";
 
 export component MacrosPage inherits Rectangle {
-    // ── UI-only stub state. The same property is used by MacroEditPage,
-    // so this guide promotes it to Bridge in Step 4 — but for the list
-    // page only, holding it here is sufficient. See gotcha 37 for the
-    // shared-state alternative.
-    in-out property <[Macro]> mock-macros: [
-        {
-            id: "m1", name: "Start morning cast", enabled: true,
-            steps: [
-                { action-id: "scan-qr",  label: @tr("Scan QR") },
-                { action-id: "audio",    label: @tr("Open Audio") },
-                { action-id: "record",   label: @tr("Start Recording") },
-            ],
-        },
-        {
-            id: "m2", name: "Quick stop", enabled: true,
-            steps: [
-                { action-id: "stop-recording", label: @tr("Stop Recording") },
-                { action-id: "stop-cast",      label: @tr("Stop Cast") },
-            ],
-        },
-    ];
-
     width: 100%;
     height: 100%;
     background: Theme.surface-primary;
@@ -66,7 +46,7 @@ export component MacrosPage inherits Rectangle {
                 spacing: Theme.spacing-default;
                 padding: Theme.padding-screen;
 
-                if root.mock-macros.length == 0: Rectangle {
+                if Bridge.macros.length == 0: Rectangle {
                     height: 80px;
                     background: Theme.surface-card;
                     border-radius: Theme.radius-card;
@@ -83,7 +63,7 @@ export component MacrosPage inherits Rectangle {
                     }
                 }
 
-                for macro in root.mock-macros: Rectangle {
+                for macro in Bridge.macros: Rectangle {
                     height: 64px;
                     border-radius: Theme.radius-card;
                     background: macro-ta.pressed
@@ -92,7 +72,8 @@ export component MacrosPage inherits Rectangle {
 
                     macro-ta := TouchArea {
                         clicked => {
-                            Bridge.mock-macro-edit-id = macro.id;
+                            Bridge.macro-edit-id = macro.id;
+                            Bridge.load-draft-macro(macro.id);
                             Bridge.active-panel = Panel.macro-edit;
                         }
                     }
@@ -119,6 +100,19 @@ export component MacrosPage inherits Rectangle {
                         }
 
                         Rectangle {
+                            width: 48px;
+                            Text { text: "▶"; color: Theme.text-primary;
+                                   horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea { clicked => { Bridge.run-macro(macro.id); } }
+                        }
+                        Rectangle {
+                            width: 48px;
+                            Text { text: "✕"; color: Theme.text-primary;
+                                   horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea { clicked => { Bridge.delete-macro(macro.id); } }
+                        }
+
+                        Rectangle {
                             width: 56px;
                             Text {
                                 text: macro.enabled ? "On" : "Off";
@@ -129,12 +123,14 @@ export component MacrosPage inherits Rectangle {
                                 vertical-alignment: center;
                                 font-size: Theme.font-size-label;
                             }
-                            // Toggle wired to a list-rebuild helper.
-                            // Inline empty stub here; full impl is parallel
-                            // to Phase 17's set-enabled. Kept short for
-                            // brevity — copy the Phase 17 pattern if you
-                            // want flippable enable from the list.
-                            TouchArea { }
+                            // Per-row enable toggle. Re-saves the macro
+                            // with the flipped flag — Rust's on_save_macro
+                            // finds-and-updates by id.
+                            TouchArea {
+                                clicked => {
+                                    Bridge.save-macro(macro.id, macro.name, macro.steps, !macro.enabled);
+                                }
+                            }
                         }
                     }
                 }
@@ -142,8 +138,8 @@ export component MacrosPage inherits Rectangle {
                 PrimaryButton {
                     label: @tr("Add macro");
                     clicked => {
-                        // Empty id → edit page renders blank form.
-                        Bridge.mock-macro-edit-id = "";
+                        Bridge.macro-edit-id = "";
+                        Bridge.load-draft-macro("");
                         Bridge.active-panel = Panel.macro-edit;
                     }
                 }
