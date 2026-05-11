@@ -75,7 +75,6 @@ export component FullSettingsPage inherits Rectangle {
     in-out property <int>    resolution-idx: 2;
     in-out property <int>    framerate-idx:  2;
     in-out property <bool>   mdns-enabled:   true;
-    in-out property <string> mock-app-version: "0.0.1-dev";
 
     // Fill the parent (overlay layer in main.slint passes parent.width/height).
     width: 100%;
@@ -259,7 +258,7 @@ export component FullSettingsPage inherits Rectangle {
                     title: @tr("ABOUT");
                     SettingsValueRow {
                         title: @tr("App version");
-                        value: root.mock-app-version;
+                        value: Bridge.app-version;
                         show-chevron: false;
                     }
                     SettingsValueRow {
