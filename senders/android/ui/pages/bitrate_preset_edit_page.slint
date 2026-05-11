@@ -1,20 +1,15 @@
-// bitrate_preset_edit_page.slint — Single-preset editor.
+// bitrate_preset_edit_page.slint — Single-preset editor (UI-only).
 //
 // Reachable from BitratePresetsPage's "Add preset" button (and, in a
-// future phase, from per-row edit affordances). Cancel returns to the
-// list without persisting; Save calls `Bridge.save-preset(...)` and
-// returns to the list. When `Bridge.selected-preset-id == ""` the
-// callback creates a new preset (Rust assigns the id).
-//
-// Phase 8 / Cluster C1: persistence is owned by Rust via
-// `Bridge.save-preset`.
+// future phase, from per-row edit affordances). Save and Cancel both
+// just return to the list — no persistence in this phase.
 //
 // Slint docs ref:
 //   draft/slint-ui/docs/astro/src/content/docs/reference/std-widgets/views/lineedit.mdx
 //   draft/slint-ui/docs/astro/src/content/docs/reference/std-widgets/basic-widgets/slider.mdx
 
 import { ScrollView, LineEdit } from "std-widgets.slint";
-import { Bridge, Panel } from "../bridge.slint";
+import { Bridge, Panel, BitratePreset } from "../bridge.slint";
 import { Theme } from "../theme.slint";
 import { TextButton } from "../components/buttons.slint";
 import {
@@ -23,11 +18,25 @@ import {
 } from "../components/settings_rows.slint";
 
 export component BitratePresetEditPage inherits Rectangle {
-    // ── Local draft state ───────────────────────────────────────────────
-    // Kept page-local so Cancel can drop the partial edits without
-    // touching Bridge.presets. Save flushes via `Bridge.save-preset`.
-    in-out property <string> draft-name:         "New preset";
-    in-out property <float>  draft-bitrate-kbps: 4000.0;
+    // Source-of-truth for "are we editing an existing preset?" comes from
+    // Bridge.selected-preset-id. The page maintains a draft locally so the
+    // user can cancel without persisting partial edits.
+    // Use `in-out property` so two-way bindings (<=>) do not permanently
+    // override the declarative initialization logic. Instead, initialize
+    // them manually.
+    in-out property <string> draft-name;
+    in-out property <float>  draft-kbps;
+
+    init => {
+        if (Bridge.selected-preset-id == "") {
+            root.draft-name = "New preset";
+            root.draft-kbps = 4000.0;
+        } else {
+            let p = preset-by-id(Bridge.presets, Bridge.selected-preset-id);
+            root.draft-name = p.name;
+            root.draft-kbps = p.bitrate-kbps;
+        }
+    }
 
     width: 100%;
     height: 100%;
@@ -60,9 +69,7 @@ export component BitratePresetEditPage inherits Rectangle {
                         Bridge.save-preset(
                             Bridge.selected-preset-id,
                             root.draft-name,
-                            // Slider value is a float; the callback wants int.
-                            // Round to the nearest integer kbps.
-                            round(root.draft-bitrate-kbps),
+                            Math.round(root.draft-kbps),
                         );
                         Bridge.active-panel = Panel.bitrate-presets;
                     }
@@ -99,11 +106,27 @@ export component BitratePresetEditPage inherits Rectangle {
                         unit: " kbps";
                         minimum: 500;
                         maximum: 20000;
-                        value <=> root.draft-bitrate-kbps;
+                        value <=> root.draft-kbps;
                         // Domain matches storage; `<=>` is safe.
                     }
                 }
             }
         }
+    }
+
+    // Helper since Slint has no built-in dictionary lookup. Linear scan over a
+    // 4-row list is fine.
+    pure function preset-by-id(list: [BitratePreset], id: string) -> BitratePreset {
+        if list.length > 0 && list[0].id == id { return list[0]; }
+        if list.length > 1 && list[1].id == id { return list[1]; }
+        if list.length > 2 && list[2].id == id { return list[2]; }
+        if list.length > 3 && list[3].id == id { return list[3]; }
+        if list.length > 4 && list[4].id == id { return list[4]; }
+        if list.length > 5 && list[5].id == id { return list[5]; }
+        if list.length > 6 && list[6].id == id { return list[6]; }
+        if list.length > 7 && list[7].id == id { return list[7]; }
+        if list.length > 8 && list[8].id == id { return list[8]; }
+        if list.length > 9 && list[9].id == id { return list[9]; }
+        return { id: "", name: "", bitrate-kbps: 0, active: false };
     }
 }
