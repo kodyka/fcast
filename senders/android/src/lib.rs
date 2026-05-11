@@ -1,16 +1,10 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use fcast_sender_sdk::{context::CastContext, device, device::DeviceInfo};
-use gst::prelude::{BufferPoolExt, BufferPoolExtManual};
-use gst_video::{VideoColorimetry, VideoFrameExt};
-use jni::{
-    objects::{JByteBuffer, JObject, JString},
-    JavaVM,
-};
-use mcore::{transmission::WhepSink, DeviceEvent, Event, ShouldQuit, SourceConfig};
+use mcore::{transmission::WhepSink, DeviceEvent, Event, ShouldQuit};
 use parking_lot::{Condvar, Mutex};
 #[cfg(target_os = "android")]
 use serde_json::{json, Value};
-use std::{collections::HashMap, net::Ipv6Addr, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use std::sync::atomic::AtomicU64;
 #[cfg(target_os = "android")]
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -19,6 +13,20 @@ use std::sync::atomic::Ordering;
 use tracing::{debug, error};
 #[cfg(target_os = "android")]
 use tracing::{info, warn};
+#[cfg(target_os = "android")]
+use anyhow::bail;
+#[cfg(target_os = "android")]
+use gst::prelude::{BufferPoolExt, BufferPoolExtManual};
+#[cfg(target_os = "android")]
+use gst_video::{VideoColorimetry, VideoFrameExt};
+#[cfg(target_os = "android")]
+use jni::{objects::{JByteBuffer, JObject, JString}, JavaVM};
+#[cfg(target_os = "android")]
+use mcore::SourceConfig;
+#[cfg(target_os = "android")]
+use std::net::Ipv6Addr;
+
+pub mod log_ring;
 
 pub mod migration;
 
@@ -541,16 +549,19 @@ fn build_status_items(receiver_name: &str, encoder: &str, network: &str) -> Vec<
             label: "Receiver".into(),
             value: receiver_name.into(),
             severity: crate::StatusSeverity::Info,
+            icon_glyph: "📺".into(),
         },
         crate::StatusItem {
             label: "Encoder".into(),
             value: encoder.into(),
             severity: crate::StatusSeverity::Info,
+            icon_glyph: "⚙️".into(),
         },
         crate::StatusItem {
             label: "Network".into(),
             value: network.into(),
             severity: crate::StatusSeverity::Info,
+            icon_glyph: "📶".into(),
         },
     ]
 }
@@ -800,39 +811,33 @@ impl Application {
                 } else {
                     match event {
                         DeviceEvent::StateChanged(device_connection_state) => {
-                            match device_connection_state {
-                                device::DeviceConnectionState::Connected { local_addr, .. } => {
-                                    self.local_address = Some(local_addr);
+                            if let device::DeviceConnectionState::Connected { local_addr, .. } = device_connection_state {
+                                self.local_address = Some(local_addr);
 
-                                    self.ui_weak.upgrade_in_event_loop(|ui| {
-                                        ui.global::<Bridge>()
-                                            .invoke_change_state(AppState::SelectingSettings);
-                                    })?;
-                                }
-                                _ => (),
+                                self.ui_weak.upgrade_in_event_loop(|ui| {
+                                    ui.global::<Bridge>()
+                                        .invoke_change_state(AppState::SelectingSettings);
+                                })?;
                             }
                         }
                         DeviceEvent::SourceChanged(new_source) => {
                             if self.tx_sink.is_some() {
-                                match new_source {
-                                    fcast_sender_sdk::device::Source::Url { ref url, .. } => {
-                                        if Some(url) != self.our_source_url.as_ref() {
-                                            // At this point the receiver has stopped playing our stream
-                                            debug!(
-                                                ?new_source,
-                                                "The source on the receiver changed, disconnecting"
-                                            );
+                                if let fcast_sender_sdk::device::Source::Url { ref url, .. } = new_source {
+                                    if Some(url) != self.our_source_url.as_ref() {
+                                        // At this point the receiver has stopped playing our stream
+                                        debug!(
+                                            ?new_source,
+                                            "The source on the receiver changed, disconnecting"
+                                        );
 
-                                            self.ui_weak.upgrade_in_event_loop(|ui| {
-                                                // Phase 8 (deferred): clear Bridge.status-items here.
-                                                ui.global::<Bridge>()
-                                                    .invoke_change_state(AppState::Disconnected);
-                                            })?;
+                                        self.ui_weak.upgrade_in_event_loop(|ui| {
+                                            // Phase 8 (deferred): clear Bridge.status-items here.
+                                            ui.global::<Bridge>()
+                                                .invoke_change_state(AppState::Disconnected);
+                                        })?;
 
-                                            self.stop_cast(false).await?;
-                                        }
+                                        self.stop_cast(false).await?;
                                     }
-                                    _ => (),
                                 }
                             }
                         }
@@ -1053,6 +1058,36 @@ impl Application {
     }
 }
 
+fn default_presets() -> Vec<crate::BitratePreset> {
+    vec![
+        crate::BitratePreset { id: "low".into(),  name: "Low".into(),     bitrate_kbps: 1500,  active: false },
+        crate::BitratePreset { id: "med".into(),  name: "Medium".into(),  bitrate_kbps: 4000,  active: true  },
+        crate::BitratePreset { id: "high".into(), name: "High".into(),    bitrate_kbps: 8000,  active: false },
+        crate::BitratePreset { id: "max".into(),  name: "Maximum".into(), bitrate_kbps: 15000, active: false },
+    ]
+}
+
+fn default_quick_actions() -> Vec<crate::QuickAction> {
+    let mut actions = vec![
+        crate::QuickAction { id: "settings".into(),   title: "Settings".into(),    enabled: true,  active: false, is_macro: false },
+        crate::QuickAction { id: "debug".into(),      title: "Debug".into(),       enabled: true,  active: false, is_macro: false },
+        crate::QuickAction { id: "codec-test".into(), title: "Codec test".into(),  enabled: true,  active: false, is_macro: false },
+        crate::QuickAction { id: "scan-qr".into(),    title: "Scan QR".into(),     enabled: true,  active: false, is_macro: false },
+        crate::QuickAction { id: "record".into(),     title: "Record".into(),      enabled: true,  active: false, is_macro: false },
+        crate::QuickAction { id: "pair".into(),       title: "Pair".into(),        enabled: true,  active: false, is_macro: false },
+        crate::QuickAction { id: "bitrate".into(),    title: "Bitrate".into(),     enabled: true,  active: false, is_macro: false },
+    ];
+    if cfg!(debug_assertions) {
+        actions.extend([
+            crate::QuickAction { id: "migrated-server".into(), title: "Migrated srv".into(), enabled: true, active: false, is_macro: false },
+            crate::QuickAction { id: "test-getinfo".into(),    title: "GetInfo".into(),      enabled: true, active: false, is_macro: false },
+            crate::QuickAction { id: "test-crossfade".into(),  title: "Crossfade".into(),    enabled: true, active: false, is_macro: false },
+            crate::QuickAction { id: "test-smoke".into(),      title: "Smoke Graph".into(),  enabled: true, active: false, is_macro: false },
+        ]);
+    }
+    actions
+}
+
 // TODO: handle errs
 #[cfg(target_os = "android")]
 #[unsafe(no_mangle)]
@@ -1067,22 +1102,133 @@ fn android_main(app: PlatformApp) {
 
     let ui = MainWindow::new().unwrap();
 
+    // Cached snapshot. Re-pushed in full whenever any signal changes.
+    #[derive(Clone, Default)]
+    struct StatusSnapshot {
+        network_label: String,
+        thermal_label: String,
+        battery_pct: i32,
+        charging: bool,
+    }
 
-    let mut actions = vec![
-        QuickAction { id: "scan-qr".into(), title: "Scan QR".into(), enabled: true, active: false, is_macro: false },
-    ];
+    fn push_status(ui_handle: slint::Weak<MainWindow>, snap: StatusSnapshot) {
+        let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+            let bridge = ui.global::<Bridge>();
+            let items = vec![
+                StatusItem {
+                    label: "network".into(),
+                    value: snap.network_label.into(),
+                    severity: StatusSeverity::Info,
+                    icon_glyph: "📶".into(),
+                },
+                StatusItem {
+                    label: "thermal".into(),
+                    value: snap.thermal_label.clone().into(),
+                    severity: match snap.thermal_label.as_str() {
+                        "Critical" => StatusSeverity::Error,
+                        "Serious" => StatusSeverity::Warning,
+                        _ => StatusSeverity::Info,
+                    },
+                    icon_glyph: if snap.thermal_label == "Critical" { "🔥".into() } else { "🌡".into() },
+                },
+                StatusItem {
+                    label: "battery".into(),
+                    value: format!("{}%", snap.battery_pct).into(),
+                    severity: if snap.battery_pct < 20 { StatusSeverity::Error } else { StatusSeverity::Info },
+                    icon_glyph: if snap.charging { "⚡".into() } else { "🔋".into() },
+                },
+            ];
+            let model: slint::ModelRc<StatusItem> = std::rc::Rc::new(slint::VecModel::from(items)).into();
+            bridge.set_status_items(model);
+        });
+    }
+
     let show_debug = cfg!(debug_assertions);
     ui.global::<Bridge>().set_show_debug(show_debug);
-    if show_debug {
-        actions.extend([
-            QuickAction { id: "migrated-server".into(), title: "Start Server".into(), enabled: true, active: false, is_macro: false },
-            QuickAction { id: "test-getinfo".into(),    title: "GetInfo".into(),      enabled: true, active: false, is_macro: false },
-            QuickAction { id: "test-crossfade".into(),  title: "Crossfade".into(),    enabled: true, active: false, is_macro: false },
-            QuickAction { id: "test-smoke".into(),      title: "Smoke Graph".into(),  enabled: true, active: false, is_macro: false },
-        ]);
+    ui.global::<Bridge>()
+        .set_app_version(env!("CARGO_PKG_VERSION").into());
+
+    let bar_actions: Arc<Mutex<Vec<QuickAction>>> =
+        Arc::new(Mutex::new(default_quick_actions()));
+    // Initial push is synchronous — we still hold the strong `ui` handle,
+    // so the control bar is populated before `ui.run()` paints the first
+    // frame. Subsequent mutations from callbacks use `push_bar()` which
+    // hops through `upgrade_in_event_loop` because they only have a weak.
+    {
+        let snapshot = bar_actions.lock().clone();
+        ui.global::<Bridge>().set_quick_actions(
+            std::rc::Rc::new(slint::VecModel::from(snapshot)).into(),
+        );
     }
-    let model = std::rc::Rc::new(slint::VecModel::from(actions));
-    ui.global::<Bridge>().set_quick_actions(model.into());
+    let push_bar = {
+        let bar_actions = bar_actions.clone();
+        let ui_weak = ui.as_weak();
+        move || {
+            let snapshot = bar_actions.lock().clone();
+            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                ui.global::<Bridge>().set_quick_actions(
+                    std::rc::Rc::new(slint::VecModel::from(snapshot)).into(),
+                );
+            });
+        }
+    };
+
+    ui.global::<Bridge>().on_move_bar_action({
+        let bar_actions = bar_actions.clone();
+        let push        = push_bar.clone();
+        move |from, to| {
+            let mut g = bar_actions.lock();
+            if let (Ok(from_u), Ok(to_u)) = (usize::try_from(from), usize::try_from(to)) {
+                if from_u < g.len() && to_u < g.len() && from_u != to_u {
+                    let item = g.remove(from_u);
+                    g.insert(to_u, item);
+                }
+            }
+            drop(g);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_set_bar_action_enabled({
+        let bar_actions = bar_actions.clone();
+        let push        = push_bar.clone();
+        move |idx, enabled| {
+            let mut g = bar_actions.lock();
+            if let Ok(i) = usize::try_from(idx) {
+                if let Some(a) = g.get_mut(i) { a.enabled = enabled; }
+            }
+            drop(g);
+            push();
+        }
+    });
+
+    ui.global::<Bridge>().on_save_bar_actions({
+        let _bar_actions = bar_actions.clone();
+        let push        = push_bar.clone();
+        move || {
+            // Phase 11: persist to DataStore via JNI here.
+            // For now, just re-push the in-memory state.
+            push();
+        }
+    });
+
+    let history: Arc<Mutex<Vec<crate::CastHistoryEntry>>> = Arc::new(Mutex::new(vec![
+        crate::CastHistoryEntry {
+            id: "h1".into(), receiver: "Living Room TV".into(),
+            started_at: "Today 12:34".into(), duration_s: 765,
+            status: "Completed".into(),
+        },
+        crate::CastHistoryEntry {
+            id: "h2".into(), receiver: "Bedroom TV".into(),
+            started_at: "Yesterday 22:10".into(), duration_s: 68,
+            status: "Cancelled".into(),
+        },
+        crate::CastHistoryEntry {
+            id: "h3".into(), receiver: "Office Mac".into(),
+            started_at: "Yesterday 09:00".into(), duration_s: 1920,
+            status: "Completed".into(),
+        },
+    ]));
 
     use slint::Model;
     use std::sync::atomic::AtomicUsize;
@@ -1277,15 +1423,373 @@ fn android_main(app: PlatformApp) {
         }
     });
 
+    let push_history = {
+        let history = history.clone();
+        let ui_weak = ui.as_weak();
+        move || {
+            let snap = history.lock().clone();
+            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                ui.global::<Bridge>().set_history(
+                    std::rc::Rc::new(slint::VecModel::from(snap)).into(),
+                );
+            });
+        }
+    };
+    push_history();
+
+    // ── Bitrate presets (Phase 8 / Cluster C1) — data + pusher ──────────
+    // Created here (above the D1 handlers) so `on_reset_settings` can
+    // restore the factory presets list. The C1 callback registrations
+    // (save / delete / set-active) live further down and capture these
+    // same handles by clone.
+    //
+    // The factory-default literal lives in `default_presets()` so init
+    // and reset share a single source of truth — same pattern as
+    // `default_quick_actions()`.
+    let presets: Arc<Mutex<Vec<BitratePreset>>> = Arc::new(Mutex::new(default_presets()));
+    // Monotonic id source for user-created presets. Never use `g.len()`:
+    // after a delete-then-add cycle len() can collide with a previously
+    // issued id.
+    let next_preset_id: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
+    let push_presets = {
+        let presets = presets.clone();
+        let ui_weak = ui.as_weak();
+        move || {
+            let snapshot = presets.lock().clone();
+            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                ui.global::<Bridge>().set_presets(
+                    std::rc::Rc::new(slint::VecModel::from(snapshot)).into(),
+                );
+            });
+        }
+    };
+    push_presets();
+
+    // Create the tokio runtime *before* registering Slint callbacks that
+    // call `tokio::spawn` (directly or via `Application::flash_banner`).
+    // Slint callbacks run on the UI thread during `ui.run()`, which has no
+    // tokio context by default — `tokio::spawn` would panic with "there is
+    // no reactor running". The `_runtime_guard` registers this thread as a
+    // runtime context for the lifetime of the guard. It MUST be dropped
+    // before `runtime.block_on(...)` later in this function, otherwise
+    // `block_on` panics ("Cannot start a runtime from within a runtime").
     let runtime = tokio::runtime::Runtime::new().unwrap();
-    // Establish tokio runtime context on the Slint UI thread so that
-    // `tokio::spawn` works both during setup (e.g. `spawn_recording_ticker`)
-    // and from inside Slint callback closures (which execute on this thread
-    // during `ui.run()`). Without this guard, those `tokio::spawn` calls
-    // panic with "there is no reactor running".
     let _runtime_guard = runtime.enter();
 
+    // ── Phase 8 / Cluster D1 — Backup / reset handlers ──────────────────
+    ui.global::<Bridge>().on_export_settings({
+        let ui_weak = ui.as_weak();
+        move || {
+            let ui_weak = ui_weak.clone();
+            tokio::spawn(async move {
+                // Phase 11: ACTION_CREATE_DOCUMENT via JNI; serialise + write.
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                Application::flash_banner(
+                    ui_weak,
+                    "Settings exported (placeholder).".into(),
+                    BannerSeverity::Success,
+                    std::time::Duration::from_secs(3),
+                );
+            });
+        }
+    });
+
+    ui.global::<Bridge>().on_import_settings({
+        let ui_weak = ui.as_weak();
+        move || {
+            let ui_weak = ui_weak.clone();
+            tokio::spawn(async move {
+                // Phase 11: ACTION_OPEN_DOCUMENT, parse JSON, write to DataStore.
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                Application::flash_banner(
+                    ui_weak,
+                    "Settings imported (placeholder).".into(),
+                    BannerSeverity::Success,
+                    std::time::Duration::from_secs(3),
+                );
+            });
+        }
+    });
+
+    ui.global::<Bridge>().on_reset_settings({
+        let bar_actions    = bar_actions.clone();
+        let history        = history.clone();
+        let presets        = presets.clone();
+        let next_preset_id = next_preset_id.clone();
+        let push_bar       = push_bar.clone();
+        let push_history   = push_history.clone();
+        let push_presets   = push_presets.clone();
+        let ui_weak        = ui.as_weak();
+        move || {
+            // Reset every Cluster-C/D model owned by Rust to factory
+            // defaults. Macros (Cluster C4) are not yet wired here; fold
+            // them in once their handlers land.
+            //
+            // `next_preset_id` is also rewound so user-created preset
+            // ids restart at `custom-0` after a reset, matching the
+            // factory state. Without this, a freshly-reset device would
+            // still hand out `custom-N` for some N > 0 the moment the
+            // user added a preset.
+            *bar_actions.lock() = default_quick_actions();
+            *presets.lock()     = default_presets();
+            next_preset_id.store(0, Ordering::Relaxed);
+            history.lock().clear();
+
+            push_bar();
+            push_presets();
+            push_history();
+
+            // Phase 11: also clear DataStore / SharedPreferences via JNI.
+
+            Application::flash_banner(
+                ui_weak.clone(),
+                "Settings reset to defaults".into(),
+                BannerSeverity::Success,
+                std::time::Duration::from_secs(3),
+            );
+        }
+    });
+
+    ui.global::<Bridge>().on_clear_cast_history({
+        let history      = history.clone();
+        let push_history = push_history.clone();
+        let ui_weak      = ui.as_weak();
+        move || {
+            history.lock().clear();
+            push_history();
+
+            Application::flash_banner(
+                ui_weak.clone(),
+                "Cast history cleared".into(),
+                BannerSeverity::Success,
+                std::time::Duration::from_secs(2),
+            );
+        }
+    });
+
+    ui.global::<Bridge>().on_clear_known_receivers({
+        let ui_weak = ui.as_weak();
+        move || {
+            // Phase 11: clear known-receivers DataStore. For now, announce.
+            Application::flash_banner(
+                ui_weak.clone(),
+                "Known receivers cleared".into(),
+                BannerSeverity::Success,
+                std::time::Duration::from_secs(2),
+            );
+        }
+    });
+
+    // ── Phase 8 / Cluster D2 — Cast history handlers ────────────────────
+    ui.global::<Bridge>().on_clear_history({
+        let history      = history.clone();
+        let push_history = push_history.clone();
+        move || {
+            history.lock().clear();
+            push_history();
+        }
+    });
+
+    ui.global::<Bridge>().on_delete_history_entry({
+        let history      = history.clone();
+        let push_history = push_history.clone();
+        move |id| {
+            let id = id.to_string();
+            history.lock().retain(|e| e.id != id);
+            push_history();
+        }
+    });
+
+    ui.global::<Bridge>().on_recast({
+        let history = history.clone();
+        let ui_weak = ui.as_weak();
+        move |id| {
+            let id = id.to_string();
+            let entry_opt = history.lock().iter()
+                .find(|e| e.id == id).cloned();
+            let Some(entry) = entry_opt else { return; };
+            // Phase 11: trigger reconnection + start_casting with the same receiver.
+            Application::flash_banner(
+                ui_weak.clone(),
+                format!("Recasting to {}", entry.receiver),
+                BannerSeverity::Info,
+                std::time::Duration::from_secs(2),
+            );
+        }
+    });
+
+    // Push selected-history-entry whenever the id changes. Slint does NOT
+    // auto-generate on_<property>_changed; the `changed` handler in
+    // bridge.slint re-emits via the explicit `selected-history-id-changed`
+    // callback bound below.
+    //
+    // The callback fires on the Slint UI thread, so we use `ui_weak.upgrade()`
+    // (synchronous) instead of `upgrade_in_event_loop` (deferred). The
+    // consumer page sets `Bridge.active-panel = Panel.cast-history-detail`
+    // immediately after setting the id; a deferred property write would
+    // render the detail page one frame with stale/empty data.
+    ui.global::<Bridge>().on_selected_history_id_changed({
+        let history = history.clone();
+        let ui_weak = ui.as_weak();
+        move |id: slint::SharedString| {
+            let id = id.to_string();
+            let entry = history.lock().iter()
+                .find(|e| e.id == id).cloned();
+            let Some(entry) = entry else { return; };
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.global::<Bridge>().set_selected_history_entry(entry);
+            }
+        }
+    });
+
     let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
+
+    let ui_handle = ui.as_weak();
+    // NOTE: The shared `Arc<Mutex<StatusSnapshot>>` cache that producers
+    // (battery / thermal / network listeners) will update lands with
+    // Cluster B (Phase 8 Section 3). For now the ticker just rebuilds a
+    // hardcoded snapshot on every tick — no shared state needed yet.
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
+        loop {
+            tick.tick().await;
+            let snap_now = StatusSnapshot {
+                network_label: "Wi-Fi".into(),
+                thermal_label: "Nominal".into(),
+                battery_pct: 87,
+                charging: false,
+            };
+            push_status(ui_handle.clone(), snap_now);
+        }
+    });
+    fn enumerate_interfaces() -> Vec<NetworkInterface> {
+        vec![
+            NetworkInterface {
+                name: "wlan0".into(),
+                kind: "wifi".into(),
+                address_v4: "192.168.1.42".into(),
+                address_v6: "fe80::1234".into(),
+                enabled: true,
+            },
+            NetworkInterface {
+                name: "rmnet0".into(),
+                kind: "cellular".into(),
+                address_v4: "10.20.30.40".into(),
+                address_v6: "".into(),
+                enabled: false,
+            },
+            NetworkInterface {
+                name: "lo".into(),
+                kind: "loopback".into(),
+                address_v4: "127.0.0.1".into(),
+                address_v6: "::1".into(),
+                enabled: true,
+            },
+        ]
+    }
+    fn push_interfaces(ui_handle: slint::Weak<MainWindow>, list: Vec<NetworkInterface>) {
+        let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+            let model: slint::ModelRc<NetworkInterface> = std::rc::Rc::new(slint::VecModel::from(list)).into();
+            ui.global::<Bridge>().set_network_interfaces(model);
+        });
+    }
+    push_interfaces(ui.as_weak(), enumerate_interfaces());
+    let interfaces = std::sync::Arc::new(tokio::sync::Mutex::new(enumerate_interfaces()));
+    let interfaces_for_callback = interfaces.clone();
+    let ui_for_callback = ui.as_weak();
+    ui.global::<Bridge>()
+        .on_set_interface_enabled(move |name, value| {
+            let interfaces = interfaces_for_callback.clone();
+            let ui_handle = ui_for_callback.clone();
+            tokio::spawn(async move {
+                let mut list = interfaces.lock().await;
+                if let Some(iface) = list.iter_mut().find(|i| i.name == name.as_str()) {
+                    iface.enabled = value;
+                }
+                push_interfaces(ui_handle, list.clone());
+            });
+        });
+    let log_ring = log_ring::LogRing::new(ui.as_weak());
+    let log_ring_for_clear = log_ring.clone();
+    use tracing_subscriber::layer::SubscriberExt;
+    use tracing_subscriber::util::SubscriberInitExt;
+    use tracing_subscriber::filter::LevelFilter;
+    use tracing_subscriber::Layer;
+    // Cap the LogRing layer at DEBUG so the firehose of GStreamer `Fixme`
+    // / TRACE events forwarded by `tracing_gstreamer::integrate_events`
+    // (see `Application::run_event_loop`) never reaches the ring buffer.
+    // Without this filter, an active media pipeline can produce thousands
+    // of TRACE events per second, each one mutating the ring and dirtying
+    // the UI pusher — pointless for a human-readable debug log.
+    //
+    // `try_init` (not `init`) so re-entries of `android_main` (Android can
+    // trigger on activity destroy/recreate) don't panic from
+    // `set_global_default()` being called twice. Mirrors `init_once` above.
+    if let Err(err) = tracing_subscriber::registry()
+        .with(log_ring.clone().with_filter(LevelFilter::DEBUG))
+        .try_init()
+    {
+        debug!(?err, "tracing subscriber already initialised — re-entry of android_main");
+    }
+    ui.global::<Bridge>().on_clear_log_entries(move || {
+        log_ring_for_clear.clear();
+    });
+    // ── Bitrate presets (Phase 8 / Cluster C1) — callbacks ──────────────
+    // The shared `presets` Arc + `push_presets` closure are declared
+    // above (next to `history`) so the D1 `on_reset_settings` handler
+    // can also restore the factory list.
+    ui.global::<Bridge>().on_save_preset({
+        let presets = presets.clone();
+        let next_id = next_preset_id.clone();
+        let push    = push_presets.clone();
+        move |id, name, kbps| {
+            let mut g = presets.lock();
+            if id.is_empty() {
+                let new_id = format!("custom-{}", next_id.fetch_add(1, Ordering::Relaxed));
+                g.push(BitratePreset {
+                    id:           new_id.into(),
+                    name:         name.into(),
+                    bitrate_kbps: kbps,
+                    active:       false,
+                });
+            } else if let Some(p) = g.iter_mut().find(|p| p.id == id) {
+                p.name         = name.into();
+                p.bitrate_kbps = kbps;
+            }
+            drop(g);
+            push();
+        }
+    });
+    ui.global::<Bridge>().on_delete_preset({
+        let presets = presets.clone();
+        let push    = push_presets.clone();
+        move |id| {
+            let mut g = presets.lock();
+            g.retain(|p| p.id != id);
+            // If the deleted preset was the active one, promote the first
+            // remaining preset to active so the user is never left without
+            // a selection.
+            if !g.iter().any(|p| p.active) {
+                if let Some(first) = g.first_mut() {
+                    first.active = true;
+                }
+            }
+            drop(g);
+            push();
+        }
+    });
+    ui.global::<Bridge>().on_set_active_preset({
+        let presets = presets.clone();
+        let push    = push_presets.clone();
+        move |id| {
+            let mut g = presets.lock();
+            for p in g.iter_mut() {
+                p.active = p.id == id;
+            }
+            drop(g);
+            push();
+        }
+    });
 
     ui.global::<Bridge>().on_connect_receiver({
         let event_tx = event_tx.clone();
@@ -1562,6 +2066,10 @@ fn android_main(app: PlatformApp) {
     });
 
     ui.run().unwrap();
+
+    // Drop the runtime context guard before `block_on`, which panics if
+    // called from within a tokio runtime context.
+    drop(_runtime_guard);
 
     runtime.block_on(async move {
         if let Err(err) = event_tx.send(Event::Quit) {

@@ -44,20 +44,6 @@ export component WaitingForMediaView inherits Rectangle {
 // ── CastingView ───────────────────────────────────────────────────────────────
 
 export component CastingView inherits Rectangle {
-    // UI-only placeholder (Phase 5). Replace with `Bridge.status-items` when
-    // Phase 8 (Rust wiring) lands — see PHASE-8-rust-bridge.md.
-    in-out property <[StatusItem]> mock-status-items: [
-        { label: @tr("Receiver"), value: "Living Room TV",       severity: StatusSeverity.info },
-        { label: @tr("Encoder"),  value: "amcvidenc (H.264)",    severity: StatusSeverity.info },
-        { label: @tr("Network"),  value: "192.168.1.42",         severity: StatusSeverity.info },
-    ];
-    // Severity-coverage stub. Flip `items: root.mock-status-items-error;` once,
-    // screenshot to verify warning/error coloring, then revert before commit.
-    in-out property <[StatusItem]> mock-status-items-error: [
-        { label: @tr("Receiver"), value: "Living Room TV", severity: StatusSeverity.info },
-        { label: @tr("Network"),  value: @tr("Reconnecting…"),  severity: StatusSeverity.warning },
-        { label: @tr("Encoder"),  value: @tr("Failed"),         severity: StatusSeverity.error },
-    ];
     VerticalBox {
         alignment: center;
         Text {
@@ -72,6 +58,6 @@ export component CastingView inherits Rectangle {
         x: 0;
         y: 0;
         width: parent.width * 0.5;
-        items: root.mock-status-items;
+        items: Bridge.status-items;
     }
 }

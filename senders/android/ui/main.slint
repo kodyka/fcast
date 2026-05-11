@@ -80,6 +80,7 @@ import { DebugVideoPage }               from "pages/debug_video_page.slint";
 import { NetworkPage }                  from "pages/network_page.slint";
 import { Theme } from "theme.slint";
 import { CastControlBar } from "components/control_bar.slint";
+import { InfoBanner } from "components/info_banner.slint";
 
 // ── Root window ───────────────────────────────────────────────────────────────
 export component MainWindow inherits Window {
@@ -132,4 +133,14 @@ export component MainWindow inherits Window {
     if Bridge.active-panel == Panel.debug-log:     DebugLogPage { }
     if Bridge.active-panel == Panel.debug-video:   DebugVideoPage { }
     if Bridge.active-panel == Panel.network:       NetworkPage { }
+
+    // ── Global banner overlay ─────────────────────────────────────────────────
+    // Reads Bridge.banner-{visible,message,severity} by default. Driven by
+    // `Application::flash_banner` in lib.rs. Declared last so it paints on
+    // top of pages and panels.
+    InfoBanner {
+        x: 0;
+        y: 0;
+        width: parent.width;
+    }
 }

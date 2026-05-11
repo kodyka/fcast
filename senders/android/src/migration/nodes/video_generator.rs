@@ -234,7 +234,7 @@ impl VideoGeneratorNode {
                 None => Some(State::Started),
             },
             State::Starting => {
-                if self.cue_time.map_or(true, |cue| now >= cue) {
+                if self.cue_time.is_none_or(|cue| now >= cue) {
                     Some(State::Started)
                 } else {
                     None
