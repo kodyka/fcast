@@ -1093,6 +1093,15 @@ fn android_main(app: PlatformApp) {
     ui.global::<Bridge>().set_quick_actions(model.into());
 
     let runtime = tokio::runtime::Runtime::new().unwrap();
+    // Enter the runtime context so bare `tokio::spawn` calls below (status
+    // ticker, recording ticker, and the per-toggle network interface task)
+    // can locate the reactor. Without this, `Runtime::new()` alone leaves
+    // `Handle::current()` unset on this thread and the spawns panic with
+    // "there is no reactor running, must be called from the context of a
+    // Tokio 1.x runtime". The guard lives until the end of `android_main`,
+    // covering both startup spawns and UI-thread callback spawns invoked
+    // during `ui.run()`.
+    let _runtime_guard = runtime.enter();
 
     let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
 
