@@ -1313,9 +1313,21 @@ fn android_main(app: PlatformApp) {
     // Without this filter, an active media pipeline can produce thousands
     // of TRACE events per second, each one mutating the ring and dirtying
     // the UI pusher — pointless for a human-readable debug log.
-    tracing_subscriber::registry()
+    //
+    // `try_init` (not `init`) so that re-entries of `android_main` — which
+    // Android can trigger on activity destroy/recreate — don't panic from
+    // `set_global_default()` being called twice. This mirrors the
+    // `android_logger::init_once` re-entry guard above. The first call
+    // wins; subsequent calls log a debug message and re-use the existing
+    // subscriber. The LogRing instance from this re-entry won't receive
+    // events, but the UI re-uses the surviving one via the on_clear
+    // closure capture, which is acceptable for the placeholder ring.
+    if let Err(err) = tracing_subscriber::registry()
         .with(log_ring.clone().with_filter(LevelFilter::DEBUG))
-        .init();
+        .try_init()
+    {
+        debug!(?err, "tracing subscriber already initialised — re-entry of android_main");
+    }
 
     ui.global::<Bridge>().on_clear_log_entries(move || {
         log_ring_for_clear.clear();
