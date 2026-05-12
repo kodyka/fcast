@@ -153,346 +153,81 @@ for this phase. Verify before promising end users SRT support.
 
 ---
 
-## 2. Steps
+## 2. Steps — split into six per-step files
 
-### 2.1 Step 1 — extend the JSON protocol
+To keep each step skimmable and reviewable in isolation, the
+implementation is split across six per-step `MVP-PHASE-8-STEP-N-*.md`
+files. Each file follows the same smaller five-section template
+(Goal-of-this-step / Pre-flight / The change / Verification /
+Next step) and is self-contained — you don't need to flip back to
+this parent doc while implementing a single step.
 
-**File:** `senders/android/src/migration/protocol.rs` (lines 126-138):
+| # | File | Scope | Net diff |
+|---|---|---|---|
+| 1 | [`MVP-PHASE-8-STEP-1-protocol-extension.md`](./MVP-PHASE-8-STEP-1-protocol-extension.md) | Add `Srt { uri, latency, passphrase, pbkeylen }` to `DestinationFamily`. Backward-compatible wire format via `#[serde(default, skip_serializing_if = …)]` on the optional fields. | ~30 lines, 1 file (`protocol.rs`) |
+| 2 | [`MVP-PHASE-8-STEP-2-pipeline-profile.md`](./MVP-PHASE-8-STEP-2-pipeline-profile.md) | Extend `DestinationPipelineProfile::from_family` with an `Srt` arm — diagnostic element listing for `getinfo`. | ~10 lines, 1 file (`nodes/destination.rs`) |
+| 3 | [`MVP-PHASE-8-STEP-3-build-live-pipeline.md`](./MVP-PHASE-8-STEP-3-build-live-pipeline.md) | Wire the `Srt` arm into `DestinationNode::build_live_pipeline`. Mirror of the existing `Udp` branch — `appsrc → videoconvert → h264enc → h264parse → mpegtsmux → srtsink`. Largest step in PHASE-8. | ~90 lines, 1 file (`nodes/destination.rs`) |
+| 4 | [`MVP-PHASE-8-STEP-4-android-makefile.md`](./MVP-PHASE-8-STEP-4-android-makefile.md) | Add `srt` to `GSTREAMER_PLUGINS` in `senders/android/app/jni/Android.mk`. **Mandatory** for any on-device test — without it, `srtsink` is missing at runtime. | 1 line, 1 file (`Android.mk`) |
+| 5 | [`MVP-PHASE-8-STEP-5-unit-tests.md`](./MVP-PHASE-8-STEP-5-unit-tests.md) | ~12 host-runnable unit tests across `protocol.rs`, `node_manager.rs`, and `nodes/destination.rs`. No GStreamer initialisation required. | ~150 lines of tests across 3 files |
+| 6 | [`MVP-PHASE-8-STEP-6-source-side.md`](./MVP-PHASE-8-STEP-6-source-side.md) | **Documentation step.** SRT sources already work via `uridecodebin` + Step 4's plugin registration. Adds one trivial dispatcher test and the anti-pattern call-outs. No `SourceNode` change. | 1 test (already in Step 5) |
 
-```rust
-// senders/android/src/migration/protocol.rs
+### Recommended landing order
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum DestinationFamily {
-    Rtmp {
-        uri: String,
-    },
-    Udp {
-        host: String,
-    },
-    LocalFile {
-        base_name: String,
-        max_size_time: Option<u32>,
-    },
-    LocalPlayback,
-
-    // NEW —
-    Srt {
-        /// Full SRT URI. Examples:
-        ///   - "srt://media-server.example.com:1234"            (caller, default)
-        ///   - "srt://0.0.0.0:9000?mode=listener"               (listener side)
-        ///   - "srt://host:port?streamid=foo&mode=caller"       (with stream id)
-        uri: String,
-
-        /// SRT latency in milliseconds. Recommended: 4× expected RTT,
-        /// minimum ~80ms, default ~200ms. Higher = more resilience to
-        /// packet loss, more end-to-end delay.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        latency: Option<u32>,
-
-        /// AES encryption passphrase. None = unencrypted.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        passphrase: Option<String>,
-
-        /// AES key length in bytes: 16 (AES-128), 24 (AES-192), or
-        /// 32 (AES-256). Required if `passphrase` is set; ignored
-        /// otherwise.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pbkeylen: Option<u32>,
-    },
-}
+```
+Step 1 ──► Step 2 ──► Step 3 ──┐
+                                ├── single squash-commit (compile stays clean)
+                                │
+                                ▼
+                              Step 4 (Android.mk — required before on-device smoke)
+                                │
+                                ▼
+                              Step 5 (unit tests — green after Step 4)
+                                │
+                                ▼
+                              Step 6 (docs + one test from Step 5)
 ```
 
-The serde defaults keep the wire format backward-compatible for the
-four pre-existing variants.
+**Steps 1+2+3** must land together — if any of them lands alone, the
+remaining steps' arms are missing and the `match` blocks become
+non-exhaustive. Step 1 in isolation will compile only with a
+temporary `_` arm placeholder (see Step 1 §3.1) — but the cleanest
+path is squashing 1+2+3 into one commit.
 
-### 2.2 Step 2 — extend the pipeline profile
+**Step 4** is independent of 1–3 and can land in either order
+(separately, even). The smoke verification in Step 3 §3.3 requires
+Step 4 to be in place.
 
-**File:** `senders/android/src/migration/nodes/destination.rs`
-(extend the `match family { … }` block at line 39):
+**Steps 5+6** are test-only and can land after the runtime changes.
 
-```rust
-match family {
-    DestinationFamily::Rtmp { .. } => { /* …existing… */ }
-    DestinationFamily::Udp { .. } => { /* …existing… */ }
-    DestinationFamily::LocalFile { .. } => { /* …existing… */ }
-    DestinationFamily::LocalPlayback => { /* …existing… */ }
+---
 
-    // NEW —
-    DestinationFamily::Srt { .. } => {
-        elements.extend([
-            "mpegtsmux",
-            "srtsink",
-            "videoconvert",
-            "h264enc",
-            "h264parse",
-            "audioconvert",
-            "audioresample",
-            "avenc_aac",
-        ]);
-    }
-}
-```
+## 2b. Why the per-step split?
 
-(The element-name list is purely diagnostic — used for
-`DestinationPipelineProfile` introspection. The actual elements are
-constructed in `build_live_pipeline`.)
+The original monolithic §2 block ran to ~340 lines with six
+sub-steps interleaved. Splitting it gives:
 
-The `audio`/`video` retention filters at lines 91-96 work unmodified
-because the Srt list matches the UDP list's element names.
+- Per-step files small enough to review on a phone screen.
+- Independent verification recipes per step (each step's §3
+  describes only that step's compile/test/grep checks).
+- Step-specific pitfalls without scrolling past unrelated content.
+- Easy follow-up PRs: if a reviewer asks for changes on Step 3
+  only, you edit one file.
 
-### 2.3 Step 3 — wire the `Srt` arm in `build_live_pipeline`
+The pattern mirrors the existing `PHASE-8-Section-*.md` split
+that converted the monolithic `MVP-PHASE-8.md` (the prior
+Phase-8 doc) into one Section per concern.
 
-**File:** `senders/android/src/migration/nodes/destination.rs`
-(extend the `match &self.family { … }` block at line 489 — model
-on the `Udp` branch at lines 606-679):
+---
 
-```rust
-DestinationFamily::Srt {
-    uri,
-    latency,
-    passphrase,
-    pbkeylen,
-} => {
-    let mux = Self::make_element("mpegtsmux", None)?;
-    let sink = Self::make_element("srtsink", None)?;
+<!-- Per-step content moved to MVP-PHASE-8-STEP-N-*.md.
+     The remainder of this file (§3 onward) covers cross-cutting
+     concerns: verification recipes that span multiple steps, the
+     pitfalls catalogue, stop conditions, and why-it-matters. -->
 
-    pipeline.add(&mux).map_err(|err| {
-        format!("Failed to add mpegtsmux to srt pipeline: {err:?}")
-    })?;
-    pipeline.add(&sink).map_err(|err| {
-        format!("Failed to add srtsink to srt pipeline: {err:?}")
-    })?;
-
-    // ── SRT-specific properties ────────────────────────────────────
-    sink.set_property("uri", uri.clone());
-
-    if let Some(lat) = latency {
-        // `srtsink` exposes `latency` as i32 milliseconds.
-        sink.set_property("latency", *lat as i32);
-    }
-    if let Some(pass) = passphrase {
-        // `passphrase` is only valid when `pbkeylen` is also set, but
-        // srtsink silently ignores it if pbkeylen is 0 — we set
-        // both or neither in §2.4 below for safety.
-        if sink.has_property("passphrase") {
-            sink.set_property("passphrase", pass.clone());
-        }
-    }
-    if let Some(keylen) = pbkeylen {
-        if sink.has_property("pbkeylen") {
-            sink.set_property("pbkeylen", *keylen as i32);
-        }
-    }
-
-    // MPEG-TS alignment — same as UDP (line 619-621). Without this,
-    // some receivers (e.g. ffmpeg) misalign on packet boundaries.
-    if mux.has_property("alignment") {
-        mux.set_property("alignment", 7i32);
-    }
-
-    // ── Video chain (mirror of UDP video chain, lines 623-647) ─────
-    if let Some(appsrc) = video_appsrc.as_ref() {
-        let vconv = Self::make_element("videoconvert", None)?;
-        let venc_chain = Self::select_video_encoder(&self.id)?;
-        let vparse = Self::make_element("h264parse", None)?;
-
-        pipeline.add(&vconv).map_err(|err| {
-            format!("Failed to add videoconvert to srt pipeline: {err:?}")
-        })?;
-        Self::add_video_encoder_chain(&pipeline, &venc_chain, "srt pipeline")?;
-        pipeline.add(&vparse).map_err(|err| {
-            format!("Failed to add h264parse to srt pipeline: {err:?}")
-        })?;
-
-        gst::Element::link_many(
-            [appsrc.upcast_ref::<gst::Element>(), &vconv].as_slice(),
-        )
-        .map_err(|err| format!("Failed to link srt video preprocessing: {err:?}"))?;
-
-        Self::link_video_encoder_chain(
-            &vconv,
-            &venc_chain,
-            &vparse,
-            "srt video encoder chain",
-        )?;
-
-        gst::Element::link_many([&vparse, &mux].as_slice())
-            .map_err(|err| format!("Failed to link srt video output: {err:?}"))?;
-    }
-
-    // ── Audio chain (mirror of UDP audio chain, lines 649-675) ─────
-    if let Some(appsrc) = audio_appsrc.as_ref() {
-        let aconv = Self::make_element("audioconvert", None)?;
-        let aresample = Self::make_element("audioresample", None)?;
-        let aenc = Self::make_element("avenc_aac", None)?;
-
-        pipeline.add(&aconv).map_err(|err| {
-            format!("Failed to add audioconvert to srt pipeline: {err:?}")
-        })?;
-        pipeline.add(&aresample).map_err(|err| {
-            format!("Failed to add audioresample to srt pipeline: {err:?}")
-        })?;
-        pipeline.add(&aenc).map_err(|err| {
-            format!("Failed to add avenc_aac to srt pipeline: {err:?}")
-        })?;
-
-        gst::Element::link_many(
-            [
-                appsrc.upcast_ref::<gst::Element>(),
-                &aconv,
-                &aresample,
-                &aenc,
-                &mux,
-            ]
-            .as_slice(),
-        )
-        .map_err(|err| format!("Failed to link srt audio chain: {err:?}"))?;
-    }
-
-    // ── Connect muxer to sink ──────────────────────────────────────
-    mux.link(&sink)
-        .map_err(|err| format!("Failed to link mpegtsmux to srtsink: {err:?}"))?;
-}
-```
-
-The structure is a near-verbatim port of the UDP arm. The only
-differences:
-
-| Aspect | UDP arm | SRT arm |
-|---|---|---|
-| Sink factory | `udpsink` | `srtsink` |
-| Host/port config | `host` + `port` (2 properties) | `uri` (single property) |
-| Latency tuning | n/a | `latency` (optional) |
-| Encryption | n/a | `passphrase` + `pbkeylen` (optional pair) |
-
-### 2.4 Step 4 — bundle the SRT plugin in the Android build
-
-**File:** `senders/android/app/jni/Android.mk` (line 32-66):
-
-```makefile
-GSTREAMER_PLUGINS := \
-    coreelements \
-    app \
-    audioconvert \
-    audiomixer \
-    /* …existing… */
-    rtp \
-    rtpmanager \
-    udp \
-    dtls \
-    srtp \
-    srt \                  /* ← NEW */
-    webrtc \
-    nice \
-    rsrtp \
-    rsrtsp \
-    rswebrtc
-```
-
-The plugin name is **`srt`** (no `s` or other prefix). The plugin
-ships `srtsrc` and `srtsink` and is automatically registered via
-`GST_PLUGIN_STATIC_REGISTER` in the prebuilt
-`libgstreamer_android.so` startup sequence — no additional Rust
-registration call is needed.
-
-After this change, the next `ndk-build` rebuild will link `libsrt.so`
-into the APK. Verify with:
-
-```bash
-adb shell run-as org.fcast.android.sender \
-    ls /data/data/org.fcast.android.sender/lib | grep srt
-# → expected: libsrt.so   (plus libgstsrt.so as a static-in-bundle plugin)
-```
-
-(Depending on how the SDK ships its plugins, `srt` may be statically
-linked into `libgstreamer_android.so` rather than a separate `.so`.
-Both are fine — the runtime `gst_registry_get_default()` will pick
-it up either way.)
-
-### 2.5 Step 5 — add unit tests
-
-**File:** `senders/android/src/migration/node_manager.rs` (in the
-`#[cfg(test)] mod tests` block):
-
-```rust
-#[test]
-fn create_srt_destination_succeeds() {
-    let mut manager = NodeManager::default();
-    let result = manager.dispatch(Command::CreateDestination {
-        id: "srt-out-1".into(),
-        family: DestinationFamily::Srt {
-            uri: "srt://example.com:1234".into(),
-            latency: Some(200),
-            passphrase: None,
-            pbkeylen: None,
-        },
-        audio: true,
-        video: true,
-    });
-    assert!(matches!(result, CommandResult::Success));
-    assert!(manager.nodes.contains_key("srt-out-1"));
-}
-
-#[test]
-fn srt_destination_with_encryption_serdes_roundtrip() {
-    use crate::migration::protocol::DestinationFamily;
-
-    let original = DestinationFamily::Srt {
-        uri: "srt://example.com:1234?mode=caller".into(),
-        latency: Some(120),
-        passphrase: Some("secret".into()),
-        pbkeylen: Some(16),
-    };
-    let json = serde_json::to_string(&original).unwrap();
-    let parsed: DestinationFamily = serde_json::from_str(&json).unwrap();
-    assert_eq!(original, parsed);
-}
-
-#[test]
-fn srt_destination_optional_fields_omitted_in_minimal_json() {
-    use crate::migration::protocol::DestinationFamily;
-
-    let minimal: DestinationFamily =
-        serde_json::from_str(r#"{"Srt":{"uri":"srt://h:1"}}"#).unwrap();
-    if let DestinationFamily::Srt { latency, passphrase, pbkeylen, .. } = minimal {
-        assert!(latency.is_none());
-        assert!(passphrase.is_none());
-        assert!(pbkeylen.is_none());
-    } else {
-        panic!("expected Srt variant");
-    }
-}
-```
-
-These don't require GStreamer to be initialised — they validate the
-command-dispatch and serde shape only. A pipeline-level smoke test is
-in §3.3.
-
-### 2.6 Step 6 — (optional) source-side smoke
-
-`SourceNode` already accepts `srt://` URIs — no code change. Add a
-test to **document** that behaviour (so future readers don't add a
-redundant arm):
-
-```rust
-#[test]
-fn create_source_accepts_srt_uri() {
-    let mut manager = NodeManager::default();
-    let result = manager.dispatch(Command::CreateSource {
-        id: "srt-in-1".into(),
-        uri: "srt://0.0.0.0:9000?mode=listener".into(),
-        audio: true,
-        video: true,
-    });
-    assert!(matches!(result, CommandResult::Success));
-    // SourceNode dispatches to fallbacksrc/uridecodebin in the
-    // refresh loop — no scheme-specific routing needed.
-}
-```
-
-This test only validates the dispatcher accepts the URI; whether
-GStreamer can actually open the SRT socket is verified in §3.4.
+> **Looking for inline §2.1 — §2.6?** The per-step content has
+> moved into the six `MVP-PHASE-8-STEP-N-*.md` files listed in the
+> table above. Each STEP file is self-contained — Goal, Pre-flight,
+> The change, Verification, and Pitfalls for that step alone.
 
 ---
 
