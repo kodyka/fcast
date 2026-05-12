@@ -60,6 +60,14 @@ post-MVP.
   │           ↓                                                     │
   │   MVP-PHASE-6 (graph-command cast loop — final unification)     │
   └────────────────────────────────────────────────────────────────┘
+ 
+  ┌────────────────────────────────────────────────────────────────┐
+  │ Optional — protocol expansion (independent of Tier 1)           │
+  │                                                                 │
+  │   MVP-PHASE-8 (Srt DestinationFamily)                           │
+  │     — extends DestinationFamily with Srt; mirrors the Udp arm   │
+  │       in nodes/destination.rs::build_live_pipeline.             │
+  └────────────────────────────────────────────────────────────────┘
 ```
  
 - **Phase 1** is the only thing that *must* ship for MVP.
@@ -67,6 +75,9 @@ post-MVP.
   before it — they don't touch the cast loop).
 - **Phases 4 → 5 → 6** are sequential: each one consumes the previous
   one's API surface. They are **not** in MVP scope.
+- **Phase 8** is optional and independent of every other phase. It can
+  ship any time after Phase 3 (which establishes the migration-runtime
+  smoke infrastructure used by its on-device verification).
  
 ---
  
@@ -77,10 +88,44 @@ post-MVP.
 | 1 | `MVP-PHASE-1-connect-receiver-wiring.md` | Replace `mock-devices` iter with `Bridge.devices` and wire `clicked => Bridge.connect-receiver(device)`. | ~10 lines, 1 Slint file | 🟢 |
 | 2 | `MVP-PHASE-2-phase-8-verification.md` | Verify the Phase-8-shipped wirings that previously needed M2–M5 work (status-items, app-version, MediaProjection denial rollback, Stop button cleanup). | 0 code lines (verification only); possibly 1-line Rust push for A2 if `app-version` is empty | 🟢 |
 | 3 | `MVP-PHASE-3-migration-runtime-smoke.md` | Smoke-test the migration runtime (Surface B) via the `Smoke Graph` debug quick-action and the `MIGRATION_COMMAND_BIND` HTTP server. | 0 code lines (smoke only) | 🟢 |
-| 4 | `MVP-PHASE-4-screen-capture-source-node.md` | Add `NodeRecord::ScreenCapture` and `Command::CreateScreenCaptureSource { id, width, height, fps }`. New file `nodes/screen_capture.rs` that reads from `FRAME_PAIR` into the runtime's `appsink` model. **Post-MVP / Tier 1.1.** | ~250-400 Rust lines, 1 new file + 3 edited | 🟡 |
-| 5 | `MVP-PHASE-5-whep-destination-family.md` | Extend `DestinationFamily` with `Whep` and wire `BaseWebRTCSink` + `WhepServerSignaller` into `nodes/destination.rs::build_live_pipeline`. **Post-MVP / Tier 1.2.** | ~150-250 Rust lines, 2 edited files | 🟡 |
-| 6 | `MVP-PHASE-6-graph-command-cast-loop.md` | Replace direct `Event::StartCast` / `Event::EndSession` handling with `migration::runtime::handle_command(...)` calls — Surface A becomes a thin orchestrator over Surface B. **Post-MVP / Tier 1.3 (the unification step).** | ~200-300 Rust lines, 1 edited file | 🟠 |
-| 7 | `MVP-PHASE-7-receiver-item-promotion.md` | Promote `Bridge.devices` from `[string]` to `[ReceiverItem]` (already declared in `bridge.slint:110-118`), update `update_receivers_in_ui()` and the connect-page iterator. **Post-MVP polish / Tier 2.1.** | ~50 lines, 3 edited files | 🟢 |
+| 4 | `MVP-PHASE-4-screen-capture-source-node.md` (+ 6 STEP files — see below) | Add `NodeRecord::ScreenCapture` and `Command::CreateScreenCaptureSource { id, width, height, fps }`. New file `nodes/screen_capture.rs` that reads from `FRAME_PAIR` into the runtime's `appsink` model. **Post-MVP / Tier 1.1.** | ~250-400 Rust lines, 1 new file + 3 edited | 🟡 |
+| 4.1 | `MVP-PHASE-4-STEP-1-protocol-extension.md` | Add `Command::CreateScreenCaptureSource { id, width, height, fps }` with serde defaults `1280 / 720 / 30`. | ~25 lines | 🟢 |
+| 4.2 | `MVP-PHASE-4-STEP-2-screen-capture-node.md` | Define `ScreenCaptureNode`, `LiveScreenCapturePipeline`, `build_live_pipeline`, and the `FRAME_PAIR → appsrc` consumer. **Largest step.** | ~250 Rust lines (1 new file) | 🟡 |
+| 4.3 | `MVP-PHASE-4-STEP-3-module-registration.md` | Add `pub mod screen_capture;` and `pub use screen_capture::*;` to `nodes/mod.rs`. | 2 lines | 🟢 |
+| 4.4 | `MVP-PHASE-4-STEP-4-node-record.md` | Add `NodeRecord::ScreenCapture` variant; thread it through every `match self` arm in `impl NodeRecord` (~13 methods). | ~80 lines | 🟡 |
+| 4.5 | `MVP-PHASE-4-STEP-5-dispatch-arm.md` | Add the `Command::CreateScreenCaptureSource` dispatch arm + `create_screen_capture_source(...)` constructor. | ~30 lines | 🟢 |
+| 4.6 | `MVP-PHASE-4-STEP-6-unit-tests.md` | 8 host-runnable unit tests across `protocol.rs` and `node_manager.rs`. No GStreamer init required. | ~120 lines of tests | 🟢 |
+| 5 | `MVP-PHASE-5-whep-destination-family.md` (+ 7 STEP files — see below) | Extend `DestinationFamily` with `Whep` and wire `BaseWebRTCSink` + `WhepServerSignaller` into `nodes/destination.rs::build_live_pipeline`. **Post-MVP / Tier 1.2.** | ~150-250 Rust lines, 2 edited files | 🟡 |
+| 5.1 | `MVP-PHASE-5-STEP-1-protocol-extension.md` | Add `Whep { server_port }` to `DestinationFamily`; add `bound_port_v4` / `bound_port_v6` to `DestinationInfo`. | ~30 lines | 🟢 |
+| 5.2 | `MVP-PHASE-5-STEP-2-pipeline-profile.md` | Extend `DestinationPipelineProfile::from_family` with a `Whep` arm. | ~15 lines | 🟢 |
+| 5.3 | `MVP-PHASE-5-STEP-3-destination-node-fields.md` | Add `whep_bound_port_v4` / `whep_bound_port_v6` fields to `DestinationNode`. | ~15 lines | 🟢 |
+| 5.4 | `MVP-PHASE-5-STEP-4-build-live-pipeline.md` | Wire the `Whep` arm into `DestinationNode::build_live_pipeline`. **Largest step.** | ~80 lines | 🟡 |
+| 5.5 | `MVP-PHASE-5-STEP-5-signaller-reexport.md` | Flip `mod whep_signaller;` to `pub mod whep_signaller;` in `mcore::lib.rs`. Add `whep_signaller_compat` shim. | 1 SDK line + 1 shim file | 🟢 |
+| 5.6 | `MVP-PHASE-5-STEP-6-live-pipeline-port-handle.md` | Add `whep_bound_ports` field to `LiveDestinationPipeline`. Extend `refresh()` to read the slot. | ~30 lines | 🟡 |
+| 5.7 | `MVP-PHASE-5-STEP-7-unit-tests.md` | ~12 host-runnable unit tests (no GStreamer init required). | ~150 lines of tests | 🟢 |
+| 6 | `MVP-PHASE-6-graph-command-cast-loop.md` (+ 9 STEP files — see below) | Replace direct `Event::StartCast` / `Event::EndSession` handling with `migration::runtime::handle_command(...)` calls — Surface A becomes a thin orchestrator over Surface B. **Post-MVP / Tier 1.3 (the unification step).** | ~200-300 Rust lines, 1 edited file | 🟠 |
+| 6.1 | `MVP-PHASE-6-STEP-1-node-id-constants.md` | Add three `const &str` IDs (`CAST_SOURCE_ID`, `CAST_DESTINATION_ID`, `CAST_LINK_ID`) at the top of `lib.rs`. | ~6 lines | 🟢 |
+| 6.2 | `MVP-PHASE-6-STEP-2-capturestarted-rewrite.md` | Replace `Event::CaptureStarted` body with graph commands + `tokio::spawn` poll loop. **Largest step.** | ~150 lines | 🟠 |
+| 6.3 | `MVP-PHASE-6-STEP-3-signaller-started-helper.md` | Extract `mcore::transmission::build_whep_play_msg(addr, port)` helper. | ~10 SDK + ~3 lib lines | 🟢 |
+| 6.4 | `MVP-PHASE-6-STEP-4-stop-cast-rewrite.md` | Replace `tx_sink.shutdown()` in `stop_cast` with `Disconnect L + Remove src + Remove dst`. | ~30 lines | 🟡 |
+| 6.5 | `MVP-PHASE-6-STEP-5-tx-sink-cfg-gate.md` | Gate `tx_sink: Option<WhepSink>` field behind `#[cfg(not(target_os = "android"))]`. | ~10 lines | 🟢 |
+| 6.6 | `MVP-PHASE-6-STEP-6-frame-pair-unchanged.md` | **Documentation-only checkpoint.** `FRAME_PAIR` producer untouched. | 0 source lines | 🟢 |
+| 6.7 | `MVP-PHASE-6-STEP-7-set-capture-active-preservation.md` | **Preservation step.** Confirm `set_capture_active(false)` calls preserved. | 0 source lines | 🟢 |
+| 6.8 | `MVP-PHASE-6-STEP-8-mod-migration-exports.md` | Cosmetic `pub use protocol::{...}` re-exports. | 1 line | 🟢 |
+| 6.9 | `MVP-PHASE-6-STEP-9-optional-feature-flag.md` | **Optional, opt-in.** `FCAST_UNIFIED_CAST_GRAPH=0/1` runtime kill-switch. Conflicts with STEP-5. | ~30 lines | 🟡 |
+| 7 | `MVP-PHASE-7-receiver-item-promotion.md` (+ 5 STEP files — see below) | Promote `Bridge.devices` from `[string]` to `[ReceiverItem]` (already declared in `bridge.slint:110-118`), update `update_receivers_in_ui()` and the connect-page iterator. **Post-MVP polish / Tier 2.1.** | ~50 lines, 3 edited files | 🟢 |
+| 7.1 | `MVP-PHASE-7-STEP-1-bridge-property-type.md` | Change `Bridge.devices` from `[string]` to `[ReceiverItem]` (one line in `bridge.slint`). | 1 line | 🟢 |
+| 7.2 | `MVP-PHASE-7-STEP-2-update-receivers-in-ui.md` | Rewrite `update_receivers_in_ui()` to construct `ReceiverItem` structs. **Largest step.** | ~40 lines | 🟢 |
+| 7.3 | `MVP-PHASE-7-STEP-3-connect-page-field-reads.md` | Long-press captures `device.id` + `device.name`; row shows `device.name` + `device.address`. | ~20 Slint lines | 🟢 |
+| 7.4 | `MVP-PHASE-7-STEP-4-click-handler-passes-id.md` | `Bridge.connect-receiver(device)` → `Bridge.connect-receiver(device.id)`. | 1 line | 🟢 |
+| 7.5 | `MVP-PHASE-7-STEP-5-cleanup-mock-devices.md` | **Optional cleanup.** Remove `mock-devices` + `mock-empty` `in-out property`s from `ConnectView`. | ~2 lines deleted | 🟢 |
+| 8 | `MVP-PHASE-8-srt-destination-family.md` (+ 6 STEP files — see below) | Extend `DestinationFamily` with `Srt { uri, latency, passphrase, pbkeylen }`; mirror the `Udp` arm in `nodes/destination.rs::build_live_pipeline` with `srtsink` + `mpegtsmux`. Add `srt` to `GSTREAMER_PLUGINS` in `senders/android/app/jni/Android.mk`. SRT-as-source already works through `uridecodebin` — no `SourceNode` change. **Optional / Tier 1.4 (post-MVP protocol expansion).** | ~150 lines Rust + 1 Makefile line, 2 edited files | 🟡 |
+| 8.1 | `MVP-PHASE-8-STEP-1-protocol-extension.md` | Add `Srt { uri, latency, passphrase, pbkeylen }` to `DestinationFamily`. Backward-compatible wire format. | ~30 lines | 🟢 |
+| 8.2 | `MVP-PHASE-8-STEP-2-pipeline-profile.md` | Extend `DestinationPipelineProfile::from_family` with an `Srt` arm (diagnostic element listing). | ~10 lines | 🟢 |
+| 8.3 | `MVP-PHASE-8-STEP-3-build-live-pipeline.md` | Wire the `Srt` arm into `DestinationNode::build_live_pipeline`. Mirror of the `Udp` branch. **Largest step.** | ~90 lines | 🟡 |
+| 8.4 | `MVP-PHASE-8-STEP-4-android-makefile.md` | Add `srt` to `GSTREAMER_PLUGINS` in `senders/android/app/jni/Android.mk`. **Mandatory for any on-device test.** | 1 line | 🟢 |
+| 8.5 | `MVP-PHASE-8-STEP-5-unit-tests.md` | ~12 host-runnable unit tests (no GStreamer init required). | ~150 lines of tests | 🟢 |
+| 8.6 | `MVP-PHASE-8-STEP-6-source-side.md` | Documentation: SRT sources already work via `uridecodebin` + Step 4. No `SourceNode` change. | 1 test | 🟢 |
  
 Risk legend: 🟢 trivial, 🟡 medium, 🟠 architectural.
  
@@ -126,7 +171,7 @@ Every `MVP-PHASE-N-*.md` file follows the same six-section template
 | **`FRAME_PAIR`** | `lazy_static!` `(Mutex<Option<VideoFrame<Writable>>>, Condvar)` at `lib.rs:71`. The hand-off point from JNI's `nativeProcessFrame` to the `appsrc` `need-data` callback. |
 | **`StreamBridge`** | One-producer-many-consumers `appsink → appsrc` fanout in the migration runtime. `media_bridge.rs`. |
 | **`NodeRecord`** | The enum that wraps all migration runtime node types. `node_manager.rs:21-26`. |
-| **`DestinationFamily`** | `protocol.rs:126-138`. Current variants: `Rtmp / Udp / LocalFile / LocalPlayback`. Phase 5 adds `Whep`. |
+| **`DestinationFamily`** | `protocol.rs:126-138`. Current variants: `Rtmp / Udp / LocalFile / LocalPlayback`. Phase 5 adds `Whep`; Phase 8 adds `Srt`. |
 | **`Bridge.devices`** | `[string]` at `bridge.slint:145`. Promoted to `[ReceiverItem]` in Phase 7. |
  
 ---
