@@ -1,4 +1,4 @@
-# MVP — Step-by-step implementation guide
+# DRAFT MVP — Step-by-step implementation guide
 
 > **Audience:** developer who wants the *smallest possible* set of changes to
 > get a working **Android sender → FCast receiver** screen-mirror loop —
