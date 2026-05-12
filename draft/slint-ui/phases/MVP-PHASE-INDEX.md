@@ -60,6 +60,14 @@ post-MVP.
   │           ↓                                                     │
   │   MVP-PHASE-6 (graph-command cast loop — final unification)     │
   └────────────────────────────────────────────────────────────────┘
+ 
+  ┌────────────────────────────────────────────────────────────────┐
+  │ Optional — protocol expansion (independent of Tier 1)           │
+  │                                                                 │
+  │   MVP-PHASE-8 (Srt DestinationFamily)                           │
+  │     — extends DestinationFamily with Srt; mirrors the Udp arm   │
+  │       in nodes/destination.rs::build_live_pipeline.             │
+  └────────────────────────────────────────────────────────────────┘
 ```
  
 - **Phase 1** is the only thing that *must* ship for MVP.
@@ -67,6 +75,9 @@ post-MVP.
   before it — they don't touch the cast loop).
 - **Phases 4 → 5 → 6** are sequential: each one consumes the previous
   one's API surface. They are **not** in MVP scope.
+- **Phase 8** is optional and independent of every other phase. It can
+  ship any time after Phase 3 (which establishes the migration-runtime
+  smoke infrastructure used by its on-device verification).
  
 ---
  
@@ -81,6 +92,7 @@ post-MVP.
 | 5 | `MVP-PHASE-5-whep-destination-family.md` | Extend `DestinationFamily` with `Whep` and wire `BaseWebRTCSink` + `WhepServerSignaller` into `nodes/destination.rs::build_live_pipeline`. **Post-MVP / Tier 1.2.** | ~150-250 Rust lines, 2 edited files | 🟡 |
 | 6 | `MVP-PHASE-6-graph-command-cast-loop.md` | Replace direct `Event::StartCast` / `Event::EndSession` handling with `migration::runtime::handle_command(...)` calls — Surface A becomes a thin orchestrator over Surface B. **Post-MVP / Tier 1.3 (the unification step).** | ~200-300 Rust lines, 1 edited file | 🟠 |
 | 7 | `MVP-PHASE-7-receiver-item-promotion.md` | Promote `Bridge.devices` from `[string]` to `[ReceiverItem]` (already declared in `bridge.slint:110-118`), update `update_receivers_in_ui()` and the connect-page iterator. **Post-MVP polish / Tier 2.1.** | ~50 lines, 3 edited files | 🟢 |
+| 8 | `MVP-PHASE-8-srt-destination-family.md` | Extend `DestinationFamily` with `Srt { uri, latency, passphrase, pbkeylen }`; mirror the `Udp` arm in `nodes/destination.rs::build_live_pipeline` with `srtsink` + `mpegtsmux`. Add `srt` to `GSTREAMER_PLUGINS` in `senders/android/app/jni/Android.mk`. SRT-as-source already works through `uridecodebin` — no `SourceNode` change. **Optional / Tier 1.4 (post-MVP protocol expansion).** | ~150 lines Rust + 1 Makefile line, 2 edited files | 🟡 |
  
 Risk legend: 🟢 trivial, 🟡 medium, 🟠 architectural.
  
@@ -126,7 +138,7 @@ Every `MVP-PHASE-N-*.md` file follows the same six-section template
 | **`FRAME_PAIR`** | `lazy_static!` `(Mutex<Option<VideoFrame<Writable>>>, Condvar)` at `lib.rs:71`. The hand-off point from JNI's `nativeProcessFrame` to the `appsrc` `need-data` callback. |
 | **`StreamBridge`** | One-producer-many-consumers `appsink → appsrc` fanout in the migration runtime. `media_bridge.rs`. |
 | **`NodeRecord`** | The enum that wraps all migration runtime node types. `node_manager.rs:21-26`. |
-| **`DestinationFamily`** | `protocol.rs:126-138`. Current variants: `Rtmp / Udp / LocalFile / LocalPlayback`. Phase 5 adds `Whep`. |
+| **`DestinationFamily`** | `protocol.rs:126-138`. Current variants: `Rtmp / Udp / LocalFile / LocalPlayback`. Phase 5 adds `Whep`; Phase 8 adds `Srt`. |
 | **`Bridge.devices`** | `[string]` at `bridge.slint:145`. Promoted to `[ReceiverItem]` in Phase 7. |
  
 ---
