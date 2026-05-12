@@ -93,383 +93,71 @@ adapter in PHASE-6 can read it via `getinfo`.
 
 ---
 
-## 2. Steps
+## 2. Steps — split into seven per-step files
 
-### 2.1 Step 1 — extend the JSON protocol
+To keep each step skimmable and reviewable in isolation, the
+implementation is split across seven per-step `MVP-PHASE-5-STEP-N-*.md`
+files. Each file follows the same smaller five-section template
+(Goal-of-this-step / Pre-flight / The change / Verification /
+Next step) and is self-contained — you don't need to flip back to
+this parent doc while implementing a single step.
 
-**File:** `senders/android/src/migration/protocol.rs` (lines 125-138):
+| # | File | Scope | Net diff |
+|---|---|---|---|
+| 1 | [`MVP-PHASE-5-STEP-1-protocol-extension.md`](./MVP-PHASE-5-STEP-1-protocol-extension.md) | Add `Whep { server_port }` to `DestinationFamily`; add `bound_port_v4` / `bound_port_v6` to `DestinationInfo`. Backward-compatible wire format. | ~30 lines, 1 file (`protocol.rs`) |
+| 2 | [`MVP-PHASE-5-STEP-2-pipeline-profile.md`](./MVP-PHASE-5-STEP-2-pipeline-profile.md) | Extend `DestinationPipelineProfile::from_family` with a `Whep` arm (diagnostic element listing). | ~15 lines, 1 file (`nodes/destination.rs`) |
+| 3 | [`MVP-PHASE-5-STEP-3-destination-node-fields.md`](./MVP-PHASE-5-STEP-3-destination-node-fields.md) | Add `whep_bound_port_v4` / `whep_bound_port_v6` fields to `DestinationNode`. Plumb through `::new()` and `as_info()`. | ~15 lines, 1 file (`nodes/destination.rs`) |
+| 4 | [`MVP-PHASE-5-STEP-4-build-live-pipeline.md`](./MVP-PHASE-5-STEP-4-build-live-pipeline.md) | Wire the `Whep` arm into `DestinationNode::build_live_pipeline`. Construct `WhepServerSignaller`, wire `on-server-started` to the `Arc<Mutex<…>>` slot, instantiate `BaseWebRTCSink::with_signaller`, link the video chain. **Largest step.** | ~80 lines, 1 file (`nodes/destination.rs`) |
+| 5 | [`MVP-PHASE-5-STEP-5-signaller-reexport.md`](./MVP-PHASE-5-STEP-5-signaller-reexport.md) | Flip `mod whep_signaller;` to `pub mod whep_signaller;` in `mcore::lib.rs`. Add a 1-line `whep_signaller_compat` shim in the migration crate. | 1 SDK line + 1 new shim file |
+| 6 | [`MVP-PHASE-5-STEP-6-live-pipeline-port-handle.md`](./MVP-PHASE-5-STEP-6-live-pipeline-port-handle.md) | Add `whep_bound_ports: Option<Arc<Mutex<Option<(u16, u16)>>>>` to `LiveDestinationPipeline`. Extend `refresh()` to read the slot into the node's bound-port fields and reset on `Stopped`. | ~30 lines, 1 file (`nodes/destination.rs`) |
+| 7 | [`MVP-PHASE-5-STEP-7-unit-tests.md`](./MVP-PHASE-5-STEP-7-unit-tests.md) | ~12 host-runnable unit tests across `protocol.rs`, `node_manager.rs`, and `nodes/destination.rs`. No GStreamer init required (optional gated tests for the `refresh()` slot read). | ~150 lines of tests across 3 files |
 
-```rust
-// senders/android/src/migration/protocol.rs
+### Recommended landing order
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum DestinationFamily {
-    Rtmp {
-        uri: String,
-    },
-    Udp {
-        host: String,
-    },
-    LocalFile {
-        base_name: String,
-        max_size_time: Option<u32>,
-    },
-    LocalPlayback,
-
-    // NEW —
-    Whep {
-        /// `0` = OS-picks-free-port. The bound port is emitted via
-        /// `DestinationInfo.bound_port` after the signaller starts.
-        #[serde(default)]
-        server_port: u16,
-    },
-}
+```
+Step 1 ──► Step 2 ──► Step 3 ──► Step 4 ──┐
+                                          ├── single squash-commit
+                                          ▼   (compile stays clean once
+                                Step 5 ──►    Steps 4+5+6 are all in)
+                                          │
+                                Step 6 ───┘
+                                          │
+                                          ▼
+                                       Step 7 (unit tests — green after Step 6)
 ```
 
-Then extend `DestinationInfo` (lines 151-160) so the bound port is
-visible via `getinfo`:
+**Steps 1+2+3** can land independently (each is additive and
+backward-compatible).
+**Step 4** depends on Step 5 (the `crate::whep_signaller_compat`
+import) and Step 6 (the `whep_bound_ports` field on
+`LiveDestinationPipeline`). The cleanest path is squashing Steps
+4+5+6 into one commit so the tree compiles between commits.
+**Step 7** is test-only and lands after the runtime changes.
 
-```rust
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub struct DestinationInfo {
-    pub family: DestinationFamily,
-    pub audio_slot_id: Option<String>,
-    pub video_slot_id: Option<String>,
-    pub cue_time: Option<DateTime<Utc>>,
-    pub end_time: Option<DateTime<Utc>>,
-    pub state: State,
+---
 
-    // NEW — populated only for `DestinationFamily::Whep`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub bound_port_v4: Option<u16>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub bound_port_v6: Option<u16>,
-}
-```
+## 2b. Why the per-step split?
 
-The `#[serde(default)]` + `skip_serializing_if = "Option::is_none"`
-combo keeps the wire format backward-compatible for the four existing
-non-WHEP variants.
+The original monolithic §2 block ran to ~380 lines with seven
+sub-steps interleaved. Splitting it gives:
 
-### 2.2 Step 2 — extend the pipeline profile
+- Per-step files small enough to review on a phone screen.
+- Independent verification recipes per step (each step's §3 covers
+  only that step's compile/test/grep checks).
+- Step-specific pitfalls without scrolling past unrelated content.
+- Easy follow-up PRs: if a reviewer asks for changes on Step 4
+  only, you edit one file.
 
-**File:** `senders/android/src/migration/nodes/destination.rs` (lines
-35-105, `DestinationPipelineProfile::from_family`):
+The pattern mirrors the per-step split applied to PHASE-8 in the
+same PR.
 
-```rust
-impl DestinationPipelineProfile {
-    fn from_family(family: &DestinationFamily, audio: bool, video: bool) -> Self {
-        let mut elements = Vec::new();
+---
 
-        match family {
-            DestinationFamily::Rtmp { .. } => { /* …existing… */ }
-            DestinationFamily::Udp { .. } => { /* …existing… */ }
-            DestinationFamily::LocalFile { .. } => { /* …existing… */ }
-            DestinationFamily::LocalPlayback => { /* …existing… */ }
-
-            // NEW —
-            DestinationFamily::Whep { .. } => {
-                elements.extend([
-                    "videoconvert",
-                    "basewebrtcsink", // illustrative — the real factory
-                                      // is gst_rs_webrtc::webrtcsink::BaseWebRTCSink
-                                      // constructed in Rust, not by name.
-                ]);
-                // WHEP currently sends video-only (matching the live
-                // cast loop in transmission.rs:475-528). Audio support
-                // is a follow-up; keep the `audio` flag honored but
-                // emit no audio elements.
-                let _ = audio;
-            }
-        }
-
-        if !audio {
-            elements.retain(|el| !el.contains("audio"));
-        }
-        if !video {
-            elements.retain(|el| !el.contains("video") && !el.contains("h264"));
-        }
-
-        Self {
-            family: family.clone(),
-            elements: elements.into_iter().map(str::to_string).collect(),
-            wait_for_eos_on_stop: true,
-            stage: DestinationPipelineStage::Idle,
-        }
-    }
-}
-```
-
-The element-name list is just for debug/printing — the actual
-`BaseWebRTCSink` is instantiated by Rust constructor, not
-`make_element("basewebrtcsink")`. (`BaseWebRTCSink` does not have a
-factory name accessible via `ElementFactory::make`; it's a Rust
-struct.)
-
-### 2.3 Step 3 — add fields on `DestinationNode`
-
-**File:** `senders/android/src/migration/nodes/destination.rs` (lines
-107-121):
-
-```rust
-#[derive(Debug, Clone)]
-pub struct DestinationNode {
-    pub id: String,
-    pub family: DestinationFamily,
-    pub audio_enabled: bool,
-    pub video_enabled: bool,
-    pub audio_slot_id: Option<String>,
-    pub video_slot_id: Option<String>,
-    pub cue_time: Option<DateTime<Utc>>,
-    pub end_time: Option<DateTime<Utc>>,
-    pub state: State,
-    pub pipeline: Option<DestinationPipelineProfile>,
-    pub live_pipeline: Option<LiveDestinationPipeline>,
-    pub last_error: Option<String>,
-
-    // NEW — surfaced via DestinationInfo for WHEP destinations.
-    pub whep_bound_port_v4: Option<u16>,
-    pub whep_bound_port_v6: Option<u16>,
-}
-```
-
-Update the `DestinationNode::new` constructor (line 128) and all
-`Default`/test sites accordingly. The `to_info` method (search for
-`DestinationInfo {`) gets the two extra fields wired:
-
-```rust
-pub fn as_info(&self) -> NodeInfo {
-    NodeInfo::Destination(DestinationInfo {
-        family: self.family.clone(),
-        audio_slot_id: self.audio_slot_id.clone(),
-        video_slot_id: self.video_slot_id.clone(),
-        cue_time: self.cue_time,
-        end_time: self.end_time,
-        state: self.state,
-
-        // NEW —
-        bound_port_v4: self.whep_bound_port_v4,
-        bound_port_v6: self.whep_bound_port_v6,
-    })
-}
-```
-
-### 2.4 Step 4 — wire the Whep arm in `build_live_pipeline`
-
-**File:** `senders/android/src/migration/nodes/destination.rs`
-(extend the `match &self.family { … }` block at line 489):
-
-```rust
-DestinationFamily::Whep { server_port } => {
-    // We need to forward the bound port back to the node via the
-    // signaller's `on-server-started` signal. Use a shared
-    // Arc<Mutex<Option<(u16, u16)>>> as the hand-off:
-    use std::sync::{Arc, Mutex};
-    let bound_ports: Arc<Mutex<Option<(u16, u16)>>> = Arc::new(Mutex::new(None));
-
-    let signaller = crate::whep_signaller_compat::WhepServerSignaller::default();
-    // (See §2.5 for why this path is "compat" — the signaller lives
-    // in the `mcore` crate today and we re-export it.)
-
-    {
-        let bound_ports = bound_ports.clone();
-        signaller.connect(
-            crate::whep_signaller_compat::ON_SERVER_STARTED_SIGNAL_NAME,
-            false,
-            move |vals| {
-                let p4 = vals.get(1).and_then(|v| v.get::<u32>().ok())? as u16;
-                let p6 = vals.get(2).and_then(|v| v.get::<u32>().ok())? as u16;
-                *bound_ports.lock().unwrap() = Some((p4, p6));
-                None
-            },
-        );
-    }
-    signaller.set_property("server-port", *server_port as u32);
-
-    let sink = gst_rs_webrtc::webrtcsink::BaseWebRTCSink::with_signaller(
-        gst_rs_webrtc::signaller::Signallable::from(signaller),
-    );
-    sink.set_property("min-bitrate", crate::migration::constants::WHEP_MIN_BITRATE);
-    sink.set_property("start-bitrate", crate::migration::constants::WHEP_START_BITRATE);
-    sink.set_property("max-bitrate", crate::migration::constants::WHEP_MAX_BITRATE);
-    sink.set_property_from_str("enable-mitigation-modes", "downsampled");
-    sink.set_property_from_str("stun-server", "");
-    sink.set_property("video-caps", gst::Caps::builder("video/x-vp8").build());
-
-    let sink_element: gst::Element = sink.upcast();
-    pipeline
-        .add(&sink_element)
-        .map_err(|err| format!("Failed to add basewebrtcsink to whep pipeline: {err:?}"))?;
-
-    if let Some(appsrc) = video_appsrc.as_ref() {
-        let vconv = Self::make_element("videoconvert", None)?;
-        pipeline.add(&vconv).map_err(|err| {
-            format!("Failed to add videoconvert to whep pipeline: {err:?}")
-        })?;
-
-        gst::Element::link_many(
-            [appsrc.upcast_ref::<gst::Element>(), &vconv, &sink_element].as_slice(),
-        )
-        .map_err(|err| format!("Failed to link whep video chain: {err:?}"))?;
-    }
-    // (No audio chain — matches mcore::transmission::WhepSink::new's
-    //  Android path, which is currently video-only.)
-
-    // Stash the Arc on the live pipeline so refresh() can read it
-    // back into self.whep_bound_port_v* on subsequent ticks.
-    // (Use a `bound_ports` field on `LiveDestinationPipeline` —
-    // see §2.6.)
-}
-```
-
-The bitrate constants (`WHEP_MIN_BITRATE` etc.) currently live in
-`sdk/mirroring_core/src/transmission.rs:19-22` as crate-private. The
-migration module needs them too — either:
-
-- (a) Re-export them: add `pub use transmission::{WHEP_MIN_BITRATE, …};`
-  to `sdk/mirroring_core/src/lib.rs`, then `use mcore::{WHEP_MIN_BITRATE, …};`
-  from the migration module. **Preferred** — single source of truth.
-- (b) Duplicate them under a new `senders/android/src/migration/constants.rs`.
-  Pragmatic if we later want WHEP-specific Android tuning.
-
-The snippet above assumes (b) for clarity.
-
-### 2.5 Step 5 — re-export the signaller into the migration module
-
-`WhepServerSignaller` lives in `sdk/mirroring_core/src/whep_signaller.rs`
-which is **not** a public module of `mcore`. Two options:
-
-- (a) Expose it: add `pub mod whep_signaller;` to
-  `sdk/mirroring_core/src/lib.rs` (currently a private `mod` if at all,
-  but it's compiled into the crate already as it's used by
-  `transmission.rs`). Then the migration module imports
-  `mcore::whep_signaller::WhepServerSignaller`.
-- (b) Move it: relocate `whep_signaller.rs` into a new
-  `crates/whep-signaller/` crate and have both `mcore` and the
-  migration runtime depend on it.
-
-(a) is the minimum diff for this phase. (b) is the right end-state
-once MVP-PHASE-6 has migrated cast.
-
-For this phase, do (a):
-
-```rust
-// sdk/mirroring_core/src/lib.rs
-
-mod whep_signaller;            // ← was: private mod
-pub mod whep_signaller {       // ← NEW: re-expose.
-    pub use super::whep_signaller_inner::*;
-}
-```
-
-…and then in the migration crate:
-
-```rust
-// senders/android/src/migration/nodes/destination.rs (top)
-
-use mcore::whep_signaller::{WhepServerSignaller, ON_SERVER_STARTED_SIGNAL_NAME};
-```
-
-This is the only place in this phase where you touch the SDK crate.
-**Keep that change to a single `pub mod` re-export.**
-
-### 2.6 Step 6 — extend `LiveDestinationPipeline` to carry the port handle
-
-**File:** `senders/android/src/migration/nodes/destination.rs` (line
-22-27):
-
-```rust
-#[derive(Debug, Clone)]
-pub struct LiveDestinationPipeline {
-    pub pipeline: gst::Pipeline,
-    pub video_appsrc: Option<AppSrc>,
-    pub audio_appsrc: Option<AppSrc>,
-
-    // NEW — `Some(...)` for `DestinationFamily::Whep`, `None` otherwise.
-    pub whep_bound_ports: Option<std::sync::Arc<std::sync::Mutex<Option<(u16, u16)>>>>,
-}
-```
-
-Then in `refresh()` (or wherever `poll_bus_messages` is called from —
-search for `fn refresh`):
-
-```rust
-pub fn refresh(&mut self) -> Result<(), String> {
-    // …existing schedule + pipeline sync…
-    self.poll_bus_messages()?;
-
-    // NEW — capture the bound port if the signaller has emitted it.
-    if let Some(live) = self.live_pipeline.as_ref() {
-        if let Some(handle) = live.whep_bound_ports.as_ref() {
-            if let Ok(g) = handle.lock() {
-                if let Some((v4, v6)) = *g {
-                    self.whep_bound_port_v4 = Some(v4);
-                    self.whep_bound_port_v6 = Some(v6);
-                }
-            }
-        }
-    }
-    Ok(())
-}
-```
-
-After this, a downstream consumer (the MVP-PHASE-6 cast-loop adapter)
-can poll `getinfo` until `bound_port_v4` is `Some(_)` and then use it
-to construct the WHEP URL — replacing the legacy
-`Event::SignallerStarted` callback flow.
-
-### 2.7 Step 7 — add unit tests
-
-**File:** `senders/android/src/migration/node_manager.rs`
-(in the `#[cfg(test)] mod tests` block):
-
-```rust
-#[test]
-fn create_whep_destination_succeeds() {
-    let mut manager = NodeManager::default();
-    let result = manager.dispatch(Command::CreateDestination {
-        id: "tv-1".into(),
-        family: DestinationFamily::Whep { server_port: 0 },
-        audio: false,
-        video: true,
-    });
-    assert!(matches!(result, CommandResult::Success));
-    assert!(manager.nodes.contains_key("tv-1"));
-}
-
-#[test]
-fn whep_destination_info_carries_optional_bound_ports() {
-    let mut manager = NodeManager::default();
-    manager.dispatch(Command::CreateDestination {
-        id: "tv-1".into(),
-        family: DestinationFamily::Whep { server_port: 0 },
-        audio: false,
-        video: true,
-    });
-    let info = manager.dispatch(Command::GetInfo { id: Some("tv-1".into()) });
-    // Before Start, the bound port is None.
-    if let CommandResult::Info(snapshot) = info {
-        let dest = snapshot.nodes.get("tv-1").unwrap();
-        match dest {
-            NodeInfo::Destination(d) => {
-                assert!(matches!(&d.family, DestinationFamily::Whep { .. }));
-                assert!(d.bound_port_v4.is_none());
-                assert!(d.bound_port_v6.is_none());
-            }
-            _ => panic!("expected DestinationInfo, got {dest:?}"),
-        }
-    } else {
-        panic!("expected Info, got {info:?}");
-    }
-}
-```
-
-These don't require GStreamer to be initialised — they validate the
-command-dispatch and `DestinationInfo` shape only. A pipeline-level
-smoke test (verifying that `bound_port_v4` becomes `Some(_)` after
-`Start`) is **not** in scope here because it requires GStreamer init
-on the test host; defer to the on-device smoke in §3.3.
+> **Looking for inline §2.1 — §2.7?** The per-step content has
+> moved into the seven `MVP-PHASE-5-STEP-N-*.md` files listed in
+> the table above. Each STEP file is self-contained — Goal,
+> Pre-flight, The change, Verification, and Pitfalls for that
+> step alone.
 
 ---
 
