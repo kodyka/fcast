@@ -1,0 +1,11 @@
+[1m[91merror[0m[1m: Cannot find parent property to apply relative length[0m
+  [1m[94m--> [0msenders/android/ui/pages/cast_history_page.slint:21:12
+   [1m[94m|[0m
+[1m[94m21[0m [1m[94m|[0m     width: 100%;
+   [1m[94m|[0m            [1m[91m^^^^^[0m
+   [1m[94m|[0m
+[1m[91merror[0m[1m: Cannot find parent property to apply relative length[0m
+  [1m[94m--> [0msenders/android/ui/pages/cast_history_page.slint:22:13
+   [1m[94m|[0m
+[1m[94m22[0m [1m[94m|[0m     height: 100%;
+   [1m[94m|[0m             [1m[91m^^^^^[0m

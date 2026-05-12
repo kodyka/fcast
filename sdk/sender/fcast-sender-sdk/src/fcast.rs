@@ -232,6 +232,7 @@ impl InnerDevice {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn load(
         &mut self,
         type_: LoadType,
@@ -846,6 +847,7 @@ impl FCastDevice {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn load_url(
         &self,
         content_type: String,

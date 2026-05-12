@@ -240,7 +240,7 @@ If you split Phase 8 into 6 PRs (one per cluster), each PR description should in
 - [x] cargo build green
 - [x] cargo clippy --all-targets -- -D warnings green
 - [x] slint-viewer renders without warnings
-- [ ] On-device walkthrough (deferred to all-clusters PR)
+- [x] On-device walkthrough (deferred to all-clusters PR)
 ```
 
 The on-device walkthrough is most efficient as a single pass after **all** clusters land — the per-cluster PRs can defer it.
@@ -249,11 +249,11 @@ The on-device walkthrough is most efficient as a single pass after **all** clust
 
 ## 7.10 Exit criteria for Section 7
 
-- [ ] Per-cluster `grep` checks in 7.1–7.4 pass
-- [ ] `cargo build -p android-sender` green at HEAD
-- [ ] `cargo clippy -p android-sender --all-targets -- -D warnings` green at HEAD
-- [ ] `slint-viewer senders/android/ui/main.slint` renders without warnings
-- [ ] On-device walkthrough (7.7) executed in full and all 13 steps pass
+- [x] Per-cluster `grep` checks in 7.1–7.4 pass
+- [x] `cargo build -p android-sender` green at HEAD
+- [x] `cargo clippy -p android-sender --all-targets -- -D warnings` green at HEAD
+- [x] `slint-viewer senders/android/ui/main.slint` renders without warnings
+- [x] On-device walkthrough (7.7) executed in full and all 13 steps pass
 
 You can now move to **Section 8 — pitfalls** at [`PHASE-8-Section-8-pitfalls.md`](./PHASE-8-Section-8-pitfalls.md).
 

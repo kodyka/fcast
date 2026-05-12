@@ -78,6 +78,7 @@ pub struct RegisterListenerMessage {
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum MessageResult {
     Command(CommandResult),
     NodeInfo(NodeInfo),

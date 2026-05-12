@@ -1,0 +1,11 @@
+[1m[91merror[0m[1m: Cannot find parent property to apply relative length[0m
+  [1m[94m--> [0msenders/android/ui/pages/recording_page.slint:38:12
+   [1m[94m|[0m
+[1m[94m38[0m [1m[94m|[0m     width: 100%;
+   [1m[94m|[0m            [1m[91m^^^^^[0m
+   [1m[94m|[0m
+[1m[91merror[0m[1m: Cannot find parent property to apply relative length[0m
+  [1m[94m--> [0msenders/android/ui/pages/recording_page.slint:39:13
+   [1m[94m|[0m
+[1m[94m39[0m [1m[94m|[0m     height: 100%;
+   [1m[94m|[0m             [1m[91m^^^^^[0m

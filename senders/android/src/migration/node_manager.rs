@@ -14,10 +14,12 @@ struct LinkRecord {
     sink_id: String,
     audio: bool,
     video: bool,
+    #[allow(dead_code)]
     config: Option<HashMap<String, Value>>,
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 enum NodeRecord {
     Source(SourceNode),
     Destination(DestinationNode),
@@ -459,7 +461,8 @@ impl NodeManager {
     fn create_mixer(
         &mut self,
         id: String,
-        config: Option<HashMap<String, Value>>,
+        #[allow(dead_code)]
+    config: Option<HashMap<String, Value>>,
         audio: bool,
         video: bool,
     ) -> CommandResult {
@@ -487,7 +490,8 @@ impl NodeManager {
         sink_id: String,
         audio: bool,
         video: bool,
-        config: Option<HashMap<String, Value>>,
+        #[allow(dead_code)]
+    config: Option<HashMap<String, Value>>,
     ) -> CommandResult {
         if !audio && !video {
             return CommandResult::Error(format!(
