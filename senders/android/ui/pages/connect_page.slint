@@ -15,15 +15,6 @@ import { ReceiverContextMenu } from "../components/receiver_context_menu.slint";
 import { ConfirmDialog }       from "../components/confirm_dialog.slint";
 
 export component ConnectView inherits Rectangle {
-    // UI-only placeholder. Live data lives in `futures/` until Rust mDNS maps
-    // `DeviceInfo` → `ReceiverItem`.
-    in-out property <[ReceiverItem]> mock-devices: [
-        { id: "dev-1", name: "Living Room TV",     address: "192.168.1.50", ip: "192.168.1.50", port: 46899, kind: "fcast", is-default: false },
-        { id: "dev-2", name: "Office Display",     address: "192.168.1.51", ip: "192.168.1.51", port: 46899, kind: "fcast", is-default: false },
-        { id: "dev-3", name: "Kitchen Chromecast", address: "192.168.1.52:46899", ip: "192.168.1.52", port: 46899, kind: "fcast", is-default: false },
-    ];
-    in-out property <bool> mock-empty: false;
-
     // Context menu state.
     in-out property <bool>   show-context-menu: false;
     in-out property <string> context-receiver-id;
@@ -43,7 +34,7 @@ export component ConnectView inherits Rectangle {
         }
 
         // ── Empty state: searching ────────────────────────────────────────
-        if root.mock-empty || root.mock-devices.length == 0: Rectangle {
+        if Bridge.devices.length == 0: Rectangle {
             height: 90px;
             border-radius: Theme.radius-card;
             background: Theme.surface-card;
@@ -66,10 +57,10 @@ export component ConnectView inherits Rectangle {
         }
 
         // ── Populated state: device list ──────────────────────────────────
-        if !root.mock-empty && root.mock-devices.length > 0: VerticalLayout {
+        if Bridge.devices.length > 0: VerticalLayout {
             spacing: Theme.spacing-default;
 
-            for device[idx] in root.mock-devices: Rectangle {
+            for device[idx] in Bridge.devices: Rectangle {
                 height: Theme.row-height + 18px;
 
                 property <bool> lp-armed: false;
@@ -83,7 +74,7 @@ export component ConnectView inherits Rectangle {
                         }
                     }
                     clicked => {
-                        /* placeholder: would call connect-receiver(device.address) */
+                        Bridge.connect-receiver(device);
                     }
                 }
 
@@ -92,10 +83,11 @@ export component ConnectView inherits Rectangle {
                     running: parent.lp-armed;
                     triggered => {
                         parent.lp-armed = false;
-                        // Long press detected.
-                        root.context-receiver-id = device.id;
-                        root.context-receiver-name = device.name;
-                        root.context-menu-y = (parent.height * idx) + 100px; // Rough y calculation
+                        // MVP: Bridge.devices is [string]. We don't have a stable id yet
+                        // (see MVP-PHASE-7). Use the receiver name for both fields.
+                        root.context-receiver-id = device;
+                        root.context-receiver-name = device;
+                        root.context-menu-y = (parent.height * idx) + 100px;
                         root.show-context-menu = true;
                     }
                 }
@@ -110,20 +102,15 @@ export component ConnectView inherits Rectangle {
                         padding-left: Theme.padding-screen;
                         padding-right: Theme.padding-screen;
                         alignment: center;
-                        spacing: 2px;
 
                         Text {
-                            text: device.name;
+                            text: device;
                             color: Theme.text-primary;
                             font-size: Theme.font-size-body;
                             overflow: elide;
                         }
-                        Text {
-                            text: device.address;
-                            color: Theme.text-secondary;
-                            font-size: Theme.font-size-label;
-                            overflow: elide;
-                        }
+                        // Secondary address row removed: Bridge.devices is [string].
+                        // Restored in MVP-PHASE-7 once promoted to [ReceiverItem].
                     }
                 }
             }
@@ -220,8 +207,6 @@ export component ConnectView inherits Rectangle {
 
         confirmed => {
             root.show-forget-confirm = false;
-            // UI-only: remove the entry from mock-devices.
-            // In a real implementation, this is a whole-array rebuild.
         }
         dismissed => {
             root.show-forget-confirm = false;
