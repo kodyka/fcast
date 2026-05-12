@@ -80,426 +80,76 @@ unaffected.
 
 ---
 
-## 2. Steps
+## 2. Steps — split into nine per-step files
 
-### 2.1 Step 1 — define node IDs in one place
+To keep each step skimmable and reviewable in isolation, the
+implementation is split across nine per-step `MVP-PHASE-6-STEP-N-*.md`
+files. Each file follows the same smaller five-section template
+(Goal-of-this-step / Pre-flight / The change / Verification /
+Next step) and is self-contained — you don't need to flip back to
+this parent doc while implementing a single step.
 
-**File:** `senders/android/src/lib.rs` (top of the file, after the
-`lazy_static!` block at line 71):
+| # | File | Scope | Net diff |
+|---|---|---|---|
+| 1 | [`MVP-PHASE-6-STEP-1-node-id-constants.md`](./MVP-PHASE-6-STEP-1-node-id-constants.md) | Add three `const &str` IDs (`CAST_SOURCE_ID`, `CAST_DESTINATION_ID`, `CAST_LINK_ID`) at the top of `lib.rs`. | ~6 lines, 1 file (`lib.rs`) |
+| 2 | [`MVP-PHASE-6-STEP-2-capturestarted-rewrite.md`](./MVP-PHASE-6-STEP-2-capturestarted-rewrite.md) | Replace `Event::CaptureStarted` body (legacy `WhepSink::new`) with a sequence of graph commands + a `tokio::spawn` poll loop on `bound_port_v4`. **Largest step.** Adds three `last_cast_request_*` fields populated by `Event::StartCast`. | ~150 lines, 1 file (`lib.rs`) |
+| 3 | [`MVP-PHASE-6-STEP-3-signaller-started-helper.md`](./MVP-PHASE-6-STEP-3-signaller-started-helper.md) | Extract `mcore::transmission::build_whep_play_msg(addr, port)` and switch `Event::SignallerStarted` to call it directly (no `tx_sink` dependency). | ~10 SDK lines + ~3 `lib.rs` lines |
+| 4 | [`MVP-PHASE-6-STEP-4-stop-cast-rewrite.md`](./MVP-PHASE-6-STEP-4-stop-cast-rewrite.md) | Replace `tx_sink.take().shutdown()` inside `stop_cast(...)` with `Disconnect L + Remove src + Remove dst` graph commands. | ~30 lines, 1 file (`lib.rs`) |
+| 5 | [`MVP-PHASE-6-STEP-5-tx-sink-cfg-gate.md`](./MVP-PHASE-6-STEP-5-tx-sink-cfg-gate.md) | Gate the `tx_sink: Option<WhepSink>` field + initialiser behind `#[cfg(not(target_os = "android"))]`. Compiler catches every remaining read. | ~10 lines, 1 file (`lib.rs`) |
+| 6 | [`MVP-PHASE-6-STEP-6-frame-pair-unchanged.md`](./MVP-PHASE-6-STEP-6-frame-pair-unchanged.md) | **Documentation-only checkpoint.** Confirm the JNI-side `FRAME_PAIR` producer is untouched by PHASE-6 — only the consumer (`ScreenCaptureNode::wire_need_data`) changes. | 0 source lines |
+| 7 | [`MVP-PHASE-6-STEP-7-set-capture-active-preservation.md`](./MVP-PHASE-6-STEP-7-set-capture-active-preservation.md) | **Preservation step.** Confirm `set_capture_active(false)` calls in `Event::CaptureStopped` / `Event::CaptureCancelled` are preserved (they unblock the JNI producer). | 0 source lines (or 1 optional defensive call) |
+| 8 | [`MVP-PHASE-6-STEP-8-mod-migration-exports.md`](./MVP-PHASE-6-STEP-8-mod-migration-exports.md) | Add `pub use protocol::{Command, CommandResult, DestinationFamily, NodeInfo};` to `migration/mod.rs`. Optional cosmetic step. | 1 line, 1 file (`migration/mod.rs`) |
+| 9 | [`MVP-PHASE-6-STEP-9-optional-feature-flag.md`](./MVP-PHASE-6-STEP-9-optional-feature-flag.md) | **Optional, opt-in.** Add `FCAST_UNIFIED_CAST_GRAPH=0/1` runtime kill-switch around Step 2 + Step 4 bodies. Recommended **only** if you need a canary rollout. | ~30 lines, 1 file (`lib.rs`) — most teams should skip this step |
 
-```rust
-// senders/android/src/lib.rs
+### Recommended landing order
 
-// Graph node IDs for the unified cast loop (MVP-PHASE-6).
-// One source, one destination, one link — the entire cast loop.
-#[cfg(target_os = "android")]
-const CAST_SOURCE_ID: &str = "cast-screen-1";
-#[cfg(target_os = "android")]
-const CAST_DESTINATION_ID: &str = "cast-whep-1";
-#[cfg(target_os = "android")]
-const CAST_LINK_ID: &str = "cast-link-1";
+```
+Step 1 ──► Step 2 ──► Step 3 ──► Step 4 ──► Step 5 ──┐
+                                                     ├── single squash-commit
+Step 6 (doc-only) + Step 7 (preservation)            │   (lib.rs compiles only
+                                                     ▼   once Steps 1+2+3+4+5 are all in)
+                                  Step 8 (cosmetic — anytime after Step 2)
+
+                                  Step 9 (optional kill-switch — anytime,
+                                          but DON'T pair with Step 5 deletion)
 ```
 
-Hard-coded IDs are fine because there is only one cast at a time.
-The legacy code does the same implicitly with `Option<WhepSink>`.
-
-### 2.2 Step 2 — replace `Event::StartCast` / `Event::CaptureStarted`
-
-**File:** `senders/android/src/lib.rs`
-
-**Before** (lines 875-961 — the `Event::CaptureStarted` body that
-builds `appsrc` + `WhepSink`):
-
-```rust
-#[cfg(target_os = "android")]
-Event::CaptureStarted => {
-    set_capture_active(true);
-    let appsrc = gst_app::AppSrc::builder()
-        .caps(/* … */)
-        .is_live(true)
-        /* … */
-        .build();
-
-    let mut caps = None::<gst::Caps>;
-    appsrc.set_callbacks(/* large need-data closure */);
-
-    let source_config = SourceConfig::Video(mcore::VideoSource::Source(appsrc));
-
-    self.tx_sink = Some(mcore::transmission::WhepSink::new(
-        source_config,
-        self.event_tx.clone(),
-        tokio::runtime::Handle::current(),
-        1920, 1080, 30,
-    )?);
-
-    // …status-items deferred…
-
-    self.ui_weak.upgrade_in_event_loop(move |ui| {
-        ui.global::<Bridge>().invoke_change_state(AppState::Casting);
-    })?;
-}
-```
-
-**After:**
-
-```rust
-#[cfg(target_os = "android")]
-Event::CaptureStarted => {
-    set_capture_active(true);
-
-    // Build the unified screen-capture → WHEP graph via the migration
-    // runtime. Replaces the legacy WhepSink pipeline construction.
-    use crate::migration::protocol::{Command, DestinationFamily};
-
-    let scale_width = self.last_cast_request_scale_width.unwrap_or(1280);
-    let scale_height = self.last_cast_request_scale_height.unwrap_or(720);
-    let fps = self.last_cast_request_max_framerate.unwrap_or(30);
-
-    let commands = [
-        Command::CreateScreenCaptureSource {
-            id: CAST_SOURCE_ID.into(),
-            width: scale_width,
-            height: scale_height,
-            fps,
-        },
-        Command::CreateDestination {
-            id: CAST_DESTINATION_ID.into(),
-            family: DestinationFamily::Whep { server_port: 0 },
-            audio: false,
-            video: true,
-        },
-        Command::Connect {
-            link_id: CAST_LINK_ID.into(),
-            src_id: CAST_SOURCE_ID.into(),
-            sink_id: CAST_DESTINATION_ID.into(),
-            audio: false,
-            video: true,
-            config: None,
-        },
-        Command::Start {
-            id: CAST_DESTINATION_ID.into(),
-            cue_time: None,
-            end_time: None,
-        },
-        Command::Start {
-            id: CAST_SOURCE_ID.into(),
-            cue_time: None,
-            end_time: None,
-        },
-    ];
-
-    for cmd in commands {
-        let result = crate::migration::runtime::handle_command(cmd);
-        if let crate::migration::protocol::CommandResult::Error(err) = result {
-            error!(?err, "Failed to build unified cast graph");
-            self.stop_cast(false).await?;
-            return Ok(ShouldQuit::No);
-        }
-    }
-
-    // Spawn the bound-port poll loop. When `getinfo` returns
-    // `bound_port_v4 = Some(p)`, we forward it as the existing
-    // Event::SignallerStarted, so the rest of the cast loop is
-    // unchanged.
-    let event_tx = self.event_tx.clone();
-    tokio::spawn(async move {
-        for _ in 0..200 {  // 200 × 100ms = 20s timeout, plenty for WHEP.
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-            let info_result = crate::migration::runtime::handle_command(
-                crate::migration::protocol::Command::GetInfo {
-                    id: Some(CAST_DESTINATION_ID.into()),
-                },
-            );
-            if let crate::migration::protocol::CommandResult::Info(snapshot) = info_result {
-                if let Some(crate::migration::protocol::NodeInfo::Destination(d)) =
-                    snapshot.nodes.get(CAST_DESTINATION_ID)
-                {
-                    if let (Some(v4), Some(v6)) = (d.bound_port_v4, d.bound_port_v6) {
-                        let _ = event_tx.send(Event::SignallerStarted {
-                            bound_port_v4: v4,
-                            bound_port_v6: v6,
-                        });
-                        return;
-                    }
-                }
-            }
-        }
-        error!("Whep destination never bound a port within 20s — giving up");
-    });
-
-    self.ui_weak.upgrade_in_event_loop(move |ui| {
-        ui.global::<Bridge>().invoke_change_state(AppState::Casting);
-    })?;
-}
-```
-
-The `last_cast_request_*` fields are new — populate them in the
-`Event::StartCast` handler so that `CaptureStarted` knows what scale
-factors the user picked:
-
-```rust
-// senders/android/src/lib.rs — fields on the event-loop struct
-#[cfg(target_os = "android")]
-last_cast_request_scale_width: Option<u32>,
-#[cfg(target_os = "android")]
-last_cast_request_scale_height: Option<u32>,
-#[cfg(target_os = "android")]
-last_cast_request_max_framerate: Option<u32>,
-```
-
-…and inside `Event::StartCast` (lines 963-1008), before the JNI
-`startScreenCapture` call:
-
-```rust
-#[cfg(target_os = "android")]
-Event::StartCast { scale_width, scale_height, max_framerate } => {
-    self.last_cast_request_scale_width = Some(scale_width);
-    self.last_cast_request_scale_height = Some(scale_height);
-    self.last_cast_request_max_framerate = Some(max_framerate);
-
-    // …existing JNI startScreenCapture call…
-}
-```
-
-### 2.3 Step 3 — leave `Event::SignallerStarted` mostly alone
-
-The existing `Event::SignallerStarted` handler (`lib.rs:754-794`)
-already does the right thing: build the WHEP URL, push it to the FCast
-receiver via `device.load(...)`. With Step 2 above, the bound-port
-poll loop emits `Event::SignallerStarted` itself, so this handler
-keeps working unchanged.
-
-**One small change:** today the URL is built via
-`self.tx_sink.as_ref().unwrap().get_play_msg(...)`. With `tx_sink`
-gone, that helper needs to be either:
-
-- (a) inlined: WHEP URL is `http://<local-addr>:<bound_port>/endpoint`,
-  content-type is `application/sdp`. See `whep_signaller.rs:33-35`
-  for the exact endpoint path.
-- (b) moved out of `WhepSink` into a free function in `mcore` so the
-  migration adapter can call it directly.
-
-**(b) is preferred** because it keeps the `get_play_msg` URL
-construction in one place:
-
-```rust
-// sdk/mirroring_core/src/transmission.rs (new free function)
-pub fn build_whep_play_msg(addr: IpAddr, bound_port: u16) -> (String, String) {
-    let host = addr_to_url_string(addr);
-    let url = format!("http://{host}:{bound_port}/endpoint");
-    ("application/sdp".to_string(), url)
-}
-```
-
-Then **before** in `lib.rs:767-771`:
-
-```rust
-let (content_type, url) = self
-    .tx_sink
-    .as_ref()
-    .unwrap()
-    .get_play_msg(addr.into(), bound_port);
-```
-
-**After:**
-
-```rust
-let (content_type, url) =
-    mcore::transmission::build_whep_play_msg(addr.into(), bound_port);
-```
-
-### 2.4 Step 4 — replace `Event::EndSession` / `stop_cast`
-
-**File:** `senders/android/src/lib.rs`
-
-**Before** (lines 682-709, `stop_cast`):
-
-```rust
-async fn stop_cast(&mut self, stop_playback: bool) -> Result<()> {
-    let android_app = self.android_app.clone();
-    self.ui_weak.upgrade_in_event_loop(move |_| {
-        call_java_method_no_args(&android_app, JavaMethod::StopCapture);
-    })?;
-
-    if let Some(active_device) = self.active_device.take() {
-        tokio::spawn(async move {
-            if stop_playback { /* stop_playback + disconnect */ }
-        });
-    }
-
-    if let Some(mut tx_sink) = self.tx_sink.take() {
-        tx_sink.shutdown();
-    }
-
-    Ok(())
-}
-```
-
-**After:**
-
-```rust
-async fn stop_cast(&mut self, stop_playback: bool) -> Result<()> {
-    let android_app = self.android_app.clone();
-    self.ui_weak.upgrade_in_event_loop(move |_| {
-        call_java_method_no_args(&android_app, JavaMethod::StopCapture);
-    })?;
-
-    if let Some(active_device) = self.active_device.take() {
-        tokio::spawn(async move {
-            if stop_playback {
-                debug!("Stopping playback");
-                log_err!(active_device.stop_playback(), "Failed to stop playback");
-                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-            }
-            debug!("Disconnecting from active device");
-            log_err!(active_device.disconnect(), "Failed to disconnect from active device");
-        });
-    }
-
-    // NEW — tear down the unified cast graph. Removing the source
-    // implicitly disconnects all of its consumer links; removing the
-    // destination tears down its pipeline including the WHEP signaller.
-    #[cfg(target_os = "android")]
-    {
-        use crate::migration::protocol::Command;
-        for id in [CAST_LINK_ID] {
-            let _ = crate::migration::runtime::handle_command(Command::Disconnect {
-                link_id: id.into(),
-            });
-        }
-        for id in [CAST_SOURCE_ID, CAST_DESTINATION_ID] {
-            let _ = crate::migration::runtime::handle_command(Command::Remove {
-                id: id.into(),
-            });
-        }
-    }
-
-    // Legacy WhepSink shutdown — kept only on non-Android targets.
-    #[cfg(not(target_os = "android"))]
-    if let Some(mut tx_sink) = self.tx_sink.take() {
-        tx_sink.shutdown();
-    }
-
-    Ok(())
-}
-```
-
-### 2.5 Step 5 — gate `tx_sink` to non-Android targets
-
-**File:** `senders/android/src/lib.rs` (line 537, struct field):
-
-```rust
-// Before
-tx_sink: Option<WhepSink>,
-
-// After
-#[cfg(not(target_os = "android"))]
-tx_sink: Option<WhepSink>,
-```
-
-…and the corresponding `tx_sink: None` initialiser (line 602):
-
-```rust
-// Before
-tx_sink: None,
-
-// After
-#[cfg(not(target_os = "android"))]
-tx_sink: None,
-```
-
-All reads of `self.tx_sink` outside the `stop_cast` / `SignallerStarted`
-paths in §2.3 / §2.4 must also be `cfg`'d:
-
-```bash
-grep -n 'self\.tx_sink' senders/android/src/lib.rs
-# → expect 4-5 hits. Walk each and either delete it (Android path
-#   replaced by graph commands) or wrap in #[cfg(not(target_os = "android"))].
-```
-
-### 2.6 Step 6 — keep the FRAME_PAIR producer untouched
-
-The JNI side (`MainActivity.startScreenCapture` →
-`nativeProcessFrame` → write to `FRAME_PAIR`) is **unchanged**. PHASE-4
-already wired its consumer (`ScreenCaptureNode::wire_need_data`) to
-read from `FRAME_PAIR`. The only thing that changes is **who builds
-the GStreamer pipeline** that consumes those frames:
-
-| Before | After |
-|---|---|
-| `lib.rs::Event::CaptureStarted` builds `appsrc` + `WhepSink` | `ScreenCaptureNode::build_live_pipeline` builds `appsrc` + `videoconvert` + `appsink`, and `DestinationNode` (Whep family) builds `BaseWebRTCSink`. The `StreamBridge` (`media_bridge.rs`) fans the source `appsink` into the destination `appsrc`. |
-
-So FRAME_PAIR / CAPTURE_ACTIVE are still the cross-language
-hand-off — they just feed a different consumer.
-
-### 2.7 Step 7 — preserve the `set_capture_active(false)` calls
-
-The legacy code calls `set_capture_active(false)` in
-`Event::CaptureStopped` (line 850), `Event::CaptureCancelled` (line
-854), and (transitively) on `stop_cast` via the `MainActivity.stopCapture`
-JNI call. **Keep all of those** — they tell the JNI-side EncoderCallback
-to stop pushing frames, which is what unblocks the
-`FRAME_PAIR` consumer's `cvar.wait` loop in `ScreenCaptureNode`.
-
-### 2.8 Step 8 — adjust the `mod migration` exports
-
-**File:** `senders/android/src/migration/mod.rs` (currently only
-re-exports `node_manager`, `runtime`, etc.):
-
-```rust
-// senders/android/src/migration/mod.rs
-
-pub mod media_bridge;
-pub mod messages;
-pub mod node_manager;
-pub mod nodes;
-pub mod protocol;
-pub mod runtime;
-```
-
-If your `protocol::CommandResult::Info(_)` and `NodeInfo::Destination(_)`
-variants aren't re-exported at the crate root, the `lib.rs` snippets
-in §2.2 will need explicit paths. Either:
-
-- (a) Add `pub use protocol::{Command, CommandResult, DestinationFamily,
-  NodeInfo};` to `migration/mod.rs`. Recommended — the call sites get
-  shorter.
-- (b) Live with the verbose paths.
-
-### 2.9 Step 9 — flip the `mock-mvp-using-legacy` flag (optional)
-
-If you want to roll out the unified path incrementally (instead of as
-one big-bang switch), add a runtime feature flag:
-
-```rust
-// senders/android/src/lib.rs
-
-#[cfg(target_os = "android")]
-fn use_unified_cast_graph() -> bool {
-    std::env::var("FCAST_UNIFIED_CAST_GRAPH").map(|v| v != "0").unwrap_or(true)
-}
-```
-
-…then guard the Step 2 / Step 4 changes:
-
-```rust
-#[cfg(target_os = "android")]
-Event::CaptureStarted => {
-    set_capture_active(true);
-    if use_unified_cast_graph() {
-        // …new graph-command path…
-    } else {
-        // …legacy WhepSink construction (the current code, unchanged)…
-    }
-}
-```
-
-This is **optional**, but useful for canary deployments. Default is
-`true` (= unified). The user disables the flag via
-`adb shell setprop debug.fcast.unified_cast_graph 0` + bridging
-that into `env::var` at app startup.
+Steps 1–5 are **all required to compile**; `tx_sink` references move
+around between commits 1-4, and Step 5 is what finally deletes the
+field on Android. The cleanest path is squashing Steps 1+2+3+4+5
+into one commit so the tree compiles between commits. Steps 6 and 7
+are documentation/preservation — they don't change code. Step 8 is
+cosmetic re-exports. Step 9 is opt-in and **conflicts** with Step 5
+(keeping the legacy path alive at runtime means `tx_sink` must
+stay).
 
 ---
+
+## 2b. Why the per-step split?
+
+The original monolithic §2 block ran to ~420 lines with nine
+sub-steps interleaved. Splitting it gives:
+
+- Per-step files small enough to review on a phone screen.
+- Independent verification recipes per step (each step's §3 covers
+  only that step's compile/test/grep checks).
+- Step-specific pitfalls without scrolling past unrelated content.
+- Easy follow-up PRs: if a reviewer asks for changes on Step 4
+  only, you edit one file.
+
+The pattern mirrors the per-step split applied to PHASE-4, PHASE-5,
+and PHASE-8 in the same PR.
+
+---
+
+> **Looking for inline §2.1 — §2.9?** The per-step content has
+> moved into the nine `MVP-PHASE-6-STEP-N-*.md` files listed in
+> the table above. Each STEP file is self-contained — Goal,
+> Pre-flight, The change, Verification, and Pitfalls for that
+> step alone.
+
+---
+
 
 ## 3. Verification
 

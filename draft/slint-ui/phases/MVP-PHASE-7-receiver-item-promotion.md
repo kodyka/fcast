@@ -91,267 +91,49 @@ keying by name). Out of scope here.
 
 ---
 
-## 2. Steps
+## 2. Steps — split into five per-step files
 
-### 2.1 Step 1 — change the Bridge property type
+To keep each step skimmable and reviewable in isolation, the
+implementation is split across five per-step `MVP-PHASE-7-STEP-N-*.md`
+files. Each file follows the same smaller five-section template
+(Goal-of-this-step / Pre-flight / The change / Verification /
+Next step) and is self-contained.
 
-**File:** `senders/android/ui/bridge.slint`
+| # | File | Scope | Net diff |
+|---|---|---|---|
+| 1 | [`MVP-PHASE-7-STEP-1-bridge-property-type.md`](./MVP-PHASE-7-STEP-1-bridge-property-type.md) | Change `Bridge.devices` from `[string]` to `[ReceiverItem]` (one line in `bridge.slint`). `ReceiverItem` already exists at `bridge.slint:110-118`. | 1 line, 1 file (`bridge.slint`) |
+| 2 | [`MVP-PHASE-7-STEP-2-update-receivers-in-ui.md`](./MVP-PHASE-7-STEP-2-update-receivers-in-ui.md) | Rewrite `update_receivers_in_ui()` in `lib.rs` to construct `ReceiverItem` structs (with `id` / `name` / `address` / `ip` / `port` / `kind` / `is_default`) and push them via `VecModel<ReceiverItem>`. **Largest step.** | ~40 lines, 1 file (`lib.rs`) |
+| 3 | [`MVP-PHASE-7-STEP-3-connect-page-field-reads.md`](./MVP-PHASE-7-STEP-3-connect-page-field-reads.md) | Update the connect-page iterator: long-press timer captures `device.id` + `device.name`; row body shows a two-line layout (`device.name` + `device.address`). | ~20 Slint lines |
+| 4 | [`MVP-PHASE-7-STEP-4-click-handler-passes-id.md`](./MVP-PHASE-7-STEP-4-click-handler-passes-id.md) | Change `Bridge.connect-receiver(device)` to `Bridge.connect-receiver(device.id)` in the click handler. One-character Slint diff. | 1 line, 1 file (`connect_page.slint`) |
+| 5 | [`MVP-PHASE-7-STEP-5-cleanup-mock-devices.md`](./MVP-PHASE-7-STEP-5-cleanup-mock-devices.md) | **Optional.** Remove `mock-devices: [string]` and `mock-empty: bool` `in-out property`s from `ConnectView`. Pure code-hygiene. | ~2 lines deleted, 1 file (`connect_page.slint`) |
 
-**Before** (line 145):
+### Recommended landing order
 
-```slint
-// ── Data properties (Rust → Slint) ──────────────────────────────────
-in property <[string]> devices: [
-    // "Device 1", "Device 2",
-];
+```
+Step 1 ─┐
+        ├── single atomic commit
+Step 2 ─┘   (Step 1 alone fails the build — Rust set_devices type mismatch)
+
+Step 3 ──► Step 4
+   (Step 3 needs Step 1+2; Step 4 needs Step 3's field access pattern)
+
+Step 5 (optional, anytime after Step 4 — pure cleanup, no runtime effect)
 ```
 
-**After:**
-
-```slint
-// ── Data properties (Rust → Slint) ──────────────────────────────────
-in property <[ReceiverItem]> devices: [
-    // { id: "Device 1", name: "Device 1", address: "...", ip: "...", port: 46899, kind: "fcast", is-default: false },
-];
-```
-
-`ReceiverItem` is already declared at lines 110-118 of the same file
-and already exported from the same module — no `import` change needed
-in `connect_page.slint`.
-
-### 2.2 Step 2 — rewrite `update_receivers_in_ui()`
-
-**File:** `senders/android/src/lib.rs`
-
-**Before** (lines 659-674):
-
-```rust
-fn update_receivers_in_ui(&mut self) -> Result<()> {
-    let receivers = self
-        .devices
-        .iter()
-        .filter(|(_, info)| !info.addresses.is_empty() && info.port != 0)
-        .map(|(name, _)| slint::SharedString::from(name))
-        .collect::<Vec<slint::SharedString>>();
-    self.ui_weak.upgrade_in_event_loop(move |ui| {
-        let model = std::rc::Rc::new(slint::VecModel::<slint::SharedString>::from_iter(
-            receivers.into_iter(),
-        ));
-        ui.global::<Bridge>().set_devices(model.into());
-    })?;
-
-    Ok(())
-}
-```
-
-**After:**
-
-```rust
-fn update_receivers_in_ui(&mut self) -> Result<()> {
-    let receivers = self
-        .devices
-        .iter()
-        .filter(|(_, info)| !info.addresses.is_empty() && info.port != 0)
-        .map(|(name, info)| {
-            let first_addr = info
-                .addresses
-                .first()
-                .map(|a| match a {
-                    fcast_sender_sdk::IpAddr::V4(s) => s.clone(),
-                    fcast_sender_sdk::IpAddr::V6(s) => format!("[{s}]"),
-                })
-                .unwrap_or_default();
-            let kind = match info.protocol {
-                fcast_sender_sdk::device::ProtocolType::FCast => "fcast",
-                #[cfg(feature = "chromecast")]
-                fcast_sender_sdk::device::ProtocolType::Chromecast => "chromecast",
-            };
-            ReceiverItem {
-                // MVP-PHASE-7 §1.3 option (a): the mDNS service name
-                // doubles as the id. Stable across the session.
-                id: name.clone().into(),
-                name: name.clone().into(),
-                address: format!("{first_addr}:{}", info.port).into(),
-                ip: first_addr.into(),
-                port: info.port as i32,
-                kind: kind.into(),
-                is_default: false, // PHASE-24 will set this from persistent storage.
-            }
-        })
-        .collect::<Vec<ReceiverItem>>();
-
-    self.ui_weak.upgrade_in_event_loop(move |ui| {
-        let model = std::rc::Rc::new(slint::VecModel::<ReceiverItem>::from_iter(
-            receivers.into_iter(),
-        ));
-        ui.global::<Bridge>().set_devices(model.into());
-    })?;
-
-    Ok(())
-}
-```
-
-You'll need this import near the top of `lib.rs`:
-
-```rust
-use crate::ReceiverItem; // generated by slint_build::compile("ui/main.slint")
-```
-
-Exact crate path depends on where the slint-build re-exports
-`ReceiverItem` — search for it:
-
-```bash
-grep -n 'pub struct ReceiverItem\|use crate::ReceiverItem' \
-    senders/android/src/lib.rs
-```
-
-If `slint::compile_modules` exposes it as `crate::ReceiverItem`, the
-above works. If it's nested, e.g. `crate::ui::ReceiverItem`, adjust
-the import accordingly.
-
-### 2.3 Step 3 — restore the connect-page field reads
-
-**File:** `senders/android/ui/pages/connect_page.slint`
-
-The MVP-PHASE-1 step 4 + step 5 changes flattened the field reads
-because `device` was a `string`. Now that `Bridge.devices: [ReceiverItem]`,
-restore them.
-
-**Before (post-PHASE-1)** (lines 90-100):
-
-```slint
-Timer {
-    interval: 600ms;
-    running: parent.lp-armed;
-    triggered => {
-        parent.lp-armed = false;
-        // MVP: Bridge.devices is [string]. We don't have a stable id yet
-        // (see MVP-PHASE-7). Use the receiver name for both fields.
-        root.context-receiver-id = device;
-        root.context-receiver-name = device;
-        root.context-menu-y = (parent.height * idx) + 100px;
-        root.show-context-menu = true;
-    }
-}
-```
-
-**After:**
-
-```slint
-Timer {
-    interval: 600ms;
-    running: parent.lp-armed;
-    triggered => {
-        parent.lp-armed = false;
-        // Long press detected.
-        root.context-receiver-id = device.id;
-        root.context-receiver-name = device.name;
-        root.context-menu-y = (parent.height * idx) + 100px;
-        root.show-context-menu = true;
-    }
-}
-```
-
-And for the row body (lines 113-126 post-PHASE-1):
-
-**Before:**
-
-```slint
-VerticalLayout {
-    padding-left: Theme.padding-screen;
-    padding-right: Theme.padding-screen;
-    alignment: center;
-
-    Text {
-        text: device;
-        color: Theme.text-primary;
-        font-size: Theme.font-size-body;
-        overflow: elide;
-    }
-    // Secondary address row removed: Bridge.devices is [string].
-    // Restored in MVP-PHASE-7 once promoted to [ReceiverItem].
-}
-```
-
-**After:**
-
-```slint
-VerticalLayout {
-    padding-left: Theme.padding-screen;
-    padding-right: Theme.padding-screen;
-    alignment: center;
-    spacing: 2px;
-
-    Text {
-        text: device.name;
-        color: Theme.text-primary;
-        font-size: Theme.font-size-body;
-        overflow: elide;
-    }
-    Text {
-        text: device.address;
-        color: Theme.text-secondary;
-        font-size: Theme.font-size-label;
-        overflow: elide;
-    }
-}
-```
-
-### 2.4 Step 4 — update the click handler to pass the id
-
-**File:** `senders/android/ui/pages/connect_page.slint`
-
-**Before (post-PHASE-1)** (line 85-87):
-
-```slint
-clicked => {
-    Bridge.connect-receiver(device);
-}
-```
-
-**After:**
-
-```slint
-clicked => {
-    Bridge.connect-receiver(device.id);
-}
-```
-
-The Rust handler (`lib.rs:1800-1807`) does
-`self.devices.get(&device_name)` — and `device_name` here is
-`device.id`, which is the mDNS service name (§1.3 option (a)). So the
-lookup remains correct.
-
-### 2.5 Step 5 — clean up `mock-devices` / `mock-empty` (optional)
-
-Once `Bridge.devices` is `[ReceiverItem]`, the `mock-devices` /
-`mock-empty` `in-out property`s on `ConnectView` (lines 20-25) are
-fully dead code. Removing them in this phase tightens the file:
-
-```slint
-// senders/android/ui/pages/connect_page.slint
-
-export component ConnectView inherits Rectangle {
-    // UI-only state. The receiver list comes from Bridge.devices.
-
-    // Context menu state.
-    in-out property <bool>   show-context-menu: false;
-    in-out property <string> context-receiver-id;
-    in-out property <string> context-receiver-name;
-    in-out property <length> context-menu-y: 0px;
-
-    // Forget confirmation state.
-    in-out property <bool> show-forget-confirm: false;
-
-    /* …existing layout… */
-}
-```
-
-Optional, low-priority. If any other file imports `mock-devices` from
-`ConnectView` (it shouldn't — those are private to the page), the
-Slint compiler will tell you.
+Steps 1 + 2 **must land together** — Step 1 alone breaks the
+build with a `VecModel<SharedString>` ↔ `[ReceiverItem]` type
+mismatch. Steps 3 + 4 build on the result. Step 5 is independent.
 
 ---
+
+> **Looking for inline §2.1 — §2.5?** The per-step content has
+> moved into the five `MVP-PHASE-7-STEP-N-*.md` files listed in
+> the table above. Each STEP file is self-contained — Goal,
+> Pre-flight, The change, Verification, and Pitfalls for that
+> step alone.
+
+---
+
 
 ## 3. Verification
 
