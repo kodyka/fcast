@@ -119,7 +119,7 @@
 
 #[cfg(feature = "chromecast")]
 pub mod chromecast;
-#[cfg(any_protocol)]
+
 pub mod context;
 #[cfg(all(any_protocol, feature = "discovery"))]
 pub mod discovery;
@@ -145,11 +145,11 @@ pub trait DeviceDiscovererEventHandler: Send + Sync {
 #[cfg(all(feature = "discovery", any_protocol))]
 use std::future::Future;
 
-#[cfg(any_protocol)]
+
 use tokio::runtime;
-#[cfg(any_protocol)]
+
 pub mod device;
-#[cfg(any_protocol)]
+
 use std::str::FromStr;
 
 #[cfg(feature = "uniffi")]
@@ -164,13 +164,13 @@ pub enum AsyncRuntimeError {
     FailedToBuild(#[from] std::io::Error),
 }
 
-#[cfg(any_protocol)]
+
 pub(crate) enum AsyncRuntime {
     Handle(runtime::Handle),
     Runtime(runtime::Runtime),
 }
 
-#[cfg(any_protocol)]
+
 impl AsyncRuntime {
     pub fn new(threads: Option<usize>, name: &str) -> Result<Self, AsyncRuntimeError> {
         Ok(match runtime::Handle::try_current() {
@@ -213,7 +213,7 @@ impl AsyncRuntime {
 }
 
 // UniFFI does not support std::net::IpAddr
-#[cfg(any_protocol)]
+
 #[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum IpAddr {
@@ -245,7 +245,7 @@ pub enum IpAddr {
     },
 }
 
-#[cfg(any_protocol)]
+
 
 impl std::fmt::Display for IpAddr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -263,14 +263,14 @@ impl std::fmt::Display for IpAddr {
     }
 }
 
-#[cfg(any_protocol)]
+
 impl IpAddr {
     pub fn v4(o1: u8, o2: u8, o3: u8, o4: u8) -> Self {
         Self::V4 { o1, o2, o3, o4 }
     }
 }
 
-#[cfg(any_protocol)]
+
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 #[cfg_attr(feature = "uniffi", uniffi(flat_error))]
 #[derive(thiserror::Error, Debug)]
@@ -280,7 +280,6 @@ pub enum ParseIpAddrError {
 }
 
 #[allow(dead_code)]
-#[cfg(any_protocol)]
 #[cfg_attr(feature = "uniffi", uniffi::export)]
 fn try_ip_addr_from_str(s: &str) -> Result<IpAddr, ParseIpAddrError> {
     Ok(IpAddr::from(&std::net::IpAddr::from_str(
@@ -289,7 +288,6 @@ fn try_ip_addr_from_str(s: &str) -> Result<IpAddr, ParseIpAddrError> {
 }
 
 #[allow(dead_code)]
-#[cfg(any_protocol)]
 #[cfg_attr(feature = "uniffi", uniffi::export)]
 pub fn url_format_ip_addr(addr: &IpAddr) -> String {
     match addr {
@@ -323,7 +321,6 @@ pub fn url_format_ip_addr(addr: &IpAddr) -> String {
 }
 
 #[allow(dead_code)]
-#[cfg(any_protocol)]
 #[cfg_attr(feature = "uniffi", uniffi::export)]
 fn octets_from_ip_addr(addr: &IpAddr) -> Vec<u8> {
     match addr {
@@ -355,7 +352,7 @@ fn octets_from_ip_addr(addr: &IpAddr) -> Vec<u8> {
     }
 }
 
-#[cfg(any_protocol)]
+
 impl From<&std::net::IpAddr> for IpAddr {
     fn from(value: &std::net::IpAddr) -> Self {
         match value {
@@ -394,7 +391,7 @@ impl From<&std::net::IpAddr> for IpAddr {
     }
 }
 
-#[cfg(any_protocol)]
+
 impl From<&IpAddr> for std::net::IpAddr {
     fn from(value: &IpAddr) -> Self {
         match value {
@@ -427,14 +424,14 @@ impl From<&IpAddr> for std::net::IpAddr {
     }
 }
 
-#[cfg(any_protocol)]
+
 impl From<std::net::IpAddr> for IpAddr {
     fn from(value: std::net::IpAddr) -> Self {
         Self::from(&value)
     }
 }
 
-#[cfg(any_protocol)]
+
 impl From<std::net::SocketAddr> for IpAddr {
     fn from(addr: std::net::SocketAddr) -> Self {
         match addr {
@@ -442,9 +439,8 @@ impl From<std::net::SocketAddr> for IpAddr {
             std::net::SocketAddr::V6(v6) => {
                 let this_scope_id = v6.scope_id();
                 let mut ip: Self = addr.ip().into();
-                match &mut ip {
-                    IpAddr::V6 { scope_id, .. } => *scope_id = this_scope_id,
-                    _ => (),
+                if let IpAddr::V6 { scope_id, .. } = &mut ip {
+                    *scope_id = this_scope_id;
                 }
                 ip
             }

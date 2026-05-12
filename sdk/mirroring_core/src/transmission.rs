@@ -513,6 +513,7 @@ impl WhepSink {
     }
 
     #[cfg(not(target_os = "android"))]
+    #[allow(clippy::too_many_arguments)]
     pub async fn from_preview(
         event_tx: tokio::sync::mpsc::UnboundedSender<Event>,
         rt_handle: tokio::runtime::Handle,

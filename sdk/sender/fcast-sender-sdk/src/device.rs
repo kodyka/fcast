@@ -208,16 +208,16 @@ impl KeyName {
     }
 }
 
-impl ToString for KeyName {
-    fn to_string(&self) -> String {
-        match self {
+impl std::fmt::Display for KeyName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
             KeyName::ArrowLeft => "ArrowLeft",
             KeyName::ArrowRight => "ArrowRight",
             KeyName::ArrowUp => "ArrowUp",
             KeyName::ArrowDown => "ArrowDown",
             KeyName::Ok => "Ok",
-        }
-        .to_owned()
+        };
+        write!(f, "{}", s)
     }
 }
 

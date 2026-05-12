@@ -182,6 +182,7 @@ pub struct MixerInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[allow(clippy::large_enum_variant)]
 pub enum NodeInfo {
     Source(SourceInfo),
     Destination(DestinationInfo),
@@ -301,7 +302,7 @@ mod tests {
 
     #[test]
     fn control_points_sort_by_timestamp() {
-        let mut points = vec![
+        let mut points = [
             point_at(20, json!(1.0)),
             point_at(-10, json!(2.0)),
             point_at(5, json!(3.0)),

@@ -31,6 +31,7 @@ pub mod log_ring;
 pub mod migration;
 
 #[derive(Default)]
+#[allow(dead_code)]
 struct RecordingTickerState {
     state: RecordingState,
     started_at: Option<std::time::Instant>,
@@ -38,6 +39,7 @@ struct RecordingTickerState {
     pause_started: Option<std::time::Instant>,
 }
 
+#[allow(dead_code)]
 fn spawn_recording_ticker(
     ui_handle: slint::Weak<MainWindow>,
     state: Arc<tokio::sync::Mutex<RecordingTickerState>>,
@@ -63,6 +65,7 @@ type PlatformApp = slint::android::AndroidApp;
 
 #[cfg(not(target_os = "android"))]
 #[derive(Clone, Debug, Default)]
+#[allow(dead_code)]
 struct PlatformApp;
 
 lazy_static::lazy_static! {
@@ -91,6 +94,7 @@ const MIGRATION_COMMAND_BIND_ENV: &str = "MIGRATION_COMMAND_BIND";
 const LEGACY_COMMAND_BIND_ADDR: &str = "0.0.0.0:8080";
 
 #[cfg(target_os = "android")]
+#[allow(dead_code)]
 fn ensure_gstreamer_initialized() -> std::result::Result<(), String> {
     use std::sync::OnceLock;
 
@@ -103,6 +107,7 @@ fn ensure_gstreamer_initialized() -> std::result::Result<(), String> {
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn ensure_gstreamer_initialized() -> std::result::Result<(), String> {
     gst::init().map_err(|err| format!("Failed to initialize GStreamer: {err}"))
 }
@@ -490,12 +495,14 @@ fn log_ui_test_status(test_name: &'static str, status: &str) {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 enum JavaMethod {
     StopCapture,
     ScanQr,
 }
 
 #[cfg(target_os = "android")]
+#[allow(dead_code)]
 fn call_java_method_no_args(app: &PlatformApp, method: JavaMethod) {
     let vm = unsafe {
         let ptr = app.vm_as_ptr() as *mut jni::sys::JavaVM;
@@ -523,8 +530,10 @@ fn call_java_method_no_args(app: &PlatformApp, method: JavaMethod) {
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn call_java_method_no_args(_app: &PlatformApp, _method: JavaMethod) {}
 
+#[allow(dead_code)]
 struct Application {
     ui_weak: slint::Weak<MainWindow>,
     event_tx: tokio::sync::mpsc::UnboundedSender<Event>,
@@ -566,6 +575,7 @@ fn build_status_items(receiver_name: &str, encoder: &str, network: &str) -> Vec<
     ]
 }
 
+#[allow(dead_code)]
 impl Application {
     pub async fn new(
         ui_weak: slint::Weak<MainWindow>,
@@ -810,16 +820,15 @@ impl Application {
                     );
                 } else {
                     match event {
-                        DeviceEvent::StateChanged(device_connection_state) => {
-                            if let device::DeviceConnectionState::Connected { local_addr, .. } = device_connection_state {
-                                self.local_address = Some(local_addr);
+                        DeviceEvent::StateChanged(device::DeviceConnectionState::Connected { local_addr, .. }) => {
+                            self.local_address = Some(local_addr);
 
-                                self.ui_weak.upgrade_in_event_loop(|ui| {
-                                    ui.global::<Bridge>()
-                                        .invoke_change_state(AppState::SelectingSettings);
-                                })?;
-                            }
+                            self.ui_weak.upgrade_in_event_loop(|ui| {
+                                ui.global::<Bridge>()
+                                    .invoke_change_state(AppState::SelectingSettings);
+                            })?;
                         }
+                        DeviceEvent::StateChanged(_) => {}
                         DeviceEvent::SourceChanged(new_source) => {
                             if self.tx_sink.is_some() {
                                 if let fcast_sender_sdk::device::Source::Url { ref url, .. } = new_source {
@@ -1058,6 +1067,7 @@ impl Application {
     }
 }
 
+#[allow(dead_code)]
 fn default_presets() -> Vec<crate::BitratePreset> {
     vec![
         crate::BitratePreset { id: "low".into(),  name: "Low".into(),     bitrate_kbps: 1500,  active: false },
@@ -1067,6 +1077,7 @@ fn default_presets() -> Vec<crate::BitratePreset> {
     ]
 }
 
+#[allow(dead_code)]
 fn default_quick_actions() -> Vec<crate::QuickAction> {
     let mut actions = vec![
         crate::QuickAction { id: "settings".into(),   title: "Settings".into(),    enabled: true,  active: false, is_macro: false },

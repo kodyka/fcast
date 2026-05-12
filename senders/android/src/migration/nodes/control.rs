@@ -28,9 +28,7 @@ pub fn evaluate_control_points(points: &[ControlPoint], at: DateTime<Utc>) -> Op
         }
     }
 
-    let Some(current) = before.or(after) else {
-        return None;
-    };
+    let current = before.or(after)?;
 
     if current.mode == ControlMode::Interpolate {
         if let Some(next) = after {
