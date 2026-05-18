@@ -6,6 +6,18 @@ fn default_as_true() -> bool {
     true
 }
 
+fn default_capture_width() -> u32 {
+    1280
+}
+
+fn default_capture_height() -> u32 {
+    720
+}
+
+fn default_capture_fps() -> u32 {
+    30
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ControlMode {
@@ -47,6 +59,15 @@ pub enum Command {
         audio: bool,
         #[serde(default = "default_as_true")]
         video: bool,
+    },
+    CreateScreenCaptureSource {
+        id: String,
+        #[serde(default = "default_capture_width")]
+        width: u32,
+        #[serde(default = "default_capture_height")]
+        height: u32,
+        #[serde(default = "default_capture_fps")]
+        fps: u32,
     },
     CreateDestination {
         id: String,
@@ -297,6 +318,72 @@ mod tests {
             let decoded: DestinationFamily = serde_json::from_str(&encoded).unwrap();
             assert_eq!(decoded, family);
         }
+    }
+
+    #[test]
+    fn screen_capture_command_deserialises() {
+        let cmd: Command = serde_json::from_str(
+            r#"{"createscreencapturesource":{"id":"cap-1","width":1280,"height":720,"fps":30}}"#,
+        )
+        .unwrap();
+
+        match cmd {
+            Command::CreateScreenCaptureSource {
+                id,
+                width,
+                height,
+                fps,
+            } => {
+                assert_eq!(id, "cap-1");
+                assert_eq!(width, 1280);
+                assert_eq!(height, 720);
+                assert_eq!(fps, 30);
+            }
+            other => panic!("expected CreateScreenCaptureSource, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn screen_capture_command_uses_defaults_when_omitted() {
+        let cmd: Command =
+            serde_json::from_str(r#"{"createscreencapturesource":{"id":"cap-1"}}"#).unwrap();
+
+        match cmd {
+            Command::CreateScreenCaptureSource {
+                id,
+                width,
+                height,
+                fps,
+            } => {
+                assert_eq!(id, "cap-1");
+                assert_eq!(width, 1280);
+                assert_eq!(height, 720);
+                assert_eq!(fps, 30);
+            }
+            other => panic!("expected CreateScreenCaptureSource, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn screen_capture_command_roundtrips() {
+        let cmd = Command::CreateScreenCaptureSource {
+            id: "cap-1".into(),
+            width: 1920,
+            height: 1080,
+            fps: 60,
+        };
+
+        let json = serde_json::to_string(&cmd).unwrap();
+        let parsed: Command = serde_json::from_str(&json).unwrap();
+        assert!(matches!(
+            parsed,
+            Command::CreateScreenCaptureSource {
+                ref id,
+                width: 1920,
+                height: 1080,
+                fps: 60,
+            } if id == "cap-1"
+        ));
     }
 
     #[test]
