@@ -2,7 +2,13 @@ use crate::migration::protocol::{DestinationFamily, DestinationInfo, NodeInfo, S
 use chrono::{DateTime, Duration, Utc};
 use gst::prelude::*;
 use gst_app::AppSrc;
+use std::sync::{Arc, Mutex};
 use tracing::{error, info, warn};
+
+const WHEP_MEGA_BIT: u32 = 1024 * 1024;
+const WHEP_MIN_BITRATE: u32 = WHEP_MEGA_BIT / 2;
+const WHEP_START_BITRATE: u32 = WHEP_MEGA_BIT * 16;
+const WHEP_MAX_BITRATE: u32 = WHEP_MEGA_BIT * 48;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DestinationPipelineStage {
@@ -24,6 +30,7 @@ pub struct LiveDestinationPipeline {
     pub pipeline: gst::Pipeline,
     pub video_appsrc: Option<AppSrc>,
     pub audio_appsrc: Option<AppSrc>,
+    pub whep_bound_ports: Option<Arc<Mutex<Option<(u16, u16)>>>>,
 }
 
 #[derive(Debug)]
@@ -86,6 +93,10 @@ impl DestinationPipelineProfile {
                     "queue",
                 ]);
             }
+            DestinationFamily::Whep { .. } => {
+                elements.extend(["videoconvert", "basewebrtcsink"]);
+                let _ = audio;
+            }
         }
 
         if !audio {
@@ -118,6 +129,8 @@ pub struct DestinationNode {
     pub pipeline: Option<DestinationPipelineProfile>,
     pub live_pipeline: Option<LiveDestinationPipeline>,
     pub last_error: Option<String>,
+    pub whep_bound_port_v4: Option<u16>,
+    pub whep_bound_port_v6: Option<u16>,
 }
 
 impl DestinationNode {
@@ -144,6 +157,8 @@ impl DestinationNode {
             pipeline: None,
             live_pipeline: None,
             last_error: None,
+            whep_bound_port_v4: None,
+            whep_bound_port_v6: None,
         }
     }
 
@@ -461,6 +476,7 @@ impl DestinationNode {
         _profile: &DestinationPipelineProfile,
     ) -> Result<LiveDestinationPipeline, String> {
         let pipeline = gst::Pipeline::with_name(&format!("migration-destination-{}", self.id));
+        let mut whep_bound_ports = None;
 
         let video_appsrc = if self.video_enabled {
             let appsrc = Self::make_appsrc(&self.id, "video")?;
@@ -834,12 +850,63 @@ impl DestinationNode {
                     .map_err(|err| format!("Failed to link local-playback audio chain: {err:?}"))?;
                 }
             }
+            DestinationFamily::Whep { server_port } => {
+                let bound_ports: Arc<Mutex<Option<(u16, u16)>>> = Arc::new(Mutex::new(None));
+                let signaller = crate::whep_signaller_compat::WhepServerSignaller::default();
+
+                {
+                    let bound_ports = Arc::clone(&bound_ports);
+                    signaller.connect(
+                        crate::whep_signaller_compat::ON_SERVER_STARTED_SIGNAL_NAME,
+                        false,
+                        move |vals| {
+                            let p4 = vals.get(1).and_then(|v| v.get::<u32>().ok())? as u16;
+                            let p6 = vals.get(2).and_then(|v| v.get::<u32>().ok())? as u16;
+                            if let Ok(mut ports) = bound_ports.lock() {
+                                *ports = Some((p4, p6));
+                            }
+                            None
+                        },
+                    );
+                }
+                signaller.set_property("server-port", *server_port as u32);
+
+                let sink = gst_rs_webrtc::webrtcsink::BaseWebRTCSink::with_signaller(
+                    gst_rs_webrtc::signaller::Signallable::from(signaller),
+                );
+                sink.set_property("min-bitrate", WHEP_MIN_BITRATE);
+                sink.set_property("start-bitrate", WHEP_START_BITRATE);
+                sink.set_property("max-bitrate", WHEP_MAX_BITRATE);
+                sink.set_property_from_str("enable-mitigation-modes", "downsampled");
+                sink.set_property_from_str("stun-server", "");
+                sink.set_property("video-caps", gst::Caps::builder("video/x-vp8").build());
+
+                let sink_element: gst::Element = sink.upcast();
+                pipeline.add(&sink_element).map_err(|err| {
+                    format!("Failed to add basewebrtcsink to whep pipeline: {err:?}")
+                })?;
+
+                if let Some(appsrc) = video_appsrc.as_ref() {
+                    let vconv = Self::make_element("videoconvert", None)?;
+                    pipeline.add(&vconv).map_err(|err| {
+                        format!("Failed to add videoconvert to whep pipeline: {err:?}")
+                    })?;
+
+                    gst::Element::link_many(
+                        [appsrc.upcast_ref::<gst::Element>(), &vconv, &sink_element].as_slice(),
+                    )
+                    .map_err(|err| format!("Failed to link whep video chain: {err:?}"))?;
+                }
+
+                whep_bound_ports = Some(bound_ports);
+            }
         }
 
         Ok(LiveDestinationPipeline {
             pipeline,
             video_appsrc,
             audio_appsrc,
+            whep_bound_ports,
         })
     }
 
@@ -1007,7 +1074,25 @@ impl DestinationNode {
 
     pub fn refresh(&mut self) -> Result<(), String> {
         self.advance_schedule(Utc::now());
-        self.sync_live_pipeline()
+        self.sync_live_pipeline()?;
+
+        if let Some(live) = self.live_pipeline.as_ref() {
+            if let Some(handle) = live.whep_bound_ports.as_ref() {
+                if let Ok(ports) = handle.lock() {
+                    if let Some((v4, v6)) = *ports {
+                        self.whep_bound_port_v4 = Some(v4);
+                        self.whep_bound_port_v6 = Some(v6);
+                    }
+                }
+            }
+        }
+
+        if matches!(self.state, State::Stopped) {
+            self.whep_bound_port_v4 = None;
+            self.whep_bound_port_v6 = None;
+        }
+
+        Ok(())
     }
 
     fn schedule_transition_due(&self, now: DateTime<Utc>) -> Option<State> {
@@ -1164,6 +1249,8 @@ impl DestinationNode {
         self.wait_for_eos_on_stop();
         self.teardown_live_pipeline();
         self.state = State::Stopped;
+        self.whep_bound_port_v4 = None;
+        self.whep_bound_port_v6 = None;
         if let Some(pipeline) = self.pipeline.as_mut() {
             pipeline.stage = DestinationPipelineStage::Idle;
         }
@@ -1181,6 +1268,8 @@ impl DestinationNode {
             cue_time: self.cue_time,
             end_time: self.end_time,
             state: self.state,
+            bound_port_v4: self.whep_bound_port_v4,
+            bound_port_v6: self.whep_bound_port_v6,
         })
     }
 }
@@ -1324,5 +1413,80 @@ mod tests {
             }
             other => panic!("expected destination info, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn whep_profile_lists_basewebrtcsink() {
+        let family = DestinationFamily::Whep { server_port: 0 };
+        let profile = DestinationPipelineProfile::from_family(&family, false, true);
+        assert!(profile.elements.iter().any(|el| el == "basewebrtcsink"));
+        assert!(profile.elements.iter().any(|el| el == "videoconvert"));
+    }
+
+    #[test]
+    fn whep_profile_ignores_audio_flag() {
+        let family = DestinationFamily::Whep { server_port: 0 };
+        let profile = DestinationPipelineProfile::from_family(&family, true, true);
+        assert!(!profile.elements.iter().any(|el| el == "audioconvert"));
+        assert!(!profile.elements.iter().any(|el| el == "avenc_aac"));
+    }
+
+    #[test]
+    fn whep_profile_retains_only_sink_when_video_disabled() {
+        let family = DestinationFamily::Whep { server_port: 0 };
+        let profile = DestinationPipelineProfile::from_family(&family, false, false);
+        assert_eq!(profile.elements, vec!["basewebrtcsink".to_string()]);
+    }
+
+    #[test]
+    fn whep_destination_node_default_bound_ports_are_none() {
+        let node = DestinationNode::new(
+            "tv-1".into(),
+            DestinationFamily::Whep { server_port: 0 },
+            false,
+            true,
+        );
+        assert!(node.whep_bound_port_v4.is_none());
+        assert!(node.whep_bound_port_v6.is_none());
+    }
+
+    #[test]
+    fn whep_destination_as_info_propagates_bound_ports() {
+        let mut node = DestinationNode::new(
+            "tv-1".into(),
+            DestinationFamily::Whep { server_port: 0 },
+            false,
+            true,
+        );
+        node.whep_bound_port_v4 = Some(54321);
+        node.whep_bound_port_v6 = Some(54322);
+
+        let NodeInfo::Destination(info) = node.as_info() else {
+            panic!("expected destination info");
+        };
+        assert_eq!(info.bound_port_v4, Some(54321));
+        assert_eq!(info.bound_port_v6, Some(54322));
+    }
+
+    #[test]
+    fn whep_destination_node_resets_bound_ports_on_stopped() {
+        let mut node = DestinationNode::new(
+            "tv-1".into(),
+            DestinationFamily::Whep { server_port: 0 },
+            false,
+            true,
+        );
+        node.whep_bound_port_v4 = Some(54321);
+        node.whep_bound_port_v6 = Some(54322);
+        node.state = State::Stopped;
+        node.refresh().unwrap();
+        assert!(node.whep_bound_port_v4.is_none());
+        assert!(node.whep_bound_port_v6.is_none());
+    }
+
+    #[test]
+    fn migration_crate_can_import_whep_signaller() {
+        let _signaller: Option<crate::whep_signaller_compat::WhepServerSignaller> = None;
+        assert!(!crate::whep_signaller_compat::ON_SERVER_STARTED_SIGNAL_NAME.is_empty());
     }
 }

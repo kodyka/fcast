@@ -29,6 +29,7 @@ serde_json.workspace = true
 uuid = { workspace = true, features = ["serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 tracing-subscriber.workspace = true
+gst_rs_webrtc = { package = "gst-plugin-webrtc", version = "0.15", default-features = false, features = ["static"] }
 
 [build-dependencies]
 slint-build.workspace = true
