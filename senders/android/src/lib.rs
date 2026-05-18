@@ -29,6 +29,7 @@ use std::net::Ipv6Addr;
 pub mod log_ring;
 
 pub mod migration;
+mod whep_signaller_compat;
 
 #[derive(Default)]
 struct RecordingTickerState {

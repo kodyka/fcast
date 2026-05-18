@@ -1399,4 +1399,88 @@ mod tests {
         assert!(manager.links.is_empty());
         assert!(manager.media_bridges.is_empty());
     }
+
+    #[test]
+    fn create_whep_destination_succeeds() {
+        let mut manager = started_manager();
+        let result = manager.dispatch(Command::CreateDestination {
+            id: "tv-1".into(),
+            family: DestinationFamily::Whep { server_port: 0 },
+            audio: false,
+            video: true,
+        });
+        assert!(matches!(result, CommandResult::Success), "{result:?}");
+        assert!(manager.nodes.contains_key("tv-1"));
+    }
+
+    #[test]
+    fn create_whep_destination_with_explicit_port_succeeds() {
+        let mut manager = started_manager();
+        let result = manager.dispatch(Command::CreateDestination {
+            id: "tv-2".into(),
+            family: DestinationFamily::Whep { server_port: 54321 },
+            audio: false,
+            video: true,
+        });
+        assert!(matches!(result, CommandResult::Success), "{result:?}");
+        assert!(manager.nodes.contains_key("tv-2"));
+    }
+
+    #[test]
+    fn whep_destination_info_carries_optional_bound_ports() {
+        let mut manager = started_manager();
+        assert!(matches!(
+            manager.dispatch(Command::CreateDestination {
+                id: "tv-1".into(),
+                family: DestinationFamily::Whep { server_port: 0 },
+                audio: false,
+                video: true,
+            }),
+            CommandResult::Success
+        ));
+
+        let info = manager.dispatch(Command::GetInfo {
+            id: Some("tv-1".into()),
+        });
+        match info {
+            CommandResult::Info(snapshot) => {
+                let dest = snapshot.nodes.get("tv-1").unwrap();
+                match dest {
+                    NodeInfo::Destination(d) => {
+                        assert!(matches!(&d.family, DestinationFamily::Whep { .. }));
+                        assert!(d.bound_port_v4.is_none());
+                        assert!(d.bound_port_v6.is_none());
+                    }
+                    other => panic!("expected destination info, got {other:?}"),
+                }
+            }
+            other => panic!("expected Info, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn local_playback_destination_info_omits_bound_ports() {
+        let mut manager = started_manager();
+        assert!(matches!(
+            manager.dispatch(Command::CreateDestination {
+                id: "out".into(),
+                family: DestinationFamily::LocalPlayback,
+                audio: true,
+                video: true,
+            }),
+            CommandResult::Success
+        ));
+
+        let info = manager.dispatch(Command::GetInfo {
+            id: Some("out".into()),
+        });
+        match info {
+            CommandResult::Info(snapshot) => {
+                let dest = snapshot.nodes.get("out").unwrap();
+                let json = serde_json::to_string(dest).unwrap();
+                assert!(!json.contains("bound_port"));
+            }
+            other => panic!("expected Info, got {other:?}"),
+        }
+    }
 }

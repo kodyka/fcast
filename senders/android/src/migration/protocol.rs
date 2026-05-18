@@ -156,6 +156,10 @@ pub enum DestinationFamily {
         max_size_time: Option<u32>,
     },
     LocalPlayback,
+    Whep {
+        #[serde(default)]
+        server_port: u16,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -178,6 +182,10 @@ pub struct DestinationInfo {
     pub cue_time: Option<DateTime<Utc>>,
     pub end_time: Option<DateTime<Utc>>,
     pub state: State,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bound_port_v4: Option<u16>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bound_port_v6: Option<u16>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -295,6 +303,57 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn whep_destination_serdes_roundtrip() {
+        let original = DestinationFamily::Whep { server_port: 0 };
+        let json = serde_json::to_string(&original).unwrap();
+        let parsed: DestinationFamily = serde_json::from_str(&json).unwrap();
+        assert_eq!(original, parsed);
+        assert!(json.starts_with(r#"{"Whep":{"server_port":0"#));
+    }
+
+    #[test]
+    fn whep_destination_default_server_port_when_omitted() {
+        let minimal: DestinationFamily = serde_json::from_str(r#"{"Whep":{}}"#).unwrap();
+        match minimal {
+            DestinationFamily::Whep { server_port } => assert_eq!(server_port, 0),
+            other => panic!("expected Whep variant, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn whep_destination_info_bound_ports_skipped_when_none() {
+        let info = DestinationInfo {
+            family: DestinationFamily::Whep { server_port: 0 },
+            audio_slot_id: None,
+            video_slot_id: None,
+            cue_time: None,
+            end_time: None,
+            state: State::Initial,
+            bound_port_v4: None,
+            bound_port_v6: None,
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(!json.contains("bound_port"));
+    }
+
+    #[test]
+    fn whep_destination_info_bound_ports_emit_when_some() {
+        let info = DestinationInfo {
+            family: DestinationFamily::Whep { server_port: 0 },
+            audio_slot_id: None,
+            video_slot_id: None,
+            cue_time: None,
+            end_time: None,
+            state: State::Initial,
+            bound_port_v4: Some(54321),
+            bound_port_v6: Some(54322),
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains(r#""bound_port_v4":54321"#));
+        assert!(json.contains(r#""bound_port_v6":54322"#));
     }
 
     #[test]
