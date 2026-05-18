@@ -28,6 +28,12 @@ fn addr_to_url_string(addr: IpAddr) -> String {
     }
 }
 
+pub fn build_whep_play_msg(addr: IpAddr, bound_port: u16) -> (String, String) {
+    let host = addr_to_url_string(addr);
+    let url = format!("http://{host}:{bound_port}/endpoint");
+    ("application/sdp".to_string(), url)
+}
+
 #[cfg(target_os = "linux")]
 #[derive(Debug)]
 pub enum ExtraVideoContext {
@@ -637,10 +643,7 @@ impl WhepSink {
     }
 
     pub fn get_play_msg(&self, addr: IpAddr, port: u16) -> (String, String) {
-        (
-            "application/x-whep".to_owned(),
-            format!("http://{}:{port}/endpoint", addr_to_url_string(addr)),
-        )
+        build_whep_play_msg(addr, port)
     }
 
     pub fn shutdown(&mut self) {
@@ -654,5 +657,25 @@ impl WhepSink {
                 error!("Failed to stop pipeline: {err}");
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_whep_play_msg;
+    use std::net::{Ipv4Addr, Ipv6Addr};
+
+    #[test]
+    fn build_whep_play_msg_emits_correct_shape() {
+        let (ct, url) = build_whep_play_msg(Ipv4Addr::new(192, 168, 1, 50).into(), 40123);
+        assert_eq!(ct, "application/sdp");
+        assert_eq!(url, "http://192.168.1.50:40123/endpoint");
+    }
+
+    #[test]
+    fn build_whep_play_msg_wraps_ipv6_in_brackets() {
+        let (_, url) =
+            build_whep_play_msg(Ipv6Addr::new(0xfe80, 0, 0, 0, 0, 0, 0, 1).into(), 40123);
+        assert!(url.contains("[fe80::1]"), "expected bracketed IPv6 literal, got {url}");
     }
 }

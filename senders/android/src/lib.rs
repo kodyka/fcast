@@ -1,6 +1,8 @@
 use anyhow::Result;
 use fcast_sender_sdk::{context::CastContext, device, device::DeviceInfo};
-use mcore::{transmission::WhepSink, DeviceEvent, Event, ShouldQuit};
+use mcore::{DeviceEvent, Event, ShouldQuit};
+#[cfg(not(target_os = "android"))]
+use mcore::transmission::WhepSink;
 use parking_lot::{Condvar, Mutex};
 #[cfg(target_os = "android")]
 use serde_json::{json, Value};
@@ -21,8 +23,6 @@ use gst::prelude::{BufferPoolExt, BufferPoolExtManual};
 use gst_video::{VideoColorimetry, VideoFrameExt};
 #[cfg(target_os = "android")]
 use jni::{objects::{JByteBuffer, JObject, JString}, JavaVM};
-#[cfg(target_os = "android")]
-use mcore::SourceConfig;
 #[cfg(target_os = "android")]
 use std::net::Ipv6Addr;
 
@@ -75,6 +75,13 @@ lazy_static::lazy_static! {
 
 #[cfg(target_os = "android")]
 static CAPTURE_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+#[cfg(target_os = "android")]
+const CAST_SOURCE_ID: &str = "cast-screen-1";
+#[cfg(target_os = "android")]
+const CAST_DESTINATION_ID: &str = "cast-whep-1";
+#[cfg(target_os = "android")]
+const CAST_LINK_ID: &str = "cast-link-1";
 
 slint::include_modules!();
 
@@ -535,8 +542,15 @@ struct Application {
     current_device_id: usize,
     local_address: Option<fcast_sender_sdk::IpAddr>,
     android_app: PlatformApp,
+    #[cfg(not(target_os = "android"))]
     tx_sink: Option<WhepSink>,
     our_source_url: Option<String>,
+    #[cfg(target_os = "android")]
+    last_cast_request_scale_width: Option<u32>,
+    #[cfg(target_os = "android")]
+    last_cast_request_scale_height: Option<u32>,
+    #[cfg(target_os = "android")]
+    last_cast_request_max_framerate: Option<u32>,
 }
 
 
@@ -600,8 +614,15 @@ impl Application {
             current_device_id: 0,
             local_address: None,
             android_app,
+            #[cfg(not(target_os = "android"))]
             tx_sink: None,
             our_source_url: None,
+            #[cfg(target_os = "android")]
+            last_cast_request_scale_width: None,
+            #[cfg(target_os = "android")]
+            last_cast_request_scale_height: None,
+            #[cfg(target_os = "android")]
+            last_cast_request_max_framerate: None,
         })
     }
 
@@ -681,10 +702,15 @@ impl Application {
     }
 
     async fn stop_cast(&mut self, stop_playback: bool) -> Result<()> {
+        #[cfg(target_os = "android")]
+        set_capture_active(false);
+
         let android_app = self.android_app.clone();
         self.ui_weak.upgrade_in_event_loop(move |_| {
             call_java_method_no_args(&android_app, JavaMethod::StopCapture);
         })?;
+
+        self.our_source_url = None;
 
         if let Some(active_device) = self.active_device.take() {
             tokio::spawn(async move {
@@ -702,6 +728,19 @@ impl Application {
             });
         }
 
+        #[cfg(target_os = "android")]
+        {
+            let _ = crate::migration::runtime::handle_command(crate::migration::Command::Disconnect {
+                link_id: CAST_LINK_ID.into(),
+            });
+            for id in [CAST_SOURCE_ID, CAST_DESTINATION_ID] {
+                let _ = crate::migration::runtime::handle_command(crate::migration::Command::Remove {
+                    id: id.into(),
+                });
+            }
+        }
+
+        #[cfg(not(target_os = "android"))]
         if let Some(mut tx_sink) = self.tx_sink.take() {
             tx_sink.shutdown();
         }
@@ -765,11 +804,8 @@ impl Application {
                     fcast_sender_sdk::IpAddr::V6 { .. } => bound_port_v6,
                 };
 
-                let (content_type, url) = self
-                    .tx_sink
-                    .as_ref()
-                    .unwrap()
-                    .get_play_msg(addr.into(), bound_port);
+                let (content_type, url) =
+                    mcore::transmission::build_whep_play_msg(addr.into(), bound_port);
 
                 debug!(content_type, url, "Sending play message");
                 self.our_source_url = Some(url.clone());
@@ -822,7 +858,12 @@ impl Application {
                             }
                         }
                         DeviceEvent::SourceChanged(new_source) => {
-                            if self.tx_sink.is_some() {
+                            #[cfg(target_os = "android")]
+                            let should_monitor_source = self.our_source_url.is_some();
+                            #[cfg(not(target_os = "android"))]
+                            let should_monitor_source = self.tx_sink.is_some();
+
+                            if should_monitor_source {
                                 if let fcast_sender_sdk::device::Source::Url { ref url, .. } = new_source {
                                     if Some(url) != self.our_source_url.as_ref() {
                                         // At this point the receiver has stopped playing our stream
@@ -875,80 +916,84 @@ impl Application {
             #[cfg(target_os = "android")]
             Event::CaptureStarted => {
                 set_capture_active(true);
-                let appsrc = gst_app::AppSrc::builder()
-                    .caps(
-                        &gst_video::VideoCapsBuilder::new()
-                            .format(gst_video::VideoFormat::I420)
-                            // .framerate(gst::Fraction::new(0, 1))
-                            .build(),
-                    )
-                    .is_live(true)
-                    .do_timestamp(true)
-                    .format(gst::Format::Time)
-                    .max_buffers(1)
-                    .build();
+                self.our_source_url = None;
 
-                let mut caps = None::<gst::Caps>;
-                appsrc.set_callbacks(
-                    gst_app::AppSrcCallbacks::builder()
-                        .need_data(move |appsrc, _| {
-                            let frame = {
-                                let (lock, cvar) = &*FRAME_PAIR;
-                                let mut frame = lock.lock();
-                                while (*frame).is_none()
-                                    && CAPTURE_ACTIVE.load(Ordering::SeqCst)
+                let scale_width = self.last_cast_request_scale_width.unwrap_or(1280);
+                let scale_height = self.last_cast_request_scale_height.unwrap_or(720);
+                let fps = self.last_cast_request_max_framerate.unwrap_or(30);
+
+                let commands = [
+                    crate::migration::Command::CreateScreenCaptureSource {
+                        id: CAST_SOURCE_ID.into(),
+                        width: scale_width,
+                        height: scale_height,
+                        fps,
+                    },
+                    crate::migration::Command::CreateDestination {
+                        id: CAST_DESTINATION_ID.into(),
+                        family: crate::migration::DestinationFamily::Whep { server_port: 0 },
+                        audio: false,
+                        video: true,
+                    },
+                    crate::migration::Command::Connect {
+                        link_id: CAST_LINK_ID.into(),
+                        src_id: CAST_SOURCE_ID.into(),
+                        sink_id: CAST_DESTINATION_ID.into(),
+                        audio: false,
+                        video: true,
+                        config: None,
+                    },
+                    crate::migration::Command::Start {
+                        id: CAST_DESTINATION_ID.into(),
+                        cue_time: None,
+                        end_time: None,
+                    },
+                    crate::migration::Command::Start {
+                        id: CAST_SOURCE_ID.into(),
+                        cue_time: None,
+                        end_time: None,
+                    },
+                ];
+
+                for command in commands {
+                    if let crate::migration::CommandResult::Error(err) =
+                        crate::migration::runtime::handle_command(command)
+                    {
+                        error!(?err, "Failed to build unified cast graph");
+                        self.stop_cast(false).await?;
+                        return Ok(ShouldQuit::No);
+                    }
+                }
+
+                let event_tx = self.event_tx.clone();
+                tokio::spawn(async move {
+                    for _ in 0..200 {
+                        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                        let info = crate::migration::runtime::handle_command(
+                            crate::migration::Command::GetInfo {
+                                id: Some(CAST_DESTINATION_ID.into()),
+                            },
+                        );
+
+                        if let crate::migration::CommandResult::Info(snapshot) = info {
+                            if let Some(crate::migration::NodeInfo::Destination(destination)) =
+                                snapshot.nodes.get(CAST_DESTINATION_ID)
+                            {
+                                if let (Some(bound_port_v4), Some(bound_port_v6)) =
+                                    (destination.bound_port_v4, destination.bound_port_v6)
                                 {
-                                    cvar.wait_for(&mut frame, std::time::Duration::from_millis(100));
-                                }
-                                (*frame).take()
-                            };
-                            let Some(frame) = frame else {
-                                if !CAPTURE_ACTIVE.load(Ordering::SeqCst) {
-                                    let _ = appsrc.end_of_stream();
-                                }
-                                return;
-                            };
-
-                            use gst_video::prelude::*;
-
-                            let now_caps = gst_video::VideoInfo::builder(
-                                frame.format(),
-                                frame.width(),
-                                frame.height(),
-                            )
-                            .build()
-                            .unwrap()
-                            .to_caps()
-                            .unwrap();
-
-                            match &caps {
-                                Some(old_caps) => {
-                                    if *old_caps != now_caps {
-                                        appsrc.set_caps(Some(&now_caps));
-                                        caps = Some(now_caps);
-                                    }
-                                }
-                                None => {
-                                    appsrc.set_caps(Some(&now_caps));
-                                    caps = Some(now_caps);
+                                    let _ = event_tx.send(Event::SignallerStarted {
+                                        bound_port_v4,
+                                        bound_port_v6,
+                                    });
+                                    return;
                                 }
                             }
+                        }
+                    }
 
-                            let _ = appsrc.push_buffer(frame.into_buffer());
-                        })
-                        .build(),
-                );
-
-                let source_config = SourceConfig::Video(mcore::VideoSource::Source(appsrc));
-
-                self.tx_sink = Some(mcore::transmission::WhepSink::new(
-                    source_config,
-                    self.event_tx.clone(),
-                    tokio::runtime::Handle::current(),
-                    1920,
-                    1080,
-                    30,
-                )?);
+                    error!("WHEP destination did not publish bound ports within 20s");
+                });
 
                 let _receiver_name = self.active_device.as_ref().map(|d| d.name()).unwrap_or_default();
                 let _encoder_name = "Hardware"; // Blocked by P0-1: Placeholder until encoder selection works
@@ -966,6 +1011,10 @@ impl Application {
                 scale_height,
                 max_framerate,
             } => {
+                self.last_cast_request_scale_width = Some(scale_width);
+                self.last_cast_request_scale_height = Some(scale_height);
+                self.last_cast_request_max_framerate = Some(max_framerate);
+
                 let android_app = self.android_app.clone();
                 self.ui_weak.upgrade_in_event_loop(move |ui| {
                     let vm = unsafe {
