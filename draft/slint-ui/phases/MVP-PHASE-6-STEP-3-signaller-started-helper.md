@@ -51,16 +51,19 @@ Two reasons:
    just to call a URL-builder. The whole point of PHASE-6 is to
    delete `WhepSink` usage on Android.
 2. Free function = no implicit `self.state` dependency. The URL is
-   `http://<addr>:<port>/endpoint` + `application/sdp` content type
+   `http://<addr>:<port>/endpoint` + `application/x-whep` content type
    — none of `WhepSink`'s state (`local_address`, `pipeline`,
    `tx_sink`) influences it.
 
-### 1.3 Why content-type is `application/sdp` (not `application/sdp+offer` etc.)
+### 1.3 Why content-type is `application/x-whep`
 
-WHEP per the IETF draft (`draft-ietf-wish-whep-04`) defines the
-content type as `application/sdp` for the initial POST. The
-`WhepSink` legacy implementation already hardcodes this string —
-keep it identical.
+The FCast `Play.container` field uses `application/x-whep` to tell
+the receiver that the URL is a WHEP endpoint. This is an
+application-level convention — not the IETF WHEP content-type
+(`application/sdp`, which is the receiver→server SDP POST type).
+The `WhepSink` legacy implementation hardcodes `application/x-whep`;
+the rcore receiver dispatches WHEP playback only when the container
+matches this string. **Keep it identical.**
 
 ---
 
@@ -86,7 +89,7 @@ use std::net::IpAddr;
 pub fn build_whep_play_msg(addr: IpAddr, bound_port: u16) -> (String, String) {
     let host = addr_to_url_string(addr);
     let url = format!("http://{host}:{bound_port}/endpoint");
-    ("application/sdp".to_string(), url)
+    ("application/x-whep".to_string(), url)
 }
 ```
 
@@ -179,7 +182,7 @@ fn build_whep_play_msg_emits_correct_shape() {
         Ipv4Addr::new(192, 168, 1, 50).into(),
         40123,
     );
-    assert_eq!(ct, "application/sdp");
+    assert_eq!(ct, "application/x-whep");
     assert_eq!(url, "http://192.168.1.50:40123/endpoint");
 }
 
@@ -238,11 +241,11 @@ Tempting to put it in a new file like
 `WhepSink`) all reach `mcore::transmission`. Keeping the helper
 there minimises import churn.
 
-### P5 — `application/sdp` is hardcoded both places
+### P5 — `application/x-whep` is hardcoded both places
 
 Don't accidentally extract it to a `const` named
 `WHEP_CONTENT_TYPE` — the legacy `WhepSink::get_play_msg` writes
-the literal `"application/sdp"` inline. Diff churn outweighs the
+the literal `"application/x-whep"` inline. Diff churn outweighs the
 "avoid hardcoded string" hygiene.
 
 ---

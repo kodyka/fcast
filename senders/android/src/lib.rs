@@ -993,6 +993,7 @@ impl Application {
                     }
 
                     error!("WHEP destination did not publish bound ports within 20s");
+                    let _ = event_tx.send(Event::EndSession);
                 });
 
                 let _receiver_name = self.active_device.as_ref().map(|d| d.name()).unwrap_or_default();
