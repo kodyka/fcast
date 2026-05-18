@@ -63,7 +63,7 @@ Roughly 10 methods on `impl NodeRecord` (lines 28-160):
 | `can_input_audio` | `false` |
 | `can_input_video` | `false` |
 | `to_info` | `node.as_info()` |
-| `set_schedule` | `node.schedule(cue, end)` |
+| `schedule` | `node.schedule(cue, end)` |
 | `stop` | `node.stop()` |
 | `mark_error` | `node.mark_error(m)` |
 | `add_consumer_link` | `node.add_consumer_link(link_id, audio, video)` |
@@ -163,19 +163,19 @@ impl NodeRecord {
         }
     }
 
-    fn set_schedule(
+    fn schedule(
         &mut self,
-        cue: Option<DateTime<Utc>>,
-        end: Option<DateTime<Utc>>,
+        cue_time: Option<DateTime<Utc>>,
+        end_time: Option<DateTime<Utc>>,
     ) -> Result<(), String> {
         match self {
-            Self::Source(node) => node.schedule(cue, end),
-            Self::Destination(node) => node.schedule(cue, end),
-            Self::Mixer(node) => node.schedule(cue, end),
-            Self::VideoGenerator(node) => node.schedule(cue, end),
+            Self::Source(node) => node.schedule(cue_time, end_time),
+            Self::Destination(node) => node.schedule(cue_time, end_time),
+            Self::Mixer(node) => node.schedule(cue_time, end_time),
+            Self::VideoGenerator(node) => node.schedule(cue_time, end_time),
 
             // NEW —
-            Self::ScreenCapture(node) => node.schedule(cue, end),
+            Self::ScreenCapture(node) => node.schedule(cue_time, end_time),
         }
     }
 

@@ -45,7 +45,7 @@ branches.
 | `VideoFrame` struct + `bytes()` / `byte_len()` accessors | `senders/android/src/lib.rs:46-63` |
 | Existing `need-data` consumer (the reference template) | `senders/android/src/lib.rs:1456-1620` |
 | `SourceNode` (structural model for state machine + scheduling) | `senders/android/src/migration/nodes/source.rs:1-300` |
-| `nodes::source::PREROLL_LEAD_TIME_SECONDS` | `nodes/source.rs:13` |
+| `nodes::source::PREROLL_LEAD_TIME_SECONDS` | `nodes/source.rs:7` (`= 10`) |
 | Sibling node modules | `senders/android/src/migration/nodes/destination.rs`, `mixer.rs`, `video_generator.rs` |
 
 ### 1.2 Why one file per node type
@@ -87,7 +87,7 @@ use gst::prelude::*;
 use gst_app::{AppSink, AppSrc};
 use std::collections::BTreeSet;
 
-const PREROLL_LEAD_TIME_SECONDS: i64 = 2;
+const PREROLL_LEAD_TIME_SECONDS: i64 = 10;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScreenCapturePipelineStage {
@@ -188,70 +188,102 @@ impl ScreenCaptureNode {
 
     // ────── private ──────
 
-    fn advance_schedule(&mut self, now: DateTime<Utc>) {
-        // Mirror SourceNode::advance_schedule (nodes/source.rs).
+    fn schedule_transition_due(&self, now: DateTime<Utc>) -> Option<State> {
+        // 1:1 mirror of SourceNode::schedule_transition_due
+        // (nodes/source.rs:433-463). Each call returns the *next* state
+        // the node should occupy given `now`; `advance_schedule` loops
+        // until no further transitions are due.
         //
-        // States:
-        //   Initial → Starting (at cue_time - PREROLL_LEAD_TIME_SECONDS)
-        //   Starting → Started (at cue_time)
-        //   Started → Stopping (at end_time)
-        //   Stopping → Stopped
-        //
-        // Special case: if cue_time is None, transition Initial → Started
-        // on first refresh — useful for smoke-tests that don't bother
-        // scheduling.
-        if self.cue_time.is_none() && self.state == State::Initial {
-            self.state = State::Started;
-            return;
-        }
-
-        if let Some(cue) = self.cue_time {
-            let preroll_at = cue - Duration::seconds(PREROLL_LEAD_TIME_SECONDS);
-            match self.state {
-                State::Initial if now >= preroll_at => self.state = State::Starting,
-                State::Starting if now >= cue => self.state = State::Started,
-                _ => {}
+        // States and triggers:
+        //   Initial   → Starting   (at cue_time - PREROLL_LEAD_TIME_SECONDS)
+        //   Initial   → Started    (immediately, when cue_time is None)
+        //   Starting  → Started    (at cue_time, or immediately when None)
+        //   Started   → Stopping   (at end_time)
+        //   Stopping  → Stopped    (next refresh)
+        match self.state {
+            State::Initial => match self.cue_time {
+                Some(cue) => {
+                    let preroll_at = cue - Duration::seconds(PREROLL_LEAD_TIME_SECONDS);
+                    if now >= preroll_at {
+                        Some(State::Starting)
+                    } else {
+                        None
+                    }
+                }
+                None => Some(State::Started),
+            },
+            State::Starting => {
+                if self.cue_time.is_none_or(|cue| now >= cue) {
+                    Some(State::Started)
+                } else {
+                    None
+                }
             }
-        }
-
-        if let Some(end) = self.end_time {
-            match self.state {
-                State::Started if now >= end => self.state = State::Stopping,
-                State::Stopping => self.state = State::Stopped,
-                _ => {}
+            State::Started => {
+                if self.end_time.is_some_and(|end| now >= end) {
+                    Some(State::Stopping)
+                } else {
+                    None
+                }
             }
+            State::Stopping => Some(State::Stopped),
+            State::Stopped => None,
         }
     }
 
-    fn sync_live_pipeline(&mut self) -> Result<(), String> {
-        let desired_stage = match self.state {
+    fn apply_state_to_stage(&mut self) {
+        self.stage = match self.state {
             State::Initial | State::Stopping | State::Stopped => {
                 ScreenCapturePipelineStage::Idle
             }
             State::Starting => ScreenCapturePipelineStage::Prerolling,
             State::Started => ScreenCapturePipelineStage::Playing,
         };
+    }
 
-        match (self.stage, desired_stage) {
-            (a, b) if a == b => Ok(()),
-            (_, ScreenCapturePipelineStage::Idle) => {
+    fn advance_schedule(&mut self, now: DateTime<Utc>) -> bool {
+        // Loop until `schedule_transition_due` reports `None` so that a
+        // single refresh can collapse a long-overdue chain like
+        // Stopping → Stopped, or (when both cue and end are in the past)
+        // Initial → Starting → Started → Stopping → Stopped without
+        // waiting for multiple refresh ticks.
+        let mut changed = false;
+        while let Some(next_state) = self.schedule_transition_due(now) {
+            if next_state == self.state {
+                break;
+            }
+            self.state = next_state;
+            changed = true;
+        }
+
+        let old_stage = self.stage;
+        self.apply_state_to_stage();
+        changed || old_stage != self.stage
+    }
+
+    fn sync_live_pipeline(&mut self) -> Result<(), String> {
+        // `advance_schedule` already wrote `self.stage` via
+        // `apply_state_to_stage`; this method just drives GStreamer to
+        // match. Reading `self.stage` (instead of recomputing from
+        // `self.state`) avoids duplicating the state→stage mapping.
+        match self.stage {
+            ScreenCapturePipelineStage::Idle => {
                 self.teardown_pipeline();
-                self.stage = ScreenCapturePipelineStage::Idle;
                 Ok(())
             }
-            (_, target) => {
+            ScreenCapturePipelineStage::Prerolling
+            | ScreenCapturePipelineStage::Playing => {
                 self.build_live_pipeline()?;
-                let gst_state = match target {
-                    ScreenCapturePipelineStage::Prerolling => gst::State::Paused,
-                    ScreenCapturePipelineStage::Playing => gst::State::Playing,
-                    ScreenCapturePipelineStage::Idle => unreachable!(),
+                let gst_state = if self.stage == ScreenCapturePipelineStage::Prerolling {
+                    gst::State::Paused
+                } else {
+                    gst::State::Playing
                 };
                 if let Some(p) = &self.live_pipeline {
                     p.pipeline
                         .set_state(gst_state)
                         .map_err(|e| format!("set_state({gst_state:?}) failed: {e}"))?;
                 }
-                self.stage = target;
                 Ok(())
             }
         }
@@ -477,12 +509,15 @@ arm ([Step 5](./MVP-PHASE-4-STEP-5-dispatch-arm.md)).
 
 ### P7 — `cue_time = None` must immediately transition to `Started`
 
-The `advance_schedule` body has a special case at the top: if
-`cue_time` is `None` and `state == Initial`, jump straight to
-`Started`. Forgetting this case means an unscheduled
-`createscreencapturesource` stays in `Initial` forever and never
-spins up the pipeline — `Start` commands won't help either because
-`Start` only sets `cue_time` / `end_time`, not the state directly.
+`schedule_transition_due` returns `Some(State::Started)` directly
+from the `State::Initial` arm when `cue_time` is `None`. Forgetting
+this case (e.g. matching only `Some(cue)` and falling through)
+means an unscheduled `createscreencapturesource` stays in `Initial`
+forever and never spins up the pipeline — `Start` commands won't
+help either because `Start` only sets `cue_time` / `end_time`, not
+the state directly. The `match self.cue_time { Some(cue) => …,
+None => Some(State::Started) }` shape in the snippet above
+encodes this contract.
 
 ---
 
