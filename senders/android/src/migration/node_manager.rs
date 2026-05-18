@@ -1,6 +1,6 @@
 use crate::migration::{
     media_bridge::StreamBridge,
-    nodes::{DestinationNode, MixerNode, SourceNode, VideoGeneratorNode},
+    nodes::{DestinationNode, MixerNode, ScreenCaptureNode, SourceNode, VideoGeneratorNode},
     protocol::{Command, CommandResult, ControlPoint, Info, NodeInfo},
 };
 use chrono::{DateTime, Utc};
@@ -20,6 +20,7 @@ struct LinkRecord {
 #[derive(Debug, Clone)]
 enum NodeRecord {
     Source(SourceNode),
+    ScreenCapture(ScreenCaptureNode),
     Destination(DestinationNode),
     Mixer(MixerNode),
     VideoGenerator(VideoGeneratorNode),
@@ -29,6 +30,7 @@ impl NodeRecord {
     fn can_output_audio(&self) -> bool {
         match self {
             Self::Source(node) => node.audio_enabled,
+            Self::ScreenCapture(_) => false,
             Self::Mixer(node) => node.audio_enabled,
             Self::VideoGenerator(node) => node.audio_enabled,
             Self::Destination(_) => false,
@@ -38,6 +40,7 @@ impl NodeRecord {
     fn can_output_video(&self) -> bool {
         match self {
             Self::Source(node) => node.video_enabled,
+            Self::ScreenCapture(_) => true,
             Self::Mixer(node) => node.video_enabled,
             Self::VideoGenerator(node) => node.video_enabled,
             Self::Destination(_) => false,
@@ -48,7 +51,7 @@ impl NodeRecord {
         match self {
             Self::Destination(node) => node.audio_enabled,
             Self::Mixer(node) => node.audio_enabled,
-            Self::Source(_) | Self::VideoGenerator(_) => false,
+            Self::Source(_) | Self::ScreenCapture(_) | Self::VideoGenerator(_) => false,
         }
     }
 
@@ -56,13 +59,14 @@ impl NodeRecord {
         match self {
             Self::Destination(node) => node.video_enabled,
             Self::Mixer(node) => node.video_enabled,
-            Self::Source(_) | Self::VideoGenerator(_) => false,
+            Self::Source(_) | Self::ScreenCapture(_) | Self::VideoGenerator(_) => false,
         }
     }
 
     fn to_info(&self) -> NodeInfo {
         match self {
             Self::Source(node) => node.as_info(),
+            Self::ScreenCapture(node) => node.as_info(),
             Self::Destination(node) => node.as_info(),
             Self::Mixer(node) => node.as_info(),
             Self::VideoGenerator(node) => node.as_compatible_source_info(),
@@ -76,6 +80,7 @@ impl NodeRecord {
     ) -> Result<(), String> {
         match self {
             Self::Source(node) => node.schedule(cue_time, end_time),
+            Self::ScreenCapture(node) => node.schedule(cue_time, end_time),
             Self::Destination(node) => node.schedule(cue_time, end_time),
             Self::Mixer(node) => node.schedule(cue_time, end_time),
             Self::VideoGenerator(node) => node.schedule(cue_time, end_time),
@@ -85,6 +90,7 @@ impl NodeRecord {
     fn stop(&mut self) {
         match self {
             Self::Source(node) => node.stop(),
+            Self::ScreenCapture(node) => node.stop(),
             Self::Destination(node) => node.stop(),
             Self::Mixer(node) => node.stop(),
             Self::VideoGenerator(node) => node.stop(),
@@ -94,6 +100,7 @@ impl NodeRecord {
     fn mark_error(&mut self, message: String) {
         match self {
             Self::Source(node) => node.mark_error(message),
+            Self::ScreenCapture(node) => node.mark_error(message),
             Self::Destination(node) => node.mark_error(message),
             Self::Mixer(node) => node.mark_error(message),
             Self::VideoGenerator(node) => node.mark_error(message),
@@ -103,6 +110,7 @@ impl NodeRecord {
     fn add_consumer_link(&mut self, link_id: &str, audio: bool, video: bool) {
         match self {
             Self::Source(node) => node.add_consumer_link(link_id, audio, video),
+            Self::ScreenCapture(node) => node.add_consumer_link(link_id, audio, video),
             Self::Mixer(node) => node.connect_output_consumer(link_id, audio, video),
             Self::VideoGenerator(node) => node.add_consumer_link(link_id, audio, video),
             Self::Destination(_) => {}
@@ -112,6 +120,7 @@ impl NodeRecord {
     fn remove_consumer_link(&mut self, link_id: &str) {
         match self {
             Self::Source(node) => node.remove_consumer_link(link_id),
+            Self::ScreenCapture(node) => node.remove_consumer_link(link_id),
             Self::Mixer(node) => node.disconnect_output_consumer(link_id),
             Self::VideoGenerator(node) => node.remove_consumer_link(link_id),
             Self::Destination(_) => {}
@@ -121,6 +130,7 @@ impl NodeRecord {
     fn refresh_runtime(&mut self) {
         let result = match self {
             Self::Source(node) => node.refresh(),
+            Self::ScreenCapture(node) => node.refresh(),
             Self::Destination(node) => node.refresh(),
             Self::Mixer(node) => node.refresh(),
             Self::VideoGenerator(node) => node.refresh(),
@@ -134,6 +144,7 @@ impl NodeRecord {
     fn output_audio_appsink(&self) -> Option<AppSink> {
         match self {
             Self::Source(node) => node.live_audio_appsink(),
+            Self::ScreenCapture(_) => None,
             Self::Mixer(node) => node.live_audio_output_appsink(),
             Self::VideoGenerator(_) | Self::Destination(_) => None,
         }
@@ -142,6 +153,7 @@ impl NodeRecord {
     fn output_video_appsink(&self) -> Option<AppSink> {
         match self {
             Self::Source(node) => node.live_video_appsink(),
+            Self::ScreenCapture(node) => node.live_video_appsink(),
             Self::Mixer(node) => node.live_video_output_appsink(),
             Self::VideoGenerator(node) => node.live_video_appsink(),
             Self::Destination(_) => None,
@@ -152,7 +164,7 @@ impl NodeRecord {
         match self {
             Self::Destination(node) => node.live_audio_appsrc(),
             Self::Mixer(node) => node.live_slot_audio_appsrc(link_id),
-            Self::Source(_) | Self::VideoGenerator(_) => None,
+            Self::Source(_) | Self::ScreenCapture(_) | Self::VideoGenerator(_) => None,
         }
     }
 
@@ -160,7 +172,7 @@ impl NodeRecord {
         match self {
             Self::Destination(node) => node.live_video_appsrc(),
             Self::Mixer(node) => node.live_slot_video_appsrc(link_id),
-            Self::Source(_) | Self::VideoGenerator(_) => None,
+            Self::Source(_) | Self::ScreenCapture(_) | Self::VideoGenerator(_) => None,
         }
     }
 }
@@ -328,6 +340,15 @@ impl NodeManager {
                 audio,
                 video,
             } => (self.create_source(id, uri, audio, video), true),
+            Command::CreateScreenCaptureSource {
+                id,
+                width,
+                height,
+                fps,
+            } => (
+                self.create_screen_capture_source(id, width, height, fps),
+                true,
+            ),
             Command::CreateDestination {
                 id,
                 family,
@@ -433,6 +454,32 @@ impl NodeManager {
         CommandResult::Success
     }
 
+    fn create_screen_capture_source(
+        &mut self,
+        id: String,
+        width: u32,
+        height: u32,
+        fps: u32,
+    ) -> CommandResult {
+        if let Err(err) = self.ensure_unique_id(&id) {
+            return CommandResult::Error(err);
+        }
+        if id.is_empty() {
+            return CommandResult::Error("ScreenCaptureSource requires a non-empty id".to_string());
+        }
+        if width == 0 || height == 0 || fps == 0 {
+            return CommandResult::Error(format!(
+                "ScreenCaptureSource {id} requires non-zero width/height/fps"
+            ));
+        }
+
+        self.nodes.insert(
+            id.clone(),
+            NodeRecord::ScreenCapture(ScreenCaptureNode::new(id, width, height, fps)),
+        );
+        CommandResult::Success
+    }
+
     fn create_destination(
         &mut self,
         id: String,
@@ -521,9 +568,11 @@ impl NodeManager {
             Some(NodeRecord::Mixer(mixer)) => {
                 mixer.connect_input_slot(&link_id, audio, video, config.clone())
             }
-            Some(NodeRecord::Source(_)) | Some(NodeRecord::VideoGenerator(_)) => {
-                Err(format!("Node {sink_id} is not a consumer"))
-            }
+            Some(
+                NodeRecord::Source(_)
+                | NodeRecord::ScreenCapture(_)
+                | NodeRecord::VideoGenerator(_),
+            ) => Err(format!("Node {sink_id} is not a consumer")),
             None => Err(format!("No consumer with id {sink_id}")),
         };
 
@@ -563,7 +612,9 @@ impl NodeManager {
             match sink {
                 NodeRecord::Destination(dest) => dest.disconnect_input(link_id),
                 NodeRecord::Mixer(mixer) => mixer.disconnect_input_slot(link_id),
-                NodeRecord::Source(_) | NodeRecord::VideoGenerator(_) => {}
+                NodeRecord::Source(_)
+                | NodeRecord::ScreenCapture(_)
+                | NodeRecord::VideoGenerator(_) => {}
             }
         }
 
@@ -722,7 +773,7 @@ impl NodeManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::migration::protocol::{Command, ControlMode, DestinationFamily};
+    use crate::migration::protocol::{Command, ControlMode, DestinationFamily, State};
     use chrono::Duration;
     use serde_json::json;
 
@@ -870,6 +921,118 @@ mod tests {
             }),
             "No setting with name bad",
         );
+    }
+
+    #[test]
+    fn create_screen_capture_source_succeeds() {
+        let mut manager = started_manager();
+
+        assert!(matches!(
+            manager.dispatch(Command::CreateScreenCaptureSource {
+                id: "cap-1".to_string(),
+                width: 1280,
+                height: 720,
+                fps: 30,
+            }),
+            CommandResult::Success
+        ));
+
+        match manager.nodes.get("cap-1") {
+            Some(NodeRecord::ScreenCapture(node)) => {
+                assert_eq!(node.id, "cap-1");
+                assert_eq!(node.width, 1280);
+                assert_eq!(node.height, 720);
+                assert_eq!(node.fps, 30);
+                assert_eq!(node.state, State::Started);
+            }
+            other => panic!("expected NodeRecord::ScreenCapture, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn screen_capture_source_validates_dimensions() {
+        let mut manager = started_manager();
+
+        for (width, height, fps, label) in [
+            (0u32, 720u32, 30u32, "zero width"),
+            (1280u32, 0u32, 30u32, "zero height"),
+            (1280u32, 720u32, 0u32, "zero fps"),
+        ] {
+            expect_error(
+                manager.dispatch(Command::CreateScreenCaptureSource {
+                    id: format!("cap-{label}"),
+                    width,
+                    height,
+                    fps,
+                }),
+                "requires non-zero width/height/fps",
+            );
+        }
+    }
+
+    #[test]
+    fn screen_capture_source_rejects_duplicate_id() {
+        let mut manager = started_manager();
+        let make_command = || Command::CreateScreenCaptureSource {
+            id: "cap-1".to_string(),
+            width: 1280,
+            height: 720,
+            fps: 30,
+        };
+
+        assert!(matches!(
+            manager.dispatch(make_command()),
+            CommandResult::Success
+        ));
+        expect_error(
+            manager.dispatch(make_command()),
+            "already exists with id cap-1",
+        );
+    }
+
+    #[test]
+    fn screen_capture_source_appears_in_get_info() {
+        let mut manager = started_manager();
+        assert!(matches!(
+            manager.dispatch(Command::CreateScreenCaptureSource {
+                id: "cap-1".to_string(),
+                width: 1280,
+                height: 720,
+                fps: 30,
+            }),
+            CommandResult::Success
+        ));
+
+        let result = manager.dispatch(Command::GetInfo { id: None });
+        match result {
+            CommandResult::Info(info) => match info.nodes.get("cap-1") {
+                Some(NodeInfo::Source(source)) => {
+                    assert_eq!(source.uri, "screen://1280x720@30fps");
+                    assert_eq!(source.state, State::Started);
+                    assert_eq!(source.audio_consumer_slot_ids, None);
+                }
+                other => panic!("expected NodeInfo::Source, got {other:?}"),
+            },
+            other => panic!("expected CommandResult::Info, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn screen_capture_source_uses_serde_defaults_via_dispatch() {
+        let cmd: Command =
+            serde_json::from_str(r#"{"createscreencapturesource":{"id":"cap-default"}}"#).unwrap();
+
+        let mut manager = started_manager();
+        assert!(matches!(manager.dispatch(cmd), CommandResult::Success));
+
+        match manager.nodes.get("cap-default") {
+            Some(NodeRecord::ScreenCapture(node)) => {
+                assert_eq!(node.width, 1280);
+                assert_eq!(node.height, 720);
+                assert_eq!(node.fps, 30);
+            }
+            other => panic!("expected NodeRecord::ScreenCapture, got {other:?}"),
+        }
     }
 
     #[test]
