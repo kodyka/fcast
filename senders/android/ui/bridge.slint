@@ -247,6 +247,11 @@ export global Bridge {
     callback exit-lifecycle();
     callback set-wifi-aware(bool);
 
+    // ── Migration-runtime callbacks (MVP-PHASE-9) ───────────────────────
+    callback start-migration-server(string); // (bind-addr)
+    callback run-migration-test(string); // (test-id: "getinfo" | "crossfade" | "smoke")
+    callback stop-migration-server();
+
     // ── Public functions (callable from Slint) ───────────────────────────
     public function change-state(to: AppState) {
         Bridge.app-state = to;
