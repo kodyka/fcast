@@ -142,8 +142,9 @@ export struct NetworkInterface {
 
 export global Bridge {
     // ── Data properties (Rust → Slint) ──────────────────────────────────
-    in property <[string]> devices: [
-        // "Device 1", "Device 2",
+    in property <[ReceiverItem]> devices: [
+        // { id: "Device 1", name: "Device 1", address: "...", ip: "...",
+        //   port: 46899, kind: "fcast", is-default: false },
     ];
     // ── Status overlay (Phase 8 / Cluster A1) ───────────────────────────
     in property <[StatusItem]> status-items: [];

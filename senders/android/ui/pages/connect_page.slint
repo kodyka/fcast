@@ -56,10 +56,10 @@ export component ConnectView inherits Rectangle {
                     running: parent.lp-armed;
                     triggered => {
                         parent.lp-armed = false;
-                        // MVP: Bridge.devices is [string]. We don't have a stable id yet
-                        // (see MVP-PHASE-7). Use the receiver name for both fields.
-                        root.context-receiver-id = device;
-                        root.context-receiver-name = device;
+                        // Long press captures the stable receiver id for actions
+                        // and the display name for the context menu title.
+                        root.context-receiver-id = device.id;
+                        root.context-receiver-name = device.name;
                         root.context-menu-y = (parent.height * idx) + 100px;
                         root.show-context-menu = true;
                     }
@@ -73,7 +73,7 @@ export component ConnectView inherits Rectangle {
                         }
                     }
                     clicked => {
-                        Bridge.connect-receiver(device);
+                        Bridge.connect-receiver(device.id);
                     }
                     Rectangle {
                         width: parent.width - 10px;
@@ -84,14 +84,19 @@ export component ConnectView inherits Rectangle {
                             padding-left: Theme.padding-screen;
                             padding-right: Theme.padding-screen;
                             alignment: center;
+                            spacing: 2px;
                             Text {
-                                text: device;
+                                text: device.name;
                                 color: Theme.text-primary;
                                 font-size: Theme.font-size-body;
                                 overflow: elide;
                             }
-                            // Secondary address row removed: Bridge.devices is [string].
-                            // Restored in MVP-PHASE-7 once promoted to [ReceiverItem].
+                            Text {
+                                text: device.address;
+                                color: Theme.text-secondary;
+                                font-size: Theme.font-size-label;
+                                overflow: elide;
+                            }
                         }
                     }
                 }
