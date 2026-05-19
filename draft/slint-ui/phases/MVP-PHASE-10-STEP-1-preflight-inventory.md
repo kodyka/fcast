@@ -47,6 +47,16 @@ git rev-parse HEAD              # → record this; STEP-3 uses it
 git log --oneline -1            # → human-readable record
 ```
 
+**Recommended floor:** pin the extraction SHA at or after
+`d8ff886` (merge of PR #46, the PHASE-9 bridge-decoupling
+implementation, on 2026-05-19). At that commit, the Bridge
+exposes the three migration-runtime callbacks at
+`bridge.slint:251-253` and the four debug quick-actions in
+`lib.rs:2108-2126` route through Bridge. Pinning earlier still
+works, but the new repo then inherits the legacy direct-call
+wiring and you'll spend time in STEP-7 §3.5 hunting where the
+quick-actions actually go.
+
 ### 1.2 Tools needed
 
 - `git` (any version that supports `git ls-files`).

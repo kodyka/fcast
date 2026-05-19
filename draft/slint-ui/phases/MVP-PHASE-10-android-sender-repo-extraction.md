@@ -13,8 +13,17 @@
 > - [`MVP-PHASE-10-STEP-9-cross-repo-sync.md`](./MVP-PHASE-10-STEP-9-cross-repo-sync.md)
 >
 > **Doc-only.** Snippets and commands are illustrative — running the
-> commands in §2 makes a real repo split. Land the PHASE-9 PR first
-> (recommended; not strictly required).
+> commands in §2 makes a real repo split.
+>
+> **PHASE-9 status:** the implementation merged to `master` at
+> commit `b394eea` (PR #46, merged via `d8ff886`). The Bridge
+> callbacks (`start-migration-server` / `run-migration-test` /
+> `stop-migration-server`) and the lazy `start_graph_runtime()`
+> wiring are now in `master`; STEP-7 §3.5 references the live
+> `bridge.slint:251-253` and `lib.rs:2136-2185` instead of "after
+> PHASE-9 lands". STEP-1 §1.1 recommends pinning the extraction SHA
+> at or after `d8ff886` so the new repo inherits the clean Bridge
+> contract on day one.
 
 ---
 
@@ -416,20 +425,29 @@ of keeping them as Git deps.
 
 ## 7. Dependencies on prior phases
 
-- **PHASE-9** (UI ↔ runtime decoupling) is **recommended** before
-  PHASE-10. It shrinks the Bridge ↔ runtime contract to the three
-  callbacks introduced in STEP-1/2 of PHASE-9. With PHASE-9 in
-  place, the post-split repos have a small, explicit, public
-  contract (the Bridge callbacks); without PHASE-9, the runtime is
-  still reachable via direct function calls from the UI's debug
-  quick-actions, which makes "did I extract everything?" harder to
-  audit.
+- **PHASE-9** (UI ↔ runtime decoupling) — **merged to `master` on
+  2026-05-19** at commit `b394eea` (PR #46, merge commit
+  `d8ff886`). The Bridge ↔ runtime contract is now the three
+  callbacks at `bridge.slint:251-253`, wired in `lib.rs:2136-2185`,
+  with lazy `start_graph_runtime()` ensure-calls at `lib.rs:191`
+  (the Bridge `start-migration-server` handler), `lib.rs:955`
+  (`Event::CaptureStarted`) and `lib.rs:2240` (the
+  `nativeProcessGraphCommandJson` JNI hook).
 
-  **Strictly required?** No — PHASE-10 doesn't depend on PHASE-9's
-  Bridge callbacks at compile time. But you'll spend less time in
-  §3.3 confirming the four debug quick-actions still work if their
-  invocations are routed through Bridge (which is repo-local) rather
-  than through the SDK crates (which are Git deps).
+  This means PHASE-10 starts from a state where the migration
+  runtime is **already** behind a small, explicit, public contract
+  (three callbacks, one `Bridge.test-status` property). STEP-7
+  §3.5 exercises this contract end-to-end as a regression check;
+  no further work on the Bridge contract is needed in PHASE-10
+  itself.
+
+  STEP-1 §1.1 recommends pinning the extraction SHA at or after
+  `d8ff886` so the new repo inherits this state on day one. Pinning
+  at an earlier SHA (pre-PHASE-9) still works, but the new repo's
+  debug quick-actions then carry the legacy direct-call wiring and
+  "did I extract everything?" is harder to audit — PHASE-9 makes
+  that question physically trivial because the four debug-action
+  call sites in `lib.rs:2108-2126` route only through `Bridge`.
 
 - **PHASE-1 through PHASE-8** are **independent** of PHASE-10. They
   ship in `kodyka/fcast` and are "stuck" wherever PHASE-10 leaves

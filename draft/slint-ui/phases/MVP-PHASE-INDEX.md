@@ -105,9 +105,11 @@ post-MVP.
   `Event::CaptureStarted` exist). Purely structural — no behaviour
   change. Defer indefinitely if the debug surface is fine as-is.
 - **Phase 10** is the only phase that **moves code between
-  repositories**. Recommended (but not required) to land
-  PHASE-9 first so the new repo inherits a clean Bridge ↔ runtime
-  contract. Two-repo PR pair; irreversible-ish (see PHASE-10 §0.2).
+  repositories**. PHASE-9 (the prerequisite for a clean Bridge ↔
+  runtime contract) **merged to `master` on 2026-05-19** at commit
+  `b394eea` (PR #46), so the new repo can pin the extraction SHA at
+  or after `d8ff886` and inherit the small public contract on day
+  one. Two-repo PR pair; irreversible-ish (see PHASE-10 §0.2).
   Defer indefinitely if the monorepo cadence is fine as-is.
  
 ---

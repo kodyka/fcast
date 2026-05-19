@@ -168,7 +168,21 @@ rewritten incorrectly in STEP-5.
 ### 3.5 PHASE-9 debug quick-actions
 
 In a debug build (the `assembleDebug` APK), the four debug
-quick-actions are visible in `QuickActionsPage`. Tap each:
+quick-actions are visible in `QuickActionsPage`. They route
+through the Bridge callbacks landed by PHASE-9 (merged to
+`master` at `b394eea` / `d8ff886`):
+
+- Quick-action call sites: `lib.rs:2108-2126`
+  (`invoke_start_migration_server` / `invoke_run_migration_test`).
+- Bridge handlers: `lib.rs:2136-2185`
+  (`on_start_migration_server` / `on_run_migration_test` /
+  `on_stop_migration_server`).
+- Lazy `start_graph_runtime()` ensure-calls: `lib.rs:191` (Bridge
+  handler entry), `lib.rs:955` (`Event::CaptureStarted`),
+  `lib.rs:2240` (`nativeProcessGraphCommandJson` JNI hook).
+- Bridge callback declarations: `bridge.slint:251-253`.
+
+Tap each and check the displayed `Bridge.test-status` value:
 
 | Quick action | Expected `Bridge.test-status` value |
 |---|---|
