@@ -519,6 +519,47 @@ mod tests {
     }
 
     #[test]
+    fn start_graph_runtime_is_idempotent() {
+        let _guard = test_guard();
+        let _ = shutdown_graph_runtime();
+        std::env::remove_var(GRAPH_COMMAND_BIND_ENV);
+
+        let first = start_graph_runtime();
+        assert!(first.is_ok(), "first start_graph_runtime() failed: {first:?}");
+
+        let second = start_graph_runtime();
+        assert!(second.is_ok(), "second start_graph_runtime() failed: {second:?}");
+
+        shutdown_graph_runtime().unwrap();
+    }
+
+    #[test]
+    fn shutdown_on_never_started_is_noop() {
+        let _guard = test_guard();
+        let _ = shutdown_graph_runtime();
+        std::env::remove_var(GRAPH_COMMAND_BIND_ENV);
+
+        let result = shutdown_graph_runtime();
+        assert!(
+            result.is_ok(),
+            "shutdown_graph_runtime() on never-started failed: {result:?}"
+        );
+    }
+
+    #[test]
+    fn start_then_shutdown_then_start_works() {
+        let _guard = test_guard();
+        let _ = shutdown_graph_runtime();
+        std::env::remove_var(GRAPH_COMMAND_BIND_ENV);
+
+        start_graph_runtime().expect("start 1 failed");
+        shutdown_graph_runtime().expect("shutdown failed");
+        start_graph_runtime().expect("start 2 failed");
+
+        shutdown_graph_runtime().unwrap();
+    }
+
+    #[test]
     fn command_endpoint_bind_env_trims_and_filters_empty_values() {
         let _guard = test_guard();
 

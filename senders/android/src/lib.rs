@@ -497,6 +497,15 @@ fn log_ui_test_status(test_name: &'static str, status: &str) {
     }
 }
 
+fn migration_test_log_name(test_id: &str) -> &'static str {
+    match test_id {
+        "getinfo" => "legacy-getinfo",
+        "crossfade" => "legacy-crossfade",
+        "smoke" => "graph-smoke",
+        _ => "unknown",
+    }
+}
+
 #[derive(Debug)]
 enum JavaMethod {
     StopCapture,
@@ -943,6 +952,12 @@ impl Application {
                 set_capture_active(true);
                 self.our_source_url = None;
 
+                if let Err(err) = crate::migration::runtime::start_graph_runtime() {
+                    error!(?err, "Failed to start migrated graph runtime");
+                    self.stop_cast(false).await?;
+                    return Ok(ShouldQuit::No);
+                }
+
                 let scale_width = self.last_cast_request_scale_width.unwrap_or(1280);
                 let scale_height = self.last_cast_request_scale_height.unwrap_or(720);
                 let fps = self.last_cast_request_max_framerate.unwrap_or(30);
@@ -1107,9 +1122,8 @@ impl Application {
         ensure_gstreamer_initialized()
             .map_err(|err| anyhow::anyhow!("Failed to initialize GStreamer: {err}"))?;
         debug!("GStreamer version: {:?}", gst::version());
-        if let Err(err) = crate::migration::runtime::start_graph_runtime() {
-            error!(?err, "Failed to start migrated graph runtime");
-        }
+        // PHASE-9: start the migration runtime on demand at its call sites.
+        // `shutdown_graph_runtime()` below remains safe if nothing started it.
 
         // self.add_or_update_device(fcast_sender_sdk::device::DeviceInfo::fcast("Localhost for android emulator".to_owned(), vec![fcast_sender_sdk::IpAddr::v4(10, 0, 2, 2)], 46899))?;
 
@@ -2089,46 +2103,92 @@ fn android_main(app: PlatformApp) {
                     call_java_method_no_args(&app_clone, JavaMethod::ScanQr);
                 }
                 "migrated-server" => {
-                    let status = match start_migrated_command_server(LEGACY_COMMAND_BIND_ADDR) {
-                        Ok(message) => format!("PASS {message}"),
-                        Err(err) => format!("FAIL {err}"),
-                    };
-                    log_ui_test_status("start-migrated-server", &status);
-                    let _ = ui_weak.upgrade_in_event_loop(move |ui| {
-                        ui.global::<Bridge>().set_test_status(status.into());
+                    let _ = ui_weak.upgrade_in_event_loop(|ui| {
+                        ui.global::<Bridge>()
+                            .invoke_start_migration_server(LEGACY_COMMAND_BIND_ADDR.into());
                     });
                 }
                 "test-getinfo" => {
-                    let _ = ui_weak.upgrade_in_event_loop(|ui| ui.global::<Bridge>().set_test_status("Running legacy getinfo test...".into()));
-                    let ui_weak_clone = ui_weak.clone();
-                    std::thread::spawn(move || {
-                        let status = run_legacy_http_getinfo_test(LEGACY_COMMAND_BIND_ADDR);
-                        log_ui_test_status("legacy-getinfo", &status);
-                        let _ = ui_weak_clone.upgrade_in_event_loop(move |ui| ui.global::<Bridge>().set_test_status(status.into()));
+                    let _ = ui_weak.upgrade_in_event_loop(|ui| {
+                        ui.global::<Bridge>()
+                            .invoke_run_migration_test("getinfo".into());
                     });
                 }
                 "test-crossfade" => {
-                    let _ = ui_weak.upgrade_in_event_loop(|ui| ui.global::<Bridge>().set_test_status("Running legacy crossfade test...".into()));
-                    let ui_weak_clone = ui_weak.clone();
-                    std::thread::spawn(move || {
-                        let status = run_legacy_http_crossfade_test(LEGACY_COMMAND_BIND_ADDR);
-                        log_ui_test_status("legacy-crossfade", &status);
-                        let _ = ui_weak_clone.upgrade_in_event_loop(move |ui| ui.global::<Bridge>().set_test_status(status.into()));
+                    let _ = ui_weak.upgrade_in_event_loop(|ui| {
+                        ui.global::<Bridge>()
+                            .invoke_run_migration_test("crossfade".into());
                     });
                 }
                 "test-smoke" => {
-                    let _ = ui_weak.upgrade_in_event_loop(|ui| ui.global::<Bridge>().set_test_status("Running graph smoke test...".into()));
-                    let ui_weak_clone = ui_weak.clone();
-                    std::thread::spawn(move || {
-                        let status = run_graph_smoke_test();
-                        log_ui_test_status("graph-smoke", &status);
-                        let _ = ui_weak_clone.upgrade_in_event_loop(move |ui| ui.global::<Bridge>().set_test_status(status.into()));
+                    let _ = ui_weak.upgrade_in_event_loop(|ui| {
+                        ui.global::<Bridge>()
+                            .invoke_run_migration_test("smoke".into());
                     });
                 }
                 _ => {}
             }
         }
     });
+
+    #[cfg(debug_assertions)]
+    {
+        ui.global::<Bridge>().on_start_migration_server({
+            let ui_weak = ui.as_weak();
+            move |bind_addr| {
+                let status = match start_migrated_command_server(bind_addr.as_str()) {
+                    Ok(message) => format!("PASS {message}"),
+                    Err(err) => format!("FAIL {err}"),
+                };
+                log_ui_test_status("start-migration-server", &status);
+                let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                    ui.global::<Bridge>().set_test_status(status.into());
+                });
+            }
+        });
+
+        ui.global::<Bridge>().on_run_migration_test({
+            let ui_weak = ui.as_weak();
+            move |test_id| {
+                let test_id = test_id.to_string();
+                let _ = ui_weak.upgrade_in_event_loop({
+                    let test_id = test_id.clone();
+                    move |ui| {
+                        ui.global::<Bridge>().set_test_status(
+                            format!("Running migration test '{test_id}'...").into(),
+                        );
+                    }
+                });
+                let ui_weak_clone = ui_weak.clone();
+                std::thread::spawn(move || {
+                    let status = match test_id.as_str() {
+                        "getinfo" => run_legacy_http_getinfo_test(LEGACY_COMMAND_BIND_ADDR),
+                        "crossfade" => run_legacy_http_crossfade_test(LEGACY_COMMAND_BIND_ADDR),
+                        "smoke" => run_graph_smoke_test(),
+                        other => format!("FAIL unknown migration-test id: {other}"),
+                    };
+                    log_ui_test_status(migration_test_log_name(&test_id), &status);
+                    let _ = ui_weak_clone.upgrade_in_event_loop(move |ui| {
+                        ui.global::<Bridge>().set_test_status(status.into());
+                    });
+                });
+            }
+        });
+
+        ui.global::<Bridge>().on_stop_migration_server({
+            let ui_weak = ui.as_weak();
+            move || {
+                let status = match crate::migration::runtime::shutdown_graph_runtime() {
+                    Ok(()) => "PASS migration server stopped".to_string(),
+                    Err(err) => format!("FAIL migration server stop: {err}"),
+                };
+                log_ui_test_status("stop-migration-server", &status);
+                let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                    ui.global::<Bridge>().set_test_status(status.into());
+                });
+            }
+        });
+    }
 
 
 
@@ -2177,6 +2237,10 @@ pub extern "C" fn Java_org_fcast_android_sender_MainActivity_nativeGraphCommand<
     _class: jni::objects::JClass<'local>,
     command_json: jni::objects::JString<'local>,
 ) -> jni::sys::jstring {
+    if let Err(err) = crate::migration::runtime::start_graph_runtime() {
+        error!(?err, "Failed to start migrated graph runtime from JNI hook");
+    }
+
     let response = match jstring_to_string(&mut env, &command_json) {
         Ok(json) => crate::migration::runtime::try_handle_command_json(&json),
         Err(err) => {
@@ -2537,5 +2601,37 @@ pub extern "C" fn Java_org_fcast_android_sender_MainActivity_nativeQrScanResult<
             "Failed to send device removed event"
         ),
         Err(err) => error!(?err, "Failed to convert jstring to string"),
+    }
+}
+
+#[cfg(test)]
+mod phase9_dispatch_tests {
+    use super::migration_test_log_name;
+
+    #[test]
+    fn migration_test_log_name_known_ids() {
+        assert_eq!(migration_test_log_name("getinfo"), "legacy-getinfo");
+        assert_eq!(migration_test_log_name("crossfade"), "legacy-crossfade");
+        assert_eq!(migration_test_log_name("smoke"), "graph-smoke");
+    }
+
+    #[test]
+    fn migration_test_log_name_unknown_id() {
+        assert_eq!(migration_test_log_name(""), "unknown");
+        assert_eq!(migration_test_log_name("bogus"), "unknown");
+        assert_eq!(migration_test_log_name("GetInfo"), "unknown");
+    }
+
+    #[test]
+    fn migration_test_id_count_invariant() {
+        const KNOWN: &[&str] = &["getinfo", "crossfade", "smoke"];
+
+        for id in KNOWN {
+            assert_ne!(
+                migration_test_log_name(id),
+                "unknown",
+                "test id {id} should be in the dispatch table"
+            );
+        }
     }
 }
