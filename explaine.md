@@ -1,17 +1,18 @@
-# Android Sender Migration (`senders/android/src/migration`) — Step-by-Step Explanation
+# Android Sender Migration Runtime — Step-by-Step Explanation
 
 This document explains how the migrated Android sender flow works, in practical order, from an incoming command to live media routing.
 
 ## 1) Entry points and module layout
 
-The migration lives under:
+The migration lived under the Android sender crate before the phase-10 repo extraction.
+It now lives in the standalone `fcast-android-sender` repository under:
 
-- `senders/android/src/migration/protocol.rs` — wire protocol types (commands/results/info)
-- `senders/android/src/migration/messages.rs` — internal message payload structs/enums
-- `senders/android/src/migration/runtime.rs` — JSON + HTTP command ingress, runtime lifecycle
-- `senders/android/src/migration/node_manager.rs` — command dispatch and graph bookkeeping
-- `senders/android/src/migration/media_bridge.rs` — producer→consumer media fan-out bridge
-- `senders/android/src/migration/nodes/` — node implementations:
+- `src/migration/protocol.rs` — wire protocol types (commands/results/info)
+- `src/migration/messages.rs` — internal message payload structs/enums
+- `src/migration/runtime.rs` — JSON + HTTP command ingress, runtime lifecycle
+- `src/migration/node_manager.rs` — command dispatch and graph bookkeeping
+- `src/migration/media_bridge.rs` — producer→consumer media fan-out bridge
+- `src/migration/nodes/` — node implementations:
   - `source.rs`
   - `destination.rs`
   - `mixer.rs`
