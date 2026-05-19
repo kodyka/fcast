@@ -77,6 +77,19 @@ post-MVP.
   │       callbacks; makes runtime startup on-demand; gates         │
   │       the debug handlers behind #[cfg(debug_assertions)].       │
   └────────────────────────────────────────────────────────────────┘
+
+  ┌────────────────────────────────────────────────────────────────┐
+  │ Optional — repo extraction (Tier 3 architectural)              │
+  │                                                                 │
+  │   MVP-PHASE-10 (android-sender repo extraction)                 │
+  │     — moves senders/android/ out of kodyka/fcast into a new     │
+  │       standalone repo (working name fcast-android-sender);      │
+  │       pulls the SDK crates as Git deps. Independent release    │
+  │       cadence; smaller checkout; faster monorepo CI.            │
+  │     — touches two repos; the only phase that does.              │
+  │     — irreversible-ish; recommend after PHASE-9 stabilises      │
+  │       the UI ↔ runtime contract.                                │
+  └────────────────────────────────────────────────────────────────┘
 ```
  
 - **Phase 1** is the only thing that *must* ship for MVP.
@@ -91,6 +104,11 @@ post-MVP.
   cast loop being live, so the lazy-start ensure-call sites at
   `Event::CaptureStarted` exist). Purely structural — no behaviour
   change. Defer indefinitely if the debug surface is fine as-is.
+- **Phase 10** is the only phase that **moves code between
+  repositories**. Recommended (but not required) to land
+  PHASE-9 first so the new repo inherits a clean Bridge ↔ runtime
+  contract. Two-repo PR pair; irreversible-ish (see PHASE-10 §0.2).
+  Defer indefinitely if the monorepo cadence is fine as-is.
  
 ---
  
@@ -146,6 +164,16 @@ post-MVP.
 | 9.4 | `MVP-PHASE-9-STEP-4-lazy-runtime-start.md` | Delete unconditional `start_graph_runtime()` at `lib.rs:1110`; add ensure-start calls at `Event::CaptureStarted` and `nativeProcessGraphCommandJson`. | ~5 lines deleted + ~6 lines added | 🟡 |
 | 9.5 | `MVP-PHASE-9-STEP-5-debug-cfg-separation.md` | **Optional.** Gate the Step-2 registrations with `#[cfg(debug_assertions)]`; optionally extract to a `mod debug_quickactions` submodule. | ~3 lines (inline) or ~70 lines (submodule) | 🟢 |
 | 9.6 | `MVP-PHASE-9-STEP-6-unit-tests.md` | 6 host-runnable unit tests: dispatch-table mapping, idempotent start/shutdown, round-trip. | ~80 lines of tests | 🟢 |
+| 10 | `MVP-PHASE-10-android-sender-repo-extraction.md` (+ 9 STEP files — see below) | Extract `senders/android/` from `kodyka/fcast` into a new standalone repo `fcast-android-sender`. The four SDK crates stay in the monorepo and are pulled in as Git deps with the `path` subspec. **Optional / Tier 3 architectural.** Two-repo change; irreversible-ish. | 0 functional lines; ~few-hundred file moves + Cargo.toml rewrites + CI duplication across two repos | 🟠 |
+| 10.1 | `MVP-PHASE-10-STEP-1-preflight-inventory.md` | Inventory: file count, path-dep audit, Slint cross-tree audit, build.rs env audit, strategy decision (default: Git dep with subpath). **Analysis-only.** | 0 lines (doc only) | 🟢 |
+| 10.2 | `MVP-PHASE-10-STEP-2-bootstrap-new-repo.md` | Create the new GitHub repo, `cp -a senders/android/.` into it, add LICENSE / .gitignore / README skeleton, first commit + tag. | ~few-hundred file moves + 3 new files | 🟢 |
+| 10.3 | `MVP-PHASE-10-STEP-3-resolve-path-deps.md` | Rewrite the three `path = ...` deps (`fcast-protocol`, `fcast-sender-sdk`, `mcore`) to `{ git = "https://github.com/kodyka/fcast", rev = "<SHA>", path = "sdk/..." }`. | ~6 Cargo.toml lines | 🟡 |
+| 10.4 | `MVP-PHASE-10-STEP-4-standalone-cargo-toml.md` | Inline every `workspace = true` reference with explicit version + features (14 deps + 1 build-dep). Copy `[profile.release]` from monorepo. Decide single-crate vs one-member workspace. | ~30 Cargo.toml lines | 🟡 |
+| 10.5 | `MVP-PHASE-10-STEP-5-vendor-slint-helpers.md` | Vendor `sdk/mirroring_core/ui/common.slint` + `senders/ui-components/*` into the new repo's `ui/components/` tree. Rewrite two import paths at the edges. **Correction vs the research: the UI is NOT fully self-contained.** | ~5-20 Slint files + 2 import-path rewrites | 🟡 |
+| 10.6 | `MVP-PHASE-10-STEP-6-ci-gradle-buildrs.md` | Adapt GitHub Actions workflow (replace `cargo xtask android download-*` with inline `curl`/`tar`); optionally Gitlab CI; verify Dockerfile + Gradle wrapper + `ci/ui-validate.sh` paths; document NDK / GStreamer env. | ~100 CI lines + doc | 🟡 |
+| 10.7 | `MVP-PHASE-10-STEP-7-first-build-verification.md` | First end-to-end build & smoke: `cargo +nightly check`, `cargo build --release`, `./gradlew assembleDebug`, install on device, exercise PHASE-9 quick-actions, end-to-end cast. **Last safety net before STEP-8.** | 0 lines (verification only) | 🟡 |
+| 10.8 | `MVP-PHASE-10-STEP-8-remove-from-monorepo.md` | Delete `senders/android/` from `kodyka/fcast`, drop duplicate workspace member, drop `.gitlab-ci.yml` include, delete (or rewire) the `android-release-apk.yml` GHA workflow, update README link. **Irreversible-ish; one commit, one PR.** | ~few-hundred file deletions + 3 Cargo.toml lines + 2 CI files | 🟠 |
+| 10.9 | `MVP-PHASE-10-STEP-9-cross-repo-sync.md` | Document the long-term workflow: SDK pin bump cadence (weekly), PR-pair procedure, re-vendoring Slint helpers, release-blocking regression playbook. Add `docs/cross-repo-sync.md` to the new repo. | ~250 lines of docs | 🟢 |
  
 Risk legend: 🟢 trivial, 🟡 medium, 🟠 architectural.
  
