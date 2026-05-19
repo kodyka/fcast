@@ -23,7 +23,16 @@
           };
           gst = pkgs.gst_all_1;
           lib = pkgs.lib;
-          rustToolchain = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default);
+          rustToolchain = pkgs.rust-bin.selectLatestNightlyWith (toolchain:
+            toolchain.default.override {
+              targets = [
+                "aarch64-linux-android"
+                "armv7-linux-androideabi"
+                "x86_64-linux-android"
+                "i686-linux-android"
+              ];
+            }
+          );
           rustPlatform = pkgs.makeRustPlatform {
             cargo = rustToolchain;
             rustc = rustToolchain;
@@ -35,6 +44,7 @@
             gst.gst-plugins-bad
             gst.gst-plugins-ugly
             gst.gst-libav
+            pkgs.dav1d
             pkgs.openssl
             pkgs.glib
             pkgs.pango
@@ -97,6 +107,7 @@
               gst.gst-plugins-bad
               gst.gst-plugins-ugly
               gst.gst-libav
+              dav1d
             ] ++ linuxGuiDeps;
 
             LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";

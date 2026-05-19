@@ -26,6 +26,5 @@ include:
   - local: 'receivers/webos/.gitlab-ci.yml'
   - local: 'receivers/tizen/.gitlab-ci.yml'
   - local: 'sdk/sender/.gitlab-ci.yml'
-  - local: 'senders/android/.gitlab-ci.yml'
   - local: 'senders/desktop/.gitlab-ci.yml'
   - local: 'website/.gitlab-ci.yml'
