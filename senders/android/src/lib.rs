@@ -683,12 +683,37 @@ impl Application {
             .devices
             .iter()
             .filter(|(_, info)| !info.addresses.is_empty() && info.port != 0)
-            .map(|(name, _)| slint::SharedString::from(name))
-            .collect::<Vec<slint::SharedString>>();
+            .map(|(name, info)| {
+                let first_addr = info
+                    .addresses
+                    .first()
+                    .map(|addr| addr.to_string())
+                    .unwrap_or_default();
+                let address = match info.addresses.first() {
+                    Some(fcast_sender_sdk::IpAddr::V6 { .. }) => {
+                        format!("[{first_addr}]:{}", info.port)
+                    }
+                    Some(_) => format!("{first_addr}:{}", info.port),
+                    None => String::new(),
+                };
+                let kind = match info.protocol {
+                    device::ProtocolType::FCast => "fcast",
+                };
+
+                ReceiverItem {
+                    id: name.clone().into(),
+                    name: name.clone().into(),
+                    address: address.into(),
+                    ip: first_addr.into(),
+                    port: i32::from(info.port),
+                    kind: kind.into(),
+                    is_default: false,
+                }
+            })
+            .collect::<Vec<ReceiverItem>>();
         self.ui_weak.upgrade_in_event_loop(move |ui| {
-            let model = std::rc::Rc::new(slint::VecModel::<slint::SharedString>::from_iter(
-                receivers.into_iter(),
-            ));
+            let model =
+                std::rc::Rc::new(slint::VecModel::<ReceiverItem>::from_iter(receivers.into_iter()));
             ui.global::<Bridge>().set_devices(model.into());
         })?;
 
