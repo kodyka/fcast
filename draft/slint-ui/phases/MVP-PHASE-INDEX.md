@@ -68,6 +68,15 @@ post-MVP.
   │     — extends DestinationFamily with Srt; mirrors the Udp arm   │
   │       in nodes/destination.rs::build_live_pipeline.             │
   └────────────────────────────────────────────────────────────────┘
+
+  ┌────────────────────────────────────────────────────────────────┐
+  │ Optional — UI ↔ migration-runtime decoupling (Tier 2.2)        │
+  │                                                                 │
+  │   MVP-PHASE-9 (debug-bridge decoupling)                         │
+  │     — routes the four debug quick-actions through new Bridge   │
+  │       callbacks; makes runtime startup on-demand; gates         │
+  │       the debug handlers behind #[cfg(debug_assertions)].       │
+  └────────────────────────────────────────────────────────────────┘
 ```
  
 - **Phase 1** is the only thing that *must* ship for MVP.
@@ -78,6 +87,10 @@ post-MVP.
 - **Phase 8** is optional and independent of every other phase. It can
   ship any time after Phase 3 (which establishes the migration-runtime
   smoke infrastructure used by its on-device verification).
+- **Phase 9** is post-PHASE-6 polish (depends on the graph-command
+  cast loop being live, so the lazy-start ensure-call sites at
+  `Event::CaptureStarted` exist). Purely structural — no behaviour
+  change. Defer indefinitely if the debug surface is fine as-is.
  
 ---
  
@@ -126,6 +139,13 @@ post-MVP.
 | 8.4 | `MVP-PHASE-8-STEP-4-android-makefile.md` | Add `srt` to `GSTREAMER_PLUGINS` in `senders/android/app/jni/Android.mk`. **Mandatory for any on-device test.** | 1 line | 🟢 |
 | 8.5 | `MVP-PHASE-8-STEP-5-unit-tests.md` | ~12 host-runnable unit tests (no GStreamer init required). | ~150 lines of tests | 🟢 |
 | 8.6 | `MVP-PHASE-8-STEP-6-source-side.md` | Documentation: SRT sources already work via `uridecodebin` + Step 4. No `SourceNode` change. | 1 test | 🟢 |
+| 9 | `MVP-PHASE-9-debug-bridge-decoupling.md` (+ 6 STEP files — see below) | Route the four debug quick-actions (`migrated-server`, `test-getinfo`, `test-crossfade`, `test-smoke`) through new `Bridge` callbacks instead of direct `migration::runtime::*` calls inside `on_invoke_action`. Make `start_graph_runtime()` on-demand instead of unconditional at `lib.rs:1110`. Optional `#[cfg(debug_assertions)]` separation. **Optional / Tier 2.2 polish.** | ~80-120 lines, 2-3 edited files | 🟢 |
+| 9.1 | `MVP-PHASE-9-STEP-1-bridge-callbacks.md` | Add 3 new callbacks to `bridge.slint`: `start-migration-server(string)`, `run-migration-test(string)`, `stop-migration-server()`. | ~3 Slint lines | 🟢 |
+| 9.2 | `MVP-PHASE-9-STEP-2-rust-handlers.md` | Register `on_start_migration_server` / `on_run_migration_test` / `on_stop_migration_server` handlers delegating to existing free functions. **Largest step.** | ~60 Rust lines | 🟢 |
+| 9.3 | `MVP-PHASE-9-STEP-3-quick-actions-rewrite.md` | Rewrite the four `on_invoke_action` debug branches to invoke the new Bridge callbacks. | ~25 lines (~deletions) | 🟢 |
+| 9.4 | `MVP-PHASE-9-STEP-4-lazy-runtime-start.md` | Delete unconditional `start_graph_runtime()` at `lib.rs:1110`; add ensure-start calls at `Event::CaptureStarted` and `nativeProcessGraphCommandJson`. | ~5 lines deleted + ~6 lines added | 🟡 |
+| 9.5 | `MVP-PHASE-9-STEP-5-debug-cfg-separation.md` | **Optional.** Gate the Step-2 registrations with `#[cfg(debug_assertions)]`; optionally extract to a `mod debug_quickactions` submodule. | ~3 lines (inline) or ~70 lines (submodule) | 🟢 |
+| 9.6 | `MVP-PHASE-9-STEP-6-unit-tests.md` | 6 host-runnable unit tests: dispatch-table mapping, idempotent start/shutdown, round-trip. | ~80 lines of tests | 🟢 |
  
 Risk legend: 🟢 trivial, 🟡 medium, 🟠 architectural.
  
