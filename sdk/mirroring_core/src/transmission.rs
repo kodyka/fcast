@@ -31,7 +31,7 @@ fn addr_to_url_string(addr: IpAddr) -> String {
 pub fn build_whep_play_msg(addr: IpAddr, bound_port: u16) -> (String, String) {
     let host = addr_to_url_string(addr);
     let url = format!("http://{host}:{bound_port}/endpoint");
-    ("application/sdp".to_string(), url)
+    ("application/x-whep".to_string(), url)
 }
 
 #[cfg(target_os = "linux")]
@@ -668,7 +668,7 @@ mod tests {
     #[test]
     fn build_whep_play_msg_emits_correct_shape() {
         let (ct, url) = build_whep_play_msg(Ipv4Addr::new(192, 168, 1, 50).into(), 40123);
-        assert_eq!(ct, "application/sdp");
+        assert_eq!(ct, "application/x-whep");
         assert_eq!(url, "http://192.168.1.50:40123/endpoint");
     }
 
